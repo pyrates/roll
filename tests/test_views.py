@@ -1,7 +1,8 @@
 import pytest
 
+pytestmark = pytest.mark.asyncio
 
-@pytest.mark.asyncio
+
 async def test_simple_get_request(req, app):
 
     @app.route('/test')
@@ -13,7 +14,6 @@ async def test_simple_get_request(req, app):
     assert resp.body == 'test response'
 
 
-@pytest.mark.asyncio
 async def test_simple_non_200_response(req, app):
 
     @app.route('/test')
@@ -25,7 +25,6 @@ async def test_simple_non_200_response(req, app):
     assert resp.body == b''
 
 
-@pytest.mark.asyncio
 async def test_not_found_path(req, app):
 
     @app.route('/test')
@@ -36,7 +35,6 @@ async def test_not_found_path(req, app):
     assert resp.status == b'404 Not Found'
 
 
-@pytest.mark.asyncio
 async def test_invalid_method(req, app):
 
     @app.route('/test', methods=['GET'])
