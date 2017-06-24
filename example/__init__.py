@@ -1,5 +1,5 @@
 from roll import Roll
-from roll.plugins import cors, logger
+from roll.extensions import cors, logger
 
 app = Roll()
 cors(app)

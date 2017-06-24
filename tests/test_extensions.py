@@ -1,12 +1,12 @@
 import pytest
 
-from roll import plugins
+from roll import extensions
 
 
 @pytest.mark.asyncio
 async def test_cors(req,  app):
 
-    plugins.cors(app)
+    extensions.cors(app)
 
     @app.route('/test')
     async def get(req):
@@ -21,7 +21,7 @@ async def test_cors(req,  app):
 @pytest.mark.asyncio
 async def test_custom_cors(req, app):
 
-    plugins.cors(app, value='mydomain.org')
+    extensions.cors(app, value='mydomain.org')
 
     @app.route('/test')
     async def get(req):
@@ -34,7 +34,7 @@ async def test_custom_cors(req, app):
 @pytest.mark.asyncio
 async def test_logger(req, app, capsys):
 
-    plugins.logger(app)
+    extensions.logger(app)
 
     @app.route('/test')
     async def get(req):
