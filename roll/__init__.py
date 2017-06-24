@@ -61,7 +61,7 @@ class Roll:
 
     async def startup(self):
         self.connections = {}  # Used by Gunicorn worker.
-        await self.fire('startup')
+        await self.hook('startup')
 
     async def shutdown(self):
         pass
@@ -80,7 +80,7 @@ class Roll:
         self.write(writer, resp)
 
     async def respond(self, req):
-        resp = await self.fire('request', request=req)
+        resp = await self.hook('request', request=req)
         if not resp:
             try:
                 # Both can raise an HttpError.
@@ -92,7 +92,7 @@ class Roll:
                 # Allow views to only return body.
                 resp = (resp,)
             resp = Response(*resp)
-        resp = await self.fire('response', response=resp, request=req) or resp
+        resp = await self.hook('response', response=resp, request=req) or resp
         if not isinstance(resp, Response):
             resp = Response(*resp)
         return resp
@@ -147,7 +147,7 @@ class Roll:
             self.hooks[name].append(func)
         return wrapper
 
-    async def fire(self, name, **kwargs):
+    async def hook(self, name, **kwargs):
         try:
             for func in self.hooks[name]:
                 result = await func(**kwargs)
