@@ -98,12 +98,16 @@ class Roll:
         return resp
 
     def serve(self, port=3579, host='0.0.0.0'):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.startup())
+        self.loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self.startup())
         print("Rolling on %s:%d" % (host, port))
-        loop.create_task(asyncio.start_server(self, host, port))
-        loop.run_forever()
-        loop.close()
+        self.loop.create_task(asyncio.start_server(self, host, port))
+        try:
+            self.loop.run_forever()
+        except KeyboardInterrupt:
+            print('Bye.')
+        finally:
+            self.loop.close()
 
     def write(self, writer, resp):
         writer.write(b'HTTP/1.1 %b\r\n' % resp.status)
