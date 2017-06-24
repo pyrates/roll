@@ -2,8 +2,9 @@ import pytest
 
 from roll import extensions
 
+pytestmark = pytest.mark.asyncio
 
-@pytest.mark.asyncio
+
 async def test_cors(req,  app):
 
     extensions.cors(app)
@@ -18,7 +19,6 @@ async def test_cors(req,  app):
     assert resp.headers['Allow-Cross-Origin'] == '*'
 
 
-@pytest.mark.asyncio
 async def test_custom_cors(req, app):
 
     extensions.cors(app, value='mydomain.org')
@@ -31,7 +31,6 @@ async def test_custom_cors(req, app):
     assert resp.headers['Allow-Cross-Origin'] == 'mydomain.org'
 
 
-@pytest.mark.asyncio
 async def test_logger(req, app, capsys):
 
     extensions.logger(app)

@@ -5,6 +5,8 @@ from urllib.parse import parse_qs
 from httptools import parse_url, HttpRequestParser
 from kua.routes import Routes, RouteError
 
+from .extensions import options
+
 
 class HttpError(Exception):
     ...
@@ -55,6 +57,7 @@ class Roll:
     def __init__(self):
         self.routes = Routes()
         self.hooks = {}
+        options(self)
 
     async def startup(self):
         self.connections = {}  # Used by Gunicorn worker.
@@ -79,15 +82,12 @@ class Roll:
     async def respond(self, req):
         resp = await self.fire('request', request=req)
         if not resp:
-            if req.method == 'OPTIONS':
-                resp = b'', 200
-            else:
-                try:
-                    # Both can return an HttpError.
-                    params, handler = self.dispatch(req)
-                    resp = await handler(req, **params)
-                except HttpError as e:
-                    resp = e.args[::-1]  # Allow to raise HttpError(status)
+            try:
+                # Both can raise an HttpError.
+                params, handler = self.dispatch(req)
+                resp = await handler(req, **params)
+            except HttpError as e:
+                resp = e.args[::-1]  # Allow to raise HttpError(status)
             if not isinstance(resp, (tuple, Response)):
                 # Allow views to only return body.
                 resp = (resp,)
@@ -150,7 +150,9 @@ class Roll:
     async def fire(self, name, **kwargs):
         try:
             for func in self.hooks[name]:
-                await func(**kwargs)
+                result = await func(**kwargs)
+                if result is not None:
+                    return result
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
             pass

@@ -18,3 +18,11 @@ def logger(app, level=logging.DEBUG, handler=None):
     @app.listen('request')
     async def log_request(request):
         logger.info("{} {}".format(request.method, request.path))
+
+
+def options(app):
+
+    @app.listen('request')
+    async def serve_request(request):
+        if request.method == 'OPTIONS':
+            return b'', 200
