@@ -1,4 +1,4 @@
-"Async pico server that rolls!"
+"Async pico server that rolls."
 import glob
 import sys
 from codecs import open  # To use a consistent encoding

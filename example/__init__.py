@@ -1,8 +1,9 @@
 from roll import Roll
-from roll.plugins import cors
+from roll.plugins import cors, logger
 
 app = Roll()
 cors(app)
+logger(app)
 
 
 @app.route('/')
@@ -13,11 +14,6 @@ async def home(req):
 @app.listen('startup')
 async def on_startup():
     print("Let's Roll!")
-
-
-@app.listen('request')
-async def log_request(request):
-    print("Served request…", request.method, request.path)
 
 
 if __name__ == '__main__':

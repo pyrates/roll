@@ -29,3 +29,17 @@ async def test_custom_cors(req, app):
 
     resp = await req('/test')
     assert resp.headers['Allow-Cross-Origin'] == 'mydomain.org'
+
+
+@pytest.mark.asyncio
+async def test_logger(req, app, capsys):
+
+    plugins.logger(app)
+
+    @app.route('/test')
+    async def get(req):
+        return 'test response'
+
+    await req('/test')
+    _, err = capsys.readouterr()
+    assert err == 'GET /test\n'
