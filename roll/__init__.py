@@ -34,7 +34,7 @@ class Response:
 
     __slots__ = ('_status', 'headers', 'body')
 
-    def __init__(self, body=b'', status=200, headers=None):
+    def __init__(self, body=b'', status=HTTPStatus.OK.value, headers=None):
         self._status = None
         self.body = body
         self.status = status
