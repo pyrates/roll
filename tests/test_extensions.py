@@ -16,7 +16,7 @@ async def test_cors(req,  app):
     resp = await req('/test')
     assert resp.status == b'200 OK'
     assert resp.body == 'test response'
-    assert resp.headers['Allow-Cross-Origin'] == '*'
+    assert resp.headers['Access-Control-Allow-Origin'] == '*'
 
 
 async def test_custom_cors(req, app):
@@ -28,7 +28,7 @@ async def test_custom_cors(req, app):
         return 'test response'
 
     resp = await req('/test')
-    assert resp.headers['Allow-Cross-Origin'] == 'mydomain.org'
+    assert resp.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
 
 
 async def test_logger(req, app, capsys):

@@ -5,7 +5,7 @@ def cors(app, value='*'):
 
     @app.listen('response')
     async def add_cors_headers(response, request):
-        response.headers['Allow-Cross-Origin'] = value
+        response.headers['Access-Control-Allow-Origin'] = value
 
 
 def logger(app, level=logging.DEBUG, handler=None):
