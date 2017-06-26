@@ -100,7 +100,7 @@ class Roll:
     def serve(self, port=3579, host='0.0.0.0'):
         self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.startup())
-        print("Rolling on %s:%d" % (host, port))
+        print("Rolling on http://%s:%d" % (host, port))
         self.loop.create_task(asyncio.start_server(self, host, port))
         try:
             self.loop.run_forever()
