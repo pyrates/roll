@@ -13,7 +13,8 @@ async def home(req):
 
 @app.listen('startup')
 async def on_startup():
-    print("Let's Roll!")
+    # Because https://www.youtube.com/watch?v=hh9rUe_JARE
+    print("Ready to roll out!")
 
 
 if __name__ == '__main__':
