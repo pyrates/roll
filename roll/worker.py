@@ -60,6 +60,5 @@ class Worker(Worker):
 
         except BaseException as e:
             print(e)
-            pass
 
         await self.close()
