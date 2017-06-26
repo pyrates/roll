@@ -2,6 +2,9 @@
 
 Let's roll.
 
+# Philosophy
+
+Make it small to make it big.
 
 ## Install
 
@@ -19,7 +22,6 @@ Let's roll.
         return 'something'
 
 
-
 ## Run
 
-    gunicorn path.to.your:app -b 0.0.0.0:3579 -k utilery.worker.Worker -w 4
+    gunicorn path.to.your:app -b 0.0.0.0:3579 -k roll.worker.Worker -w 4
