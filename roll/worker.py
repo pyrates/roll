@@ -21,6 +21,7 @@ class Worker(Worker):
         super().init_process()
 
     def run(self):
+        self.wsgi.loop = self.loop
         self.loop.run_until_complete(self.wsgi.startup())
         try:
             self.loop.run_until_complete(self._run())
