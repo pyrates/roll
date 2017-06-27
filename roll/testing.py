@@ -4,7 +4,9 @@ from . import Request
 
 
 @pytest.fixture
-def req(app):
+def req(app, event_loop):
+    app.loop = event_loop
+    app.loop.run_until_complete(app.startup())
 
     async def _(path, method='GET'):
         req = Request()
