@@ -1,5 +1,11 @@
+import asyncio
+
+import uvloop
+
 from roll import Roll
 from roll.extensions import cors, logger
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 app = Roll()
 cors(app)

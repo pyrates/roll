@@ -52,19 +52,16 @@ class Response:
 
 class Roll:
 
-    requests_count = 0  # Needed by Gunicorn worker.
-
     def __init__(self):
         self.routes = Routes()
         self.hooks = {}
         options(self)
 
     async def startup(self):
-        self.connections = {}  # Used by Gunicorn worker.
         await self.hook('startup')
 
     async def shutdown(self):
-        pass
+        await self.hook('shutdown')
 
     async def __call__(self, reader, writer):
         chunks = 2 ** 16
@@ -108,6 +105,7 @@ class Roll:
             print('Bye.')
         finally:
             self.loop.close()
+            self.loop.run_until_complete(self.shutdown())
 
     def write(self, writer, resp):
         writer.write(b'HTTP/1.1 %b\r\n' % resp.status)
