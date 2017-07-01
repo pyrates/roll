@@ -104,8 +104,8 @@ class Roll:
         except KeyboardInterrupt:
             print('Bye.')
         finally:
-            self.loop.close()
             self.loop.run_until_complete(self.shutdown())
+            self.loop.close()
 
     def write(self, writer, resp):
         writer.write(b'HTTP/1.1 %b\r\n' % resp.status)
