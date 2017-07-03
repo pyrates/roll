@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from roll import extensions
@@ -42,3 +44,31 @@ async def test_logger(req, app, capsys):
     await req('/test')
     _, err = capsys.readouterr()
     assert err == 'GET /test\n'
+
+
+async def test_json_with_default_code(req, app, capsys):
+
+    extensions.logger(app)
+
+    @app.route('/test')
+    async def get(req):
+        return extensions.json(key='value')
+
+    resp = await req('/test')
+    assert resp.headers['Content-Type'] == 'application/json'
+    assert json.loads(resp.body) == {'key': 'value'}
+    assert resp.status == b'200 OK'
+
+
+async def test_json_with_custom_code(req, app, capsys):
+
+    extensions.logger(app)
+
+    @app.route('/test')
+    async def get(req):
+        return extensions.json(400, key='value')
+
+    resp = await req('/test')
+    assert resp.headers['Content-Type'] == 'application/json'
+    assert json.loads(resp.body) == {'key': 'value'}
+    assert resp.status == b'400 Bad Request'

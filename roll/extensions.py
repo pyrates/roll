@@ -1,5 +1,10 @@
 import logging
 
+try:
+    import ujson as json_
+except ImportError:
+    import json as json_
+
 
 def cors(app, value='*'):
 
@@ -26,3 +31,7 @@ def options(app):
     async def serve_request(request):
         if request.method == 'OPTIONS':
             return b'', 200
+
+
+def json(code=200, **kwargs):
+    return (json_.dumps(kwargs), code, {'Content-Type': 'application/json'})
