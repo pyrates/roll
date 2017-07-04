@@ -84,7 +84,10 @@ class Roll:
                 params, handler = self.dispatch(req)
                 resp = await handler(req, **params)
             except HttpError as e:
+                # TODO: allow to customize HttpError response formatting.
                 resp = e.args[::-1]  # Allow to raise HttpError(status)
+            except Exception as e:
+                resp = str(e).encode(), 500
             if not isinstance(resp, (tuple, Response)):
                 # Allow views to only return body.
                 resp = (resp,)
