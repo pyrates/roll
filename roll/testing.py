@@ -10,7 +10,7 @@ def req(app, event_loop):
 
     async def _(path, method='GET'):
         req = Request()
-        req.path = path
+        req.on_url(path.encode())
         req.method = method
         return await app.respond(req)
 
