@@ -131,6 +131,7 @@ class Roll:
 
         def wrapper(func):
             self.routes.add(path, {m: func for m in methods})
+            return func
 
         return wrapper
 
