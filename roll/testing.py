@@ -3,7 +3,7 @@ import pytest
 from . import Request
 
 
-@pytest.fixture
+@pytest.yield_fixture
 def req(app, event_loop):
     app.loop = event_loop
     app.loop.run_until_complete(app.startup())
@@ -14,4 +14,6 @@ def req(app, event_loop):
         req.method = method
         return await app.respond(req)
 
-    return _
+    yield _
+
+    app.loop.run_until_complete(app.shutdown())
