@@ -9,6 +9,15 @@ from kua.routes import Routes, RouteError
 from .extensions import options
 
 
+def ensure_response(resp):
+    if not isinstance(resp, (tuple, Response)):
+        # Allow views to only return body.
+        resp = (resp,)
+    if not isinstance(resp, Response):
+        resp = Response(*resp)
+    return resp
+
+
 class HttpError(Exception):
     ...
 
@@ -90,14 +99,9 @@ class Roll:
             except Exception as e:
                 traceback.print_exc()
                 resp = str(e).encode(), 500
-            if not isinstance(resp, (tuple, Response)):
-                # Allow views to only return body.
-                resp = (resp,)
-            resp = Response(*resp)
+        resp = ensure_response(resp)
         resp = await self.hook('response', response=resp, request=req) or resp
-        if not isinstance(resp, Response):
-            resp = Response(*resp)
-        return resp
+        return ensure_response(resp)
 
     def serve(self, port=3579, host='0.0.0.0'):
         self.loop = asyncio.get_event_loop()
