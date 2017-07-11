@@ -1,5 +1,6 @@
 import asyncio
 from http import HTTPStatus
+import traceback
 from urllib.parse import parse_qs
 
 from httptools import parse_url, HttpRequestParser
@@ -87,6 +88,7 @@ class Roll:
                 # TODO: allow to customize HttpError response formatting.
                 resp = e.args[::-1]  # Allow to raise HttpError(status)
             except Exception as e:
+                traceback.print_exc()
                 resp = str(e).encode(), 500
             if not isinstance(resp, (tuple, Response)):
                 # Allow views to only return body.
