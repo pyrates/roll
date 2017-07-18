@@ -30,9 +30,9 @@ class Worker(Worker):
             server = self.server
             self.server = None
             self.log.info("Stopping server: %s", self.pid)
-            server.close()
-            await server.wait_closed()
             await self.wsgi.shutdown()
+            await server.wait_closed()
+            server.close()
 
     async def _run(self):
         self.server = await asyncio.start_server(self.wsgi,
@@ -47,7 +47,7 @@ class Worker(Worker):
                     break
                 await asyncio.sleep(1.0, loop=self.loop)
 
-        except BaseException as e:
+        except Exception as e:
             print(e)
 
         await self.close()
