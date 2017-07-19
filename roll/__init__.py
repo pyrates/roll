@@ -145,7 +145,7 @@ class Roll:
         except RouteError:
             raise HttpError(404, req.path)
         if req.method not in handlers:
-            raise HttpError(405, HTTPStatus(405))
+            raise HttpError(405, HTTPStatus(405).phrase)
         req.kwargs.update(params)
         return params, handlers[req.method]
 
