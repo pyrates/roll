@@ -1,7 +1,8 @@
 import asyncio
 import os
-import uvloop
+import socket
 import sys
+import uvloop
 
 from gunicorn.workers.base import Worker
 
@@ -35,8 +36,12 @@ class Worker(Worker):
             server.close()
 
     async def _run(self):
-        self.server = await asyncio.start_server(self.wsgi,
-                                                 sock=self.sockets[0].sock)
+        sock = self.sockets[0]
+        if hasattr(socket, 'AF_UNIX') and sock.family == socket.AF_UNIX:
+            self.server = await asyncio.start_unix_server(self.wsgi,
+                                                          sock=sock.sock)
+        else:
+            self.server = await asyncio.start_server(self.wsgi, sock=sock.sock)
 
         pid = os.getpid()
         try:
