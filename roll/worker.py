@@ -11,8 +11,8 @@ class Worker(Worker):
 
     def init_process(self):
         self.server = None
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         asyncio.get_event_loop().close()
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         super().init_process()
@@ -37,11 +37,13 @@ class Worker(Worker):
 
     async def _run(self):
         sock = self.sockets[0]
+        # Pass loop to workaround python 3.5 issue.
+        # See https://framagit.org/drone/roll/issues/1.
+        kwargs = dict(sock=sock.sock, loop=self.loop)
         if hasattr(socket, 'AF_UNIX') and sock.family == socket.AF_UNIX:
-            self.server = await asyncio.start_unix_server(self.wsgi,
-                                                          sock=sock.sock)
+            self.server = await asyncio.start_unix_server(self.wsgi, **kwargs)
         else:
-            self.server = await asyncio.start_server(self.wsgi, sock=sock.sock)
+            self.server = await asyncio.start_server(self.wsgi, **kwargs)
 
         pid = os.getpid()
         try:
