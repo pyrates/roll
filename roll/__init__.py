@@ -20,19 +20,12 @@ def ensure_response(resp):
 
 class HttpError(Exception):
     """Subclasses must have a `response` attribute."""
+    __slots__ = ('code', 'message', 'response')
 
     def __init__(self, code, message=None):
         self.status = HTTPStatus(code)
         self.message = message or self.status.phrase
         self.response = Response(self.message, self.status)
-
-    def __getattr__(self, key):
-        if key == 'response' and 'response' not in self.__dict__.keys():
-            # TODO: not sure how to handle that warning.
-            print('Subclasses of HttpError MUST have a `response` attribute.')
-            return HttpError(HTTPStatus.INTERNAL_SERVER_ERROR).response
-        else:
-            super().__getattr__(key)
 
 
 class Request:
@@ -107,7 +100,10 @@ class Roll:
                 params, handler = self.dispatch(req)
                 resp = await handler(req, **params)
             except HttpError as e:
-                resp = e.response
+                try:
+                    resp = e.response
+                except AttributeError:  # Custom HttpError subclass.
+                    resp = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR).response
             except Exception as e:
                 traceback.print_exc()
                 resp = str(e).encode(), HTTPStatus.INTERNAL_SERVER_ERROR

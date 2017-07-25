@@ -105,7 +105,7 @@ async def test_error_subclasses_incorrect(req, app):
 
     @app.route('/test')
     async def get(req):
-        raise IncorrectHttpError(HTTPStatus.INTERNAL_SERVER_ERROR)
+        raise IncorrectHttpError(HTTPStatus.BAD_REQUEST)
 
     resp = await req('/test')
     assert resp.status == b'500 Internal Server Error'
