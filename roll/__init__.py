@@ -14,15 +14,25 @@ def ensure_response(resp):
         # Allow views to only return body.
         resp = (resp,)
     if not isinstance(resp, Response):
-        # Allow to raise HttpError(HTTPStatus)
-        if isinstance(resp[0], HTTPStatus):
-            resp = (resp[0].phrase, resp[0].value)
         resp = Response(*resp)
     return resp
 
 
 class HttpError(Exception):
-    ...
+    """Subclasses must have a `response` attribute."""
+
+    def __init__(self, code, message=None):
+        self.status = HTTPStatus(code)
+        self.message = message or self.status.phrase
+        self.response = Response(self.message, self.status)
+
+    def __getattr__(self, key):
+        if key == 'response' and 'response' not in self.__dict__.keys():
+            # TODO: not sure how to handle that warning.
+            print('Subclasses of HttpError MUST have a `response` attribute.')
+            return HttpError(HTTPStatus.INTERNAL_SERVER_ERROR).response
+        else:
+            super().__getattr__(key)
 
 
 class Request:
@@ -97,8 +107,7 @@ class Roll:
                 params, handler = self.dispatch(req)
                 resp = await handler(req, **params)
             except HttpError as e:
-                # TODO: allow to customize HttpError response formatting.
-                resp = e.args[::-1]
+                resp = e.response
             except Exception as e:
                 traceback.print_exc()
                 resp = str(e).encode(), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -148,8 +157,7 @@ class Roll:
         except RouteError:
             raise HttpError(HTTPStatus.NOT_FOUND, req.path)
         if req.method not in handlers:
-            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED,
-                            HTTPStatus.METHOD_NOT_ALLOWED.phrase)
+            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
         req.kwargs.update(params)
         return params, handlers[req.method]
 
