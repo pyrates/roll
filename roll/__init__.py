@@ -19,7 +19,7 @@ def ensure_response(resp):
 
 
 class HttpError(Exception):
-    """Subclasses must have a `response` attribute."""
+
     __slots__ = ('status', 'message')
 
     def __init__(self, code, message=None):
