@@ -1,8 +1,7 @@
 import pytest
 from http import HTTPStatus
 
-from roll import HttpError, Response
-from roll.extensions import json_response
+from roll import HttpError
 
 pytestmark = pytest.mark.asyncio
 
@@ -56,7 +55,7 @@ async def test_error_subclasses_with_super(req, app):
     class CustomHttpError(HttpError):
         def __init__(self, code):
             super().__init__(code)
-            self.response = Response('<h1>Oops.</h1>', self.status)
+            self.message = '<h1>Oops.</h1>'
 
     @app.route('/test')
     async def get(req):
@@ -71,7 +70,8 @@ async def test_error_subclasses_without_super(req, app):
 
     class CustomHttpError(HttpError):
         def __init__(self, code):
-            self.response = Response('<h1>Oops.</h1>', code)
+            self.status = HTTPStatus(code)
+            self.message = '<h1>Oops.</h1>'
 
     @app.route('/test')
     async def get(req):
@@ -80,33 +80,3 @@ async def test_error_subclasses_without_super(req, app):
     resp = await req('/test')
     assert resp.status == b'500 Internal Server Error'
     assert resp.body == '<h1>Oops.</h1>'
-
-
-async def test_error_subclasses_with_json(req, app):
-
-    class JsonHttpError(HttpError):
-        def __init__(self, code):
-            self.response = json_response(code, message='Oops')
-
-    @app.route('/test')
-    async def get(req):
-        raise JsonHttpError(HTTPStatus.INTERNAL_SERVER_ERROR)
-
-    resp = await req('/test')
-    assert resp.status == b'500 Internal Server Error'
-    assert resp.body == '{"message": "Oops"}'
-
-
-async def test_error_subclasses_incorrect(req, app):
-
-    class IncorrectHttpError(HttpError):
-        def __init__(self, code):
-            pass
-
-    @app.route('/test')
-    async def get(req):
-        raise IncorrectHttpError(HTTPStatus.BAD_REQUEST)
-
-    resp = await req('/test')
-    assert resp.status == b'500 Internal Server Error'
-    assert resp.body == 'Internal Server Error'

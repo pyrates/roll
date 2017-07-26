@@ -33,5 +33,5 @@ def options(app):
             return b'', 200
 
 
-def json_response(code=200, **kwargs):
-    return (json.dumps(kwargs), code, {'Content-Type': 'application/json'})
+def json_response(code_=200, **kwargs):
+    return (json.dumps(kwargs), code_, {'Content-Type': 'application/json'})
