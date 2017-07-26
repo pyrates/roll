@@ -2,7 +2,7 @@ import pytest
 from http import HTTPStatus
 
 from roll import HttpError, Response
-from roll.extensions import json as json_response
+from roll.extensions import json_response
 
 pytestmark = pytest.mark.asyncio
 
