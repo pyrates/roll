@@ -1,10 +1,10 @@
-# Roll
-
-Let's roll.
+# Let’s roll.
 
 # Philosophy
 
 Make it small to make it big.
+
+Roll is a pico framework with performances and aesthetic in mind.
 
 ## Install
 
@@ -17,11 +17,27 @@ Make it small to make it big.
 
     myapp = Roll()
 
-    @myapp.route('/path/to/view/:param')
-    def myview(req, param):
-        return 'something'
+    @myapp.route('/hello/:param')
+    async def hello(req, param='world'):
+        return f'Hello {param}'
+
+
+## Contains
+
+* async everywhere
+* basic routing through [kua](https://github.com/nitely/kua)
+* extensible system through hooks, see extensions for inspiration
+* decent HTTP errors
+
+
+## Does NOT contain
+
+* templating system
+* stability (yet!)
 
 
 ## Run
 
-    gunicorn path.to.your:app -b 0.0.0.0:3579 -k roll.worker.Worker -w 4
+    gunicorn path.to.your:app --bind 0.0.0.0:3579 --worker-class roll.worker.Worker --workers 4
+
+You can try with `example:app` for instance.
