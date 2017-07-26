@@ -19,7 +19,12 @@ def ensure_response(resp):
 
 
 class HttpError(Exception):
-    ...
+
+    __slots__ = ('status', 'message')
+
+    def __init__(self, code, message=None):
+        self.status = HTTPStatus(code)
+        self.message = message or self.status.phrase
 
 
 class Request:
@@ -93,12 +98,14 @@ class Roll:
                 # Both can raise an HttpError.
                 params, handler = self.dispatch(req)
                 resp = await handler(req, **params)
-            except HttpError as e:
-                # TODO: allow to customize HttpError response formatting.
-                resp = e.args[::-1]  # Allow to raise HttpError(status)
-            except Exception as e:
-                traceback.print_exc()
-                resp = str(e).encode(), 500
+            except Exception as error:
+                if not isinstance(error, HttpError):
+                    traceback.print_exc()
+                    error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
+                                      str(error).encode())
+                resp = await self.hook('error', error=error)
+                if not resp:
+                    resp = Response(error.message, error.status)
         resp = ensure_response(resp)
         resp = await self.hook('response', response=resp, request=req) or resp
         return ensure_response(resp)
@@ -143,9 +150,9 @@ class Roll:
         try:
             params, handlers = self.routes.match(req.path)
         except RouteError:
-            raise HttpError(404, req.path)
+            raise HttpError(HTTPStatus.NOT_FOUND, req.path)
         if req.method not in handlers:
-            raise HttpError(405, HTTPStatus(405).phrase)
+            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
         req.kwargs.update(params)
         return params, handlers[req.method]
 
