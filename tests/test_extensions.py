@@ -52,7 +52,7 @@ async def test_json_with_default_code(req, app, capsys):
 
     @app.route('/test')
     async def get(req):
-        return extensions.json(key='value')
+        return extensions.json_response(key='value')
 
     resp = await req('/test')
     assert resp.headers['Content-Type'] == 'application/json'
@@ -66,7 +66,7 @@ async def test_json_with_custom_code(req, app, capsys):
 
     @app.route('/test')
     async def get(req):
-        return extensions.json(400, key='value')
+        return extensions.json_response(400, key='value')
 
     resp = await req('/test')
     assert resp.headers['Content-Type'] == 'application/json'

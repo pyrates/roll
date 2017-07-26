@@ -1,9 +1,9 @@
 import logging
 
 try:
-    import ujson as json_
+    import ujson as json
 except ImportError:
-    import json as json_
+    import json as json
 
 
 def cors(app, value='*'):
@@ -33,5 +33,5 @@ def options(app):
             return b'', 200
 
 
-def json(code=200, **kwargs):
-    return (json_.dumps(kwargs), code, {'Content-Type': 'application/json'})
+def json_response(code=200, **kwargs):
+    return (json.dumps(kwargs), code, {'Content-Type': 'application/json'})
