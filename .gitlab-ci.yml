@@ -1,0 +1,23 @@
+stages:
+- python35
+- python36
+
+python35:
+  stage: python35
+  image: python:3.5
+  script:
+  - py.test
+
+python36:
+  stage: python36
+  image: python:3.6
+  script:
+  - py.test
+
+cache:
+  paths:
+  - ~/.cache/pip/
+
+before_script:
+  - pip install -r requirements-dev.txt
+  - python setup.py develop
