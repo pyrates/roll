@@ -32,8 +32,8 @@ class Worker(Worker):
             self.server = None
             self.log.info("Stopping server: %s", self.pid)
             await self.wsgi.shutdown()
-            await server.wait_closed()
             server.close()
+            await server.wait_closed()
 
     async def _run(self):
         sock = self.sockets[0]
