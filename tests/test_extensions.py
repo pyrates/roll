@@ -35,7 +35,11 @@ async def test_custom_cors(req, app):
 
 async def test_logger(req, app, capsys):
 
+    # startup has yet been called, but logger extensions was not registered
+    # yet, so let's simulate a new startup.
+    app.hooks['startup'] = []
     extensions.logger(app)
+    await app.startup()
 
     @app.route('/test')
     async def get(req):
@@ -48,8 +52,6 @@ async def test_logger(req, app, capsys):
 
 async def test_json_with_default_code(req, app, capsys):
 
-    extensions.logger(app)
-
     @app.route('/test')
     async def get(req):
         return extensions.json_response(key='value')
@@ -61,8 +63,6 @@ async def test_json_with_default_code(req, app, capsys):
 
 
 async def test_json_with_custom_code(req, app, capsys):
-
-    extensions.logger(app)
 
     @app.route('/test')
     async def get(req):

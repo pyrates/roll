@@ -18,11 +18,18 @@ def logger(app, level=logging.DEBUG, handler=None):
     logger = logging.getLogger('roll')
     logger.setLevel(level)
     handler = handler or logging.StreamHandler()
-    logger.addHandler(handler)
 
     @app.listen('request')
     async def log_request(request):
         logger.info("{} {}".format(request.method, request.path))
+
+    @app.listen('startup')
+    async def startup():
+        logger.addHandler(handler)
+
+    @app.listen('shutdown')
+    async def shutdown():
+        logger.removeHandler(handler)
 
 
 def options(app):
