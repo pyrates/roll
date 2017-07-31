@@ -9,7 +9,7 @@ from roll.extensions import json_response
 pytestmark = pytest.mark.asyncio
 
 
-async def test_request_hook_can_return_response(req, app):
+async def test_request_hook_can_return_response(client, app):
 
     @app.listen('request')
     async def listener(request):
@@ -19,12 +19,12 @@ async def test_request_hook_can_return_response(req, app):
     async def get(req):
         return 'test response'
 
-    resp = await req('/test')
+    resp = await client.get('/test')
     assert resp.status == b'400 Bad Request'
     assert resp.body == 'another response'
 
 
-async def test_response_hook_can_return_response(req, app):
+async def test_response_hook_can_return_response(client, app):
 
     @app.listen('response')
     async def listener(response, request):
@@ -35,12 +35,12 @@ async def test_response_hook_can_return_response(req, app):
     async def get(req):
         return 'test response'
 
-    resp = await req('/test')
+    resp = await client.get('/test')
     assert resp.status == b'400 Bad Request'
     assert resp.body == 'another response'
 
 
-async def test_error_with_json_format(req, app):
+async def test_error_with_json_format(client, app):
 
     @app.listen('error')
     async def listener(error):
@@ -53,7 +53,7 @@ async def test_error_with_json_format(req, app):
     async def get(req):
         raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR, message='JSON error')
 
-    resp = await req('/test')
+    resp = await client.get('/test')
     assert resp.status == b'500 Internal Server Error'
     error = json.loads(resp.body)
     assert error == {"status": 500, "message": "JSON error"}

@@ -29,11 +29,22 @@ class HttpError(Exception):
 
 class Request:
 
-    __slots__ = ('EOF', 'path', 'query_string', 'query', 'method', 'kwargs')
+    __slots__ = ('EOF', 'path', 'query_string', 'query', 'method', 'kwargs',
+                 'body', 'headers')
 
     def __init__(self):
         self.EOF = False
         self.kwargs = {}
+        self.headers = {}
+        self.body = b''
+
+    # All on_xxx methods are in use by httptools parser.
+    # See https://github.com/MagicStack/httptools#apis
+    def on_header(self, name: bytes, value: bytes):
+        self.headers[name.decode()] = value.decode()
+
+    def on_body(self, body: bytes):
+        self.body += body
 
     def on_url(self, url: bytes):
         parsed = parse_url(url)
@@ -43,6 +54,19 @@ class Request:
 
     def on_message_complete(self):
         self.EOF = True
+
+    @classmethod
+    async def parse(cls, reader):
+        chunks = 2 ** 16
+        req = cls()
+        parser = HttpRequestParser(req)
+        while True:
+            data = await reader.read(chunks)
+            parser.feed_data(data)
+            if not data or req.EOF:
+                break
+        req.method = parser.get_method().decode().upper()
+        return req
 
 
 class Response:
@@ -79,15 +103,7 @@ class Roll:
         await self.hook('shutdown')
 
     async def __call__(self, reader, writer):
-        chunks = 2 ** 16
-        req = Request()
-        parser = HttpRequestParser(req)
-        while True:
-            data = await reader.read(chunks)
-            parser.feed_data(data)
-            if not data or req.EOF:
-                break
-        req.method = parser.get_method().decode().upper()
+        req = await Request.parse(reader)
         resp = await self.respond(req)
         self.write(writer, resp)
 
@@ -99,18 +115,22 @@ class Roll:
                 params, handler = self.dispatch(req)
                 resp = await handler(req, **params)
             except Exception as error:
-                if not isinstance(error, HttpError):
-                    traceback.print_exc()
-                    error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
-                                      str(error).encode())
-                resp = await self.hook('error', error=error)
-                if not resp:
-                    resp = Response(error.message, error.status)
+                resp = await self.handle_error(error)
         resp = ensure_response(resp)
         resp = await self.hook('response', response=resp, request=req) or resp
         return ensure_response(resp)
 
-    def serve(self, port=3579, host='0.0.0.0'):
+    async def handle_error(self, error):
+        if not isinstance(error, HttpError):
+            traceback.print_exc()
+            error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
+                              str(error).encode())
+        resp = await self.hook('error', error=error)
+        if not resp:
+            resp = Response(error.message, error.status)
+        return resp
+
+    def serve(self, port=3579, host='127.0.0.1'):
         self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.startup())
         print("Rolling on http://%s:%d" % (host, port))
