@@ -17,31 +17,6 @@ def ensure_response(resp):
     return resp
 
 
-class error_to_http:
-
-    def __init__(self, resp, app):
-        self.resp = resp
-        self.app = app
-
-    async def __aenter__(self):
-        ...
-
-    async def __aexit__(self, exc_type, error, traceback):
-        if error:
-            if not isinstance(error, HttpError):
-                error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
-                                  str(error).encode())
-            self.resp.status = error.status.value
-            self.resp.body = error.message
-            try:
-                await self.app.hook('error', error=error,
-                                    response=self.resp)
-            except Exception as error:
-                self.resp.status = 500
-                self.resp.body = str(error)
-        return True  # Ask python not to reraise error caught by the manager.
-
-
 class HttpError(Exception):
 
     __slots__ = ('status', 'message')
@@ -133,14 +108,30 @@ class Roll:
 
     async def respond(self, req):
         resp = Response()
-        async with error_to_http(resp, self):
+        try:
             if not await self.hook('request', request=req, response=resp):
                 # Both can raise an HttpError.
                 params, handler = self.dispatch(req)
                 await handler(req, resp, **params)
-        async with error_to_http(resp, self):
+        except Exception as error:
+            await self.on_error(error, resp)
+        try:
             await self.hook('response', response=resp, request=req)
+        except Exception as error:
+            await self.on_error(error, resp)
         return resp
+
+    async def on_error(self, error, response):
+        if not isinstance(error, HttpError):
+            error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
+                              str(error).encode())
+        response.status = error.status.value
+        response.body = error.message
+        try:
+            await self.hook('error', error=error, response=response)
+        except Exception as error:
+            response.status = 500
+            response.body = str(error)
 
     def serve(self, port=3579, host='127.0.0.1'):
         self.loop = asyncio.get_event_loop()
