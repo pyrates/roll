@@ -50,7 +50,7 @@ async def test_logger(client, app, capsys):
     assert err == 'GET /test\n'
 
 
-async def test_json_with_default_code(client, app, capsys):
+async def test_json_with_default_code(client, app):
 
     @app.route('/test')
     async def get(req):
@@ -62,7 +62,7 @@ async def test_json_with_default_code(client, app, capsys):
     assert resp.status == b'200 OK'
 
 
-async def test_json_with_custom_code(client, app, capsys):
+async def test_json_with_custom_code(client, app):
 
     @app.route('/test')
     async def get(req):
@@ -72,3 +72,17 @@ async def test_json_with_custom_code(client, app, capsys):
     assert resp.headers['Content-Type'] == 'application/json'
     assert json.loads(resp.body) == {'key': 'value'}
     assert resp.status == b'400 Bad Request'
+
+
+async def test_traceback(client, app, capsys):
+
+    extensions.traceback(app)
+
+    @app.route('/test')
+    async def get(req):
+        raise ValueError('Unhandled exception')
+
+    resp = await client.get('/test')
+    _, err = capsys.readouterr()
+    assert resp.status == b'500 Internal Server Error'
+    assert 'Unhandled exception' in err

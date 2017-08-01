@@ -1,6 +1,5 @@
 import asyncio
 from http import HTTPStatus
-import traceback
 from urllib.parse import parse_qs
 
 from httptools import parse_url, HttpRequestParser
@@ -122,7 +121,6 @@ class Roll:
 
     async def handle_error(self, error):
         if not isinstance(error, HttpError):
-            traceback.print_exc()
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
         resp = await self.hook('error', error=error)
