@@ -1,4 +1,5 @@
 import logging
+from traceback import print_exc
 
 try:
     import ujson as json
@@ -38,6 +39,14 @@ def options(app):
     async def serve_request(request):
         if request.method == 'OPTIONS':
             return b'', 200
+
+
+def traceback(app):
+
+    @app.listen('error')
+    async def on_error(error):
+        if error.status.value == 500:
+            print_exc()
 
 
 def json_response(code_=200, **kwargs):
