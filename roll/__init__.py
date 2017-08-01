@@ -8,15 +8,6 @@ from kua.routes import Routes, RouteError
 from .extensions import options
 
 
-def ensure_response(resp):
-    if not isinstance(resp, (tuple, Response)):
-        # Allow views to only return body.
-        resp = (resp,)
-    if not isinstance(resp, Response):
-        resp = Response(*resp)
-    return resp
-
-
 class HttpError(Exception):
 
     __slots__ = ('status', 'message')
