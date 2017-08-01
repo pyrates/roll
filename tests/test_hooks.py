@@ -4,7 +4,6 @@ import json
 import pytest
 
 from roll import HttpError
-from roll.extensions import json_response
 
 pytestmark = pytest.mark.asyncio
 
@@ -48,8 +47,7 @@ async def test_error_with_json_format(client, app):
     @app.listen('error')
     async def listener(error, response):
         assert error.message == 'JSON error'
-        json_response(response, error.status.value, status=error.status,
-                      message=error.message)
+        response.json = {'status': error.status, 'message': error.message}
 
     @app.route('/test')
     async def get(req, resp):

@@ -54,7 +54,7 @@ async def test_json_with_default_code(client, app):
 
     @app.route('/test')
     async def get(req, resp):
-        return extensions.json_response(resp, key='value')
+        resp.json = {'key': 'value'}
 
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json'
@@ -66,7 +66,8 @@ async def test_json_with_custom_code(client, app):
 
     @app.route('/test')
     async def get(req, resp):
-        return extensions.json_response(resp, 400, key='value')
+        resp.json = {'key': 'value'}
+        resp.status = 400
 
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json'
@@ -86,3 +87,13 @@ async def test_traceback(client, app, capsys):
     _, err = capsys.readouterr()
     assert resp.status == b'500 Internal Server Error'
     assert 'Unhandled exception' in err
+
+
+async def test_options(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        raise  # Should not be called.
+
+    resp = await client.options('/test')
+    assert resp.status == b'200 OK'

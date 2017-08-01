@@ -45,16 +45,6 @@ async def test_invalid_method(client, app):
     assert resp.status == b'405 Method Not Allowed'
 
 
-async def test_options(client, app):
-
-    @app.route('/test')
-    async def get(req, resp):
-        raise  # Should not be called
-
-    resp = await client.options('/test')
-    assert resp.status == b'200 OK'
-
-
 async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])

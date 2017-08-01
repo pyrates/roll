@@ -2,10 +2,15 @@ import asyncio
 from http import HTTPStatus
 from urllib.parse import parse_qs
 
-from httptools import parse_url, HttpRequestParser
-from kua.routes import Routes, RouteError
+from httptools import HttpRequestParser, parse_url
+from kua.routes import RouteError, Routes
 
 from .extensions import options
+
+try:
+    import ujson as json
+except ImportError:
+    import json as json
 
 
 class HttpError(Exception):
@@ -63,11 +68,11 @@ class Response:
 
     __slots__ = ('_status', 'headers', 'body')
 
-    def __init__(self, body=b'', status=HTTPStatus.OK.value, headers=None):
+    def __init__(self):
         self._status = None
-        self.body = body
-        self.status = status
-        self.headers = headers or {}
+        self.body = b''
+        self.status = HTTPStatus.OK
+        self.headers = {}
 
     @property
     def status(self):
@@ -77,6 +82,12 @@ class Response:
     def status(self, code):
         status_ = HTTPStatus(code)
         self._status = '{} {}'.format(status_.value, status_.phrase).encode()
+
+    def json(self, value):
+        self.headers['Content-Type'] = 'application/json'
+        self.body = json.dumps(value)
+
+    json = property(None, json)
 
 
 class Roll:
@@ -101,12 +112,12 @@ class Roll:
         resp = Response()
         try:
             if not await self.hook('request', request=req, response=resp):
-                # Both can raise an HttpError.
                 params, handler = self.dispatch(req)
                 await handler(req, resp, **params)
         except Exception as error:
             await self.on_error(error, resp)
         try:
+            # Views exceptions should still pass by the response hooks.
             await self.hook('response', response=resp, request=req)
         except Exception as error:
             await self.on_error(error, resp)
@@ -116,12 +127,12 @@ class Roll:
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
-        response.status = error.status.value
+        response.status = error.status
         response.body = error.message
         try:
             await self.hook('error', error=error, response=response)
         except Exception as error:
-            response.status = 500
+            response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(error)
 
     def serve(self, port=3579, host='127.0.0.1'):
@@ -180,7 +191,7 @@ class Roll:
         try:
             for func in self.hooks[name]:
                 result = await func(**kwargs)
-                if result is not None:
+                if result:
                     return result
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
