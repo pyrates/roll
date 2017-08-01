@@ -12,8 +12,8 @@ async def test_cors(client,  app):
     extensions.cors(app)
 
     @app.route('/test')
-    async def get(req):
-        return 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
     resp = await client.get('/test')
     assert resp.status == b'200 OK'
@@ -26,8 +26,8 @@ async def test_custom_cors(client, app):
     extensions.cors(app, value='mydomain.org')
 
     @app.route('/test')
-    async def get(req):
-        return 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
     resp = await client.get('/test')
     assert resp.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
@@ -42,7 +42,7 @@ async def test_logger(client, app, capsys):
     await app.startup()
 
     @app.route('/test')
-    async def get(req):
+    async def get(req, resp):
         return 'test response'
 
     await client.get('/test')
@@ -53,8 +53,8 @@ async def test_logger(client, app, capsys):
 async def test_json_with_default_code(client, app):
 
     @app.route('/test')
-    async def get(req):
-        return extensions.json_response(key='value')
+    async def get(req, resp):
+        return extensions.json_response(resp, key='value')
 
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json'
@@ -65,8 +65,8 @@ async def test_json_with_default_code(client, app):
 async def test_json_with_custom_code(client, app):
 
     @app.route('/test')
-    async def get(req):
-        return extensions.json_response(400, key='value')
+    async def get(req, resp):
+        return extensions.json_response(resp, 400, key='value')
 
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json'
@@ -79,7 +79,7 @@ async def test_traceback(client, app, capsys):
     extensions.traceback(app)
 
     @app.route('/test')
-    async def get(req):
+    async def get(req, resp):
         raise ValueError('Unhandled exception')
 
     resp = await client.get('/test')

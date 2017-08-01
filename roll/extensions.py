@@ -21,7 +21,7 @@ def logger(app, level=logging.DEBUG, handler=None):
     handler = handler or logging.StreamHandler()
 
     @app.listen('request')
-    async def log_request(request):
+    async def log_request(request, response):
         logger.info("{} {}".format(request.method, request.path))
 
     @app.listen('startup')
@@ -36,18 +36,20 @@ def logger(app, level=logging.DEBUG, handler=None):
 def options(app):
 
     @app.listen('request')
-    async def serve_request(request):
+    async def serve_request(request, response):
         if request.method == 'OPTIONS':
-            return b'', 200
+            return True  # Shortcut the request handling.
 
 
 def traceback(app):
 
     @app.listen('error')
-    async def on_error(error):
+    async def on_error(error, response):
         if error.status.value == 500:
             print_exc()
 
 
-def json_response(code_=200, **kwargs):
-    return (json.dumps(kwargs), code_, {'Content-Type': 'application/json'})
+def json_response(response, code_=200, **kwargs):
+    response.status = code_
+    response.headers['Content-Type'] = 'application/json'
+    response.body = json.dumps(kwargs)

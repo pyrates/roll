@@ -17,6 +17,31 @@ def ensure_response(resp):
     return resp
 
 
+class error_to_http:
+
+    def __init__(self, resp, app):
+        self.resp = resp
+        self.app = app
+
+    async def __aenter__(self):
+        ...
+
+    async def __aexit__(self, exc_type, error, traceback):
+        if error:
+            if not isinstance(error, HttpError):
+                error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
+                                  str(error).encode())
+            self.resp.status = error.status.value
+            self.resp.body = error.message
+            try:
+                await self.app.hook('error', error=error,
+                                    response=self.resp)
+            except Exception as error:
+                self.resp.status = 500
+                self.resp.body = str(error)
+        return True  # Ask python not to reraise error caught by the manager.
+
+
 class HttpError(Exception):
 
     __slots__ = ('status', 'message')
@@ -107,25 +132,14 @@ class Roll:
         self.write(writer, resp)
 
     async def respond(self, req):
-        resp = await self.hook('request', request=req)
-        if not resp:
-            try:
+        resp = Response()
+        async with error_to_http(resp, self):
+            if not await self.hook('request', request=req, response=resp):
                 # Both can raise an HttpError.
                 params, handler = self.dispatch(req)
-                resp = await handler(req, **params)
-            except Exception as error:
-                resp = await self.handle_error(error)
-        resp = ensure_response(resp)
-        resp = await self.hook('response', response=resp, request=req) or resp
-        return ensure_response(resp)
-
-    async def handle_error(self, error):
-        if not isinstance(error, HttpError):
-            error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
-                              str(error).encode())
-        resp = await self.hook('error', error=error)
-        if not resp:
-            resp = Response(error.message, error.status)
+                await handler(req, resp, **params)
+        async with error_to_http(resp, self):
+            await self.hook('response', response=resp, request=req)
         return resp
 
     def serve(self, port=3579, host='127.0.0.1'):
