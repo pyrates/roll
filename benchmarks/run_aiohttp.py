@@ -1,14 +1,15 @@
 from aiohttp import web
-import json
+
+try:
+    import ujson as json
+except ImportError:
+    import json as json
 
 
 async def hello(request):
-    name = request.match_info.get('name', '')
-    return web.Response(body=json.dumps({'message': f'Hello {name}'}))
+    parameter = request.match_info.get('parameter', '')
+    return web.Response(body=json.dumps({'message': f'Hello {parameter}'}))
 
 
 app = web.Application()
-app.router.add_get('/hello/{name}', hello)
-
-if __name__ == '__main__':
-    web.run_app(app, port=8000)
+app.router.add_get('/hello/{parameter}', hello)

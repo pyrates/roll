@@ -1,18 +1,17 @@
 import falcon
-import json
-from wsgiref import simple_server
+
+try:
+    import ujson as json
+except ImportError:
+    import json as json
 
 
 class HelloResource(object):
-    def on_get(self, req, resp, param):
+    def on_get(self, req, resp, parameter):
         resp.status = falcon.HTTP_200
-        resp.body = json.dumps({'message': f'Hello {param}'})
+        resp.body = json.dumps({'message': f'Hello {parameter}'})
 
 
 app = falcon.API()
 hello = HelloResource()
-app.add_route('/hello/{param}', hello)
-
-if __name__ == '__main__':
-    httpd = simple_server.make_server('127.0.0.1', 8000, app)
-    httpd.serve_forever()
+app.add_route('/hello/{parameter}', hello)
