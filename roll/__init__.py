@@ -2,19 +2,15 @@ import asyncio
 from http import HTTPStatus
 from urllib.parse import parse_qs
 
-from httptools import parse_url, HttpRequestParser
-from kua.routes import Routes, RouteError
+from httptools import HttpRequestParser, parse_url
+from kua.routes import RouteError, Routes
 
 from .extensions import options
 
-
-def ensure_response(resp):
-    if not isinstance(resp, (tuple, Response)):
-        # Allow views to only return body.
-        resp = (resp,)
-    if not isinstance(resp, Response):
-        resp = Response(*resp)
-    return resp
+try:
+    import ujson as json
+except ImportError:
+    import json as json
 
 
 class HttpError(Exception):
@@ -72,11 +68,11 @@ class Response:
 
     __slots__ = ('_status', 'headers', 'body')
 
-    def __init__(self, body=b'', status=HTTPStatus.OK.value, headers=None):
+    def __init__(self):
         self._status = None
-        self.body = body
-        self.status = status
-        self.headers = headers or {}
+        self.body = b''
+        self.status = HTTPStatus.OK
+        self.headers = {}
 
     @property
     def status(self):
@@ -86,6 +82,12 @@ class Response:
     def status(self, code):
         status_ = HTTPStatus(code)
         self._status = '{} {}'.format(status_.value, status_.phrase).encode()
+
+    def json(self, value):
+        self.headers['Content-Type'] = 'application/json'
+        self.body = json.dumps(value)
+
+    json = property(None, json)
 
 
 class Roll:
@@ -107,26 +109,31 @@ class Roll:
         self.write(writer, resp)
 
     async def respond(self, req):
-        resp = await self.hook('request', request=req)
-        if not resp:
-            try:
-                # Both can raise an HttpError.
+        resp = Response()
+        try:
+            if not await self.hook('request', request=req, response=resp):
                 params, handler = self.dispatch(req)
-                resp = await handler(req, **params)
-            except Exception as error:
-                resp = await self.handle_error(error)
-        resp = ensure_response(resp)
-        resp = await self.hook('response', response=resp, request=req) or resp
-        return ensure_response(resp)
+                await handler(req, resp, **params)
+        except Exception as error:
+            await self.on_error(error, resp)
+        try:
+            # Views exceptions should still pass by the response hooks.
+            await self.hook('response', response=resp, request=req)
+        except Exception as error:
+            await self.on_error(error, resp)
+        return resp
 
-    async def handle_error(self, error):
+    async def on_error(self, error, response):
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
-        resp = await self.hook('error', error=error)
-        if not resp:
-            resp = Response(error.message, error.status)
-        return resp
+        response.status = error.status
+        response.body = error.message
+        try:
+            await self.hook('error', error=error, response=response)
+        except Exception as error:
+            response.status = HTTPStatus.INTERNAL_SERVER_ERROR
+            response.body = str(error)
 
     def serve(self, port=3579, host='127.0.0.1'):
         self.loop = asyncio.get_event_loop()
@@ -184,7 +191,7 @@ class Roll:
         try:
             for func in self.hooks[name]:
                 result = await func(**kwargs)
-                if result is not None:
+                if result:
                     return result
         except KeyError:
             # Nobody registered to this event, let's roll anyway.

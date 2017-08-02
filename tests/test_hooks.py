@@ -4,36 +4,38 @@ import json
 import pytest
 
 from roll import HttpError
-from roll.extensions import json_response
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_request_hook_can_return_response(client, app):
+async def test_request_hook_can_alter_response(client, app):
 
     @app.listen('request')
-    async def listener(request):
-        return 'another response', 400
+    async def listener(request, response):
+        response.status = 400
+        response.body = 'another response'
+        return True  # Shortcut the response process.
 
     @app.route('/test')
-    async def get(req):
-        return 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
     resp = await client.get('/test')
     assert resp.status == b'400 Bad Request'
     assert resp.body == 'another response'
 
 
-async def test_response_hook_can_return_response(client, app):
+async def test_response_hook_can_alter_response(client, app):
 
     @app.listen('response')
     async def listener(response, request):
         assert response.body == 'test response'
-        return 'another response', 400
+        response.body = 'another response'
+        response.status = 400
 
     @app.route('/test')
-    async def get(req):
-        return 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
     resp = await client.get('/test')
     assert resp.status == b'400 Bad Request'
@@ -43,14 +45,12 @@ async def test_response_hook_can_return_response(client, app):
 async def test_error_with_json_format(client, app):
 
     @app.listen('error')
-    async def listener(error):
+    async def listener(error, response):
         assert error.message == 'JSON error'
-        return json_response(error.status.value,
-                             status=error.status,
-                             message=error.message)
+        response.json = {'status': error.status, 'message': error.message}
 
     @app.route('/test')
-    async def get(req):
+    async def get(req, resp):
         raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR, message='JSON error')
 
     resp = await client.get('/test')

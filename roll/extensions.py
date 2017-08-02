@@ -1,10 +1,6 @@
 import logging
+from http import HTTPStatus
 from traceback import print_exc
-
-try:
-    import ujson as json
-except ImportError:
-    import json as json
 
 
 def cors(app, value='*'):
@@ -21,7 +17,7 @@ def logger(app, level=logging.DEBUG, handler=None):
     handler = handler or logging.StreamHandler()
 
     @app.listen('request')
-    async def log_request(request):
+    async def log_request(request, response):
         logger.info("{} {}".format(request.method, request.path))
 
     @app.listen('startup')
@@ -36,18 +32,14 @@ def logger(app, level=logging.DEBUG, handler=None):
 def options(app):
 
     @app.listen('request')
-    async def serve_request(request):
-        if request.method == 'OPTIONS':
-            return b'', 200
+    async def handle_options(request, response):
+        # Shortcut the request handling for OPTIONS requests.
+        return request.method == 'OPTIONS'
 
 
 def traceback(app):
 
     @app.listen('error')
-    async def on_error(error):
-        if error.status.value == 500:
+    async def on_error(error, response):
+        if error.status == HTTPStatus.INTERNAL_SERVER_ERROR:
             print_exc()
-
-
-def json_response(code_=200, **kwargs):
-    return (json.dumps(kwargs), code_, {'Content-Type': 'application/json'})
