@@ -20,7 +20,9 @@ function run_wrk() {
   sleep 3
 }
 
-run_ab roll hello/bench  # White run to fill whatever is being filled(?!).
+# Run a first test to warm up Memory/CPU/HTTP connections,
+# this way the order of tests below should not anymore be significant.
+run_ab roll hello/bench
 
 run_ab roll hello/bench
 run_ab sanic hello/bench
