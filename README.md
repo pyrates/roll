@@ -17,9 +17,9 @@ Roll is a pico framework with performances and aesthetic in mind.
 
     myapp = Roll()
 
-    @myapp.route('/hello/:param')
-    async def hello(req, param='world'):
-        return f'Hello {param}'
+    @myapp.route('/hello/:parameter')
+    async def hello(request, response, parameter='world'):
+        response.body = f'Hello {parameter}'
 
 
 ## Contains

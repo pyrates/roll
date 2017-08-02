@@ -12,9 +12,9 @@ cors(app)
 logger(app)
 
 
-@app.route('/hello/:param')
-async def hello(req, param='world'):
-    return f'Hello {param}'
+@app.route('/hello/:parameter')
+async def hello(request, response, parameter):
+    response.body = f'Hello {parameter}'
 
 
 @app.listen('startup')
