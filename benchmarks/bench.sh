@@ -3,7 +3,18 @@ function run_ab() {
   sleep 1
   PID=$!
   mkdir logs/
-  time ab -c 50 -n 1000 http://127.0.0.1:8000/$2 > logs/$1.log
+  time ab -c 50 -n 1000 http://127.0.0.1:8000/$2 > logs/$1-ab.log
+  kill $PID
+  wait $PID
+  sleep 3
+}
+
+function run_wrk() {
+  python run_$1.py &
+  sleep 1
+  PID=$!
+  mkdir logs/
+  time wrk -t10 -c50 -d15s http://127.0.0.1:8000/$2 > logs/$1-wrk.log
   kill $PID
   wait $PID
   sleep 3
@@ -14,3 +25,7 @@ run_ab roll hello/bench  # White run to fill whatever is being filled(?!).
 run_ab roll hello/bench
 run_ab sanic hello/bench
 run_ab aiohttp hello/bench
+
+run_wrk roll hello/bench
+run_wrk sanic hello/bench
+run_wrk aiohttp hello/bench
