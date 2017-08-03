@@ -14,6 +14,7 @@ function run_ab() {
 }
 
 function run_wrk() {
+  # python run_$1.py &
   gunicorn run_$1:app --config gunicorn_$1.conf &
   sleep 1
   PID=$!

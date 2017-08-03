@@ -22,16 +22,18 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Request:
+class Request(asyncio.Protocol):
 
     __slots__ = ('EOF', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
+                 'body', 'headers', 'app')
 
-    def __init__(self):
+    def __init__(self, app):
         self.EOF = False
+        self.app = app
         self.kwargs = {}
         self.headers = {}
         self.body = b''
+        self.parser = HttpRequestParser(self)
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -49,19 +51,15 @@ class Request:
 
     def on_message_complete(self):
         self.EOF = True
+        self.method = self.parser.get_method().decode().upper()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.app(self, self.transport))
 
-    @classmethod
-    async def parse(cls, reader):
-        chunks = 2 ** 16
-        req = cls()
-        parser = HttpRequestParser(req)
-        while True:
-            data = await reader.read(chunks)
-            parser.feed_data(data)
-            if not data or req.EOF:
-                break
-        req.method = parser.get_method().decode().upper()
-        return req
+    def data_received(self, data):
+        self.parser.feed_data(data)
+
+    def connection_made(self, transport):
+        self.transport = transport
 
 
 class Response:
@@ -103,8 +101,7 @@ class Roll:
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, reader, writer):
-        req = await Request.parse(reader)
+    async def __call__(self, req, writer):
         resp = await self.respond(req)
         self.write(writer, resp)
 
@@ -139,7 +136,7 @@ class Roll:
         self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.startup())
         print("Rolling on http://%s:%d" % (host, port))
-        self.loop.create_task(asyncio.start_server(self, host, port))
+        self.loop.create_task(self.loop.create_server(lambda: Request(self), host, port))
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
@@ -159,7 +156,8 @@ class Roll:
             writer.write(b'%b: %b\r\n' % (key.encode(), str(value).encode()))
         writer.write(b'\r\n')
         writer.write(resp.body)
-        writer.write_eof()
+        # writer.write_eof()
+        # writer.close()
 
     def route(self, path, methods=None):
         if methods is None:
