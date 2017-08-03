@@ -6,6 +6,7 @@ function run_ab() {
   gunicorn run_$1:app --config gunicorn_$1.conf &
   sleep 1
   PID=$!
+  echo "Running bench with ab for $1"
   time ab -c 50 -n 1000 http://127.0.0.1:8000/$2 > logs/ab-$1.log
   kill $PID
   wait $PID
@@ -16,6 +17,7 @@ function run_wrk() {
   gunicorn run_$1:app --config gunicorn_$1.conf &
   sleep 1
   PID=$!
+  echo "Running bench with wrk for $1"
   time wrk -t5 -c50 -d15s http://127.0.0.1:8000/$2 > logs/wrk-$1.log
   kill $PID
   wait $PID
