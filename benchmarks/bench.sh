@@ -1,4 +1,6 @@
-mkdir logs/
+#!/usr/bin/env bash
+
+mkdir -p logs/
 
 function run_ab() {
   gunicorn run_$1:app --config gunicorn_$1.conf &
