@@ -6,8 +6,6 @@ import uvloop
 
 from gunicorn.workers.base import Worker
 
-from . import Request
-
 
 class Worker(Worker):
 
@@ -39,14 +37,12 @@ class Worker(Worker):
 
     async def _run(self):
         sock = self.sockets[0]
-        # Pass loop to workaround python 3.5 issue.
-        # See https://framagit.org/drone/roll/issues/1.
-        kwargs = dict(sock=sock.sock)
         if hasattr(socket, 'AF_UNIX') and sock.family == socket.AF_UNIX:
-            self.server = await asyncio.start_unix_server(self.wsgi, **kwargs)
+            self.server = await self.loop.create_unix_server(
+                self.wsgi.factory, sock=sock.sock)
         else:
             self.server = await self.loop.create_server(
-                lambda: Request(self.wsgi), **kwargs)
+                self.wsgi.factory, sock=sock.sock)
 
         pid = os.getpid()
         try:
