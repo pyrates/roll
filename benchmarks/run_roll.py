@@ -14,6 +14,3 @@ app = Roll()
 @app.route('/hello/:parameter')
 async def hello(request, response, parameter):
     response.json = {'message': f'Hello {parameter}'}
-
-if __name__ == '__main__':
-    app.serve(port=8000)

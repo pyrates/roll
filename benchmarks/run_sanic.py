@@ -1,5 +1,13 @@
+import asyncio
+import logging
+
+import uvloop
+
 from sanic import Sanic
 from sanic.response import json
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 
 app = Sanic(log_config=None)
 
