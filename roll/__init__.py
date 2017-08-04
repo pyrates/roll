@@ -24,11 +24,10 @@ class HttpError(Exception):
 
 class Request(asyncio.Protocol):
 
-    __slots__ = ('EOF', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers', 'app')
+    __slots__ = ('path', 'query_string', 'query', 'method', 'kwargs',
+                 'body', 'headers', 'app', 'parser', 'transport')
 
     def __init__(self, app):
-        self.EOF = False
         self.app = app
         self.kwargs = {}
         self.headers = {}
@@ -50,12 +49,11 @@ class Request(asyncio.Protocol):
         self.query = parse_qs(self.query_string)
 
     def on_message_complete(self):
-        self.EOF = True
         self.method = self.parser.get_method().decode().upper()
         loop = asyncio.get_event_loop()
         loop.create_task(self.app(self, self.transport))
 
-    def data_received(self, data):
+    def data_received(self, data: bytes):
         self.parser.feed_data(data)
 
     def connection_made(self, transport):
@@ -136,7 +134,8 @@ class Roll:
         self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.startup())
         print("Rolling on http://%s:%d" % (host, port))
-        self.loop.create_task(self.loop.create_server(lambda: Request(self), host, port))
+        self.loop.create_task(
+            self.loop.create_server(lambda: Request(self), host, port))
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
@@ -156,8 +155,6 @@ class Roll:
             writer.write(b'%b: %b\r\n' % (key.encode(), str(value).encode()))
         writer.write(b'\r\n')
         writer.write(resp.body)
-        # writer.write_eof()
-        # writer.close()
 
     def route(self, path, methods=None):
         if methods is None:

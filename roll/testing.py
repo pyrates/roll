@@ -37,7 +37,7 @@ class Client:
         if content_type:
             headers['Content-Type'] = content_type
         body, headers = self.encode_body(body, headers)
-        req = Request()
+        req = Request(self.app)
         req.on_url(path.encode())
         req.method = method
         req.body = body
