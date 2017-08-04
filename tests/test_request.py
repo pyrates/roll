@@ -1,19 +1,7 @@
-from io import BytesIO
-
 import pytest
 from roll import Request
 
 pytestmark = pytest.mark.asyncio
-
-
-class Reader:
-    """Pseudo reader, with async read method."""
-
-    def __init__(self, data):
-        self.data = BytesIO(data)
-
-    async def read(self, chunks):
-        return self.data.read(chunks)
 
 
 async def test_request_parse_simple_get_response(app):
