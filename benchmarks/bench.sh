@@ -21,7 +21,10 @@ function run_wrk() {
   time wrk -t20 -c100 -d20s http://127.0.0.1:8000/$2 >> logs/wrk-$1.log
   kill $PID
   wait $PID
-  sleep $3
+  if test -n "$3"
+  then
+    sleep $3
+  fi
 }
 
 # Run a first test to warm up Memory/CPU/HTTP connections,
