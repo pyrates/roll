@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 
 import pytest
 
-from . import Request
+from . import Protocol
 
 
 class Client:
@@ -37,12 +37,12 @@ class Client:
         if content_type:
             headers['Content-Type'] = content_type
         body, headers = self.encode_body(body, headers)
-        req = Request(self.app)
-        req.on_url(path.encode())
-        req.method = method
-        req.body = body
-        req.headers = headers
-        return await self.app.respond(req)
+        protocol = Protocol(self.app)
+        protocol.on_url(path.encode())
+        protocol.req.body = body
+        protocol.req.method = method
+        protocol.req.headers = headers
+        return await self.app.respond(protocol.req, protocol.resp)
 
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)

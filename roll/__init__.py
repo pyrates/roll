@@ -2,7 +2,7 @@ import asyncio
 from http import HTTPStatus
 from urllib.parse import parse_qs
 
-from httptools import HttpRequestParser, parse_url
+from httptools import HttpRequestParser, parse_url, HttpParserError
 from kua.routes import RouteError, Routes
 
 from .extensions import options
@@ -22,42 +22,70 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Request(asyncio.Protocol):
+class Protocol(asyncio.Protocol):
 
-    __slots__ = ('path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers', 'app', 'parser', 'transport')
+    __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
 
     def __init__(self, app):
         self.app = app
-        self.kwargs = {}
-        self.headers = {}
-        self.body = b''
+        self.req = Request()
+        self.resp = Response()
         self.parser = HttpRequestParser(self)
+
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserError:
+            self.resp.status = HTTPStatus.BAD_REQUEST
+            self.resp.body = b'Unparsable request'
+            self.write()
+
+    def connection_made(self, transport):
+        self.writer = transport
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
     def on_header(self, name: bytes, value: bytes):
-        self.headers[name.decode()] = value.decode()
+        self.req.headers[name.decode()] = value.decode()
 
     def on_body(self, body: bytes):
-        self.body += body
+        self.req.body += body
 
     def on_url(self, url: bytes):
         parsed = parse_url(url)
-        self.path = parsed.path.decode()
-        self.query_string = (parsed.query or b'').decode()
-        self.query = parse_qs(self.query_string)
+        self.req.path = parsed.path.decode()
+        self.req.query_string = (parsed.query or b'').decode()
+        self.req.query = parse_qs(self.req.query_string)
 
     def on_message_complete(self):
-        self.method = self.parser.get_method().decode().upper()
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.app(self, self.transport))
+        self.req.method = self.parser.get_method().decode().upper()
+        task = self.app.loop.create_task(self.app.respond(self.req, self.resp))
+        task.add_done_callback(self.write)
 
-    def data_received(self, data: bytes):
-        self.parser.feed_data(data)
+    def write(self, *args):
+        # May or may not have "future" as arg.
+        self.writer.write(b'HTTP/1.1 %b\r\n' % self.resp.status)
+        if not isinstance(self.resp.body, bytes):
+            self.resp.body = self.resp.body.encode()
+        if 'Content-Length' not in self.resp.headers:
+            length = len(self.resp.body)
+            self.resp.headers['Content-Length'] = str(length)
+        for key, value in self.resp.headers.items():
+            self.writer.write(b'%b: %b\r\n' % (key.encode(),
+                                               str(value).encode()))
+        self.writer.write(b'\r\n')
+        self.writer.write(self.resp.body)
 
-    def connection_made(self, transport):
-        self.transport = transport
+
+class Request:
+
+    __slots__ = ('path', 'query_string', 'query', 'method', 'kwargs',
+                 'body', 'headers')
+
+    def __init__(self):
+        self.kwargs = {}
+        self.headers = {}
+        self.body = b''
 
 
 class Response:
@@ -93,18 +121,18 @@ class Roll:
         self.hooks = {}
         options(self)
 
+    def __call__(self):
+        # Needed by Gunicorn.
+        # cf https://github.com/benoitc/gunicorn/blob/2407dd29a6b44e96150d48ac12d0d16be2506725/gunicorn/util.py#L374  # noqa
+        ...
+
     async def startup(self):
         await self.hook('startup')
 
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, req, writer):
-        resp = await self.respond(req)
-        self.write(writer, resp)
-
-    async def respond(self, req):
-        resp = Response()
+    async def respond(self, req, resp):
         try:
             if not await self.hook('request', request=req, response=resp):
                 params, handler = self.dispatch(req)
@@ -131,7 +159,7 @@ class Roll:
             response.body = str(error)
 
     def factory(self):
-        return Request(self)
+        return Protocol(self)
 
     def serve(self, port=3579, host='127.0.0.1'):
         self.loop = asyncio.get_event_loop()
@@ -147,18 +175,6 @@ class Roll:
             self.loop.run_until_complete(self.shutdown())
             server.close()
             self.loop.close()
-
-    def write(self, writer, resp):
-        writer.write(b'HTTP/1.1 %b\r\n' % resp.status)
-        if not isinstance(resp.body, bytes):
-            resp.body = resp.body.encode()
-        if 'Content-Length' not in resp.headers:
-            length = len(resp.body)
-            resp.headers['Content-Length'] = str(length)
-        for key, value in resp.headers.items():
-            writer.write(b'%b: %b\r\n' % (key.encode(), str(value).encode()))
-        writer.write(b'\r\n')
-        writer.write(resp.body)
 
     def route(self, path, methods=None):
         if methods is None:

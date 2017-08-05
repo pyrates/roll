@@ -18,6 +18,7 @@ function run_wrk() {
   gunicorn run_$1:app --config gunicorn_$1.conf &
   sleep 1
   PID=$!
+  curl -i http://127.0.0.1:8000/$2
   time wrk -t20 -c100 -d20s http://127.0.0.1:8000/$2 >> logs/wrk-$1.log
   kill $PID
   wait $PID
