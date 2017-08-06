@@ -43,3 +43,19 @@ def traceback(app):
     async def on_error(error, response):
         if error.status == HTTPStatus.INTERNAL_SERVER_ERROR:
             print_exc()
+
+
+def igniter(app):
+
+    @app.listen('startup')
+    async def make_it_roll_like_it_never_rolled_before():
+        logger = logging.getLogger('roll')
+        logger.debug('''
+         _          _                        _ _
+        | |        | |  ()                  | | |
+        | |     ___| |_  / ___     ____ ___ | | |
+        | |    / _ \ __|  / __|   |  __/ _ \| | |
+        | |___|  __/ |_   \__ \   | | | (_) | | |
+        |______\___|\__|  |___/   |_|  \___/|_|_| ()
+
+        ''')
