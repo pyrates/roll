@@ -161,21 +161,6 @@ class Roll:
     def factory(self):
         return Protocol(self)
 
-    def serve(self, port=3579, host='127.0.0.1'):
-        self.loop = asyncio.get_event_loop()
-        self.loop.run_until_complete(self.startup())
-        print("Rolling on http://%s:%d" % (host, port))
-        server = self.loop.create_server(self.factory, host, port)
-        self.loop.create_task(server)
-        try:
-            self.loop.run_forever()
-        except KeyboardInterrupt:
-            print('Bye.')
-        finally:
-            self.loop.run_until_complete(self.shutdown())
-            server.close()
-            self.loop.close()
-
     def route(self, path, methods=None):
         if methods is None:
             methods = ['GET']

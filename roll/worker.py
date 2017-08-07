@@ -30,7 +30,7 @@ class Worker(Worker):
         if self.server:
             server = self.server
             self.server = None
-            self.log.info("Stopping server: %s", self.pid)
+            self.log.info('Stopping server: %s', self.pid)
             await self.wsgi.shutdown()
             server.close()
             await server.wait_closed()
@@ -49,7 +49,7 @@ class Worker(Worker):
             while self.alive:
                 self.notify()
                 if pid == os.getpid() and self.ppid != os.getppid():
-                    self.log.info("Parent changed, shutting down: %s", self)
+                    self.log.info('Parent changed, shutting down: %s', self)
                     break
                 await asyncio.sleep(1.0, loop=self.loop)
 
