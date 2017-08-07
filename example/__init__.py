@@ -3,13 +3,14 @@ import asyncio
 import uvloop
 
 from roll import Roll
-from roll.extensions import cors, logger
+from roll.extensions import cors, logger, traceback, simple_server
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 app = Roll()
 cors(app)
 logger(app)
+traceback(app)
 
 
 @app.route('/hello/:parameter')
@@ -24,4 +25,4 @@ async def on_startup():
 
 
 if __name__ == '__main__':
-    app.serve()
+    simple_server(app)
