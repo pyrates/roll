@@ -9,6 +9,9 @@ class Transport:
     def write(self, data):
         ...
 
+    def close(self):
+        ...
+
 
 async def test_request_parse_simple_get_response(app):
     protocol = Protocol(app)

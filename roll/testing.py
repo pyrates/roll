@@ -38,11 +38,12 @@ class Client:
             headers['Content-Type'] = content_type
         body, headers = self.encode_body(body, headers)
         protocol = Protocol(self.app)
+        protocol.on_message_begin()
         protocol.on_url(path.encode())
         protocol.req.body = body
         protocol.req.method = method
         protocol.req.headers = headers
-        return await self.app.respond(protocol.req, protocol.resp)
+        return await self.app(protocol.req, protocol.resp)
 
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)

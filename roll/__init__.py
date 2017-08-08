@@ -28,14 +28,15 @@ class Protocol(asyncio.Protocol):
 
     def __init__(self, app):
         self.app = app
-        self.req = Request()
-        self.resp = Response()
         self.parser = HttpRequestParser(self)
 
     def data_received(self, data: bytes):
         try:
             self.parser.feed_data(data)
         except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            self.resp = Response()
             self.resp.status = HTTPStatus.BAD_REQUEST
             self.resp.body = b'Unparsable request'
             self.write()
@@ -57,9 +58,13 @@ class Protocol(asyncio.Protocol):
         self.req.query_string = (parsed.query or b'').decode()
         self.req.query = parse_qs(self.req.query_string)
 
+    def on_message_begin(self):
+        self.req = Request()
+        self.resp = Response()
+
     def on_message_complete(self):
         self.req.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app.respond(self.req, self.resp))
+        task = self.app.loop.create_task(self.app(self.req, self.resp))
         task.add_done_callback(self.write)
 
     def write(self, *args):
@@ -75,6 +80,8 @@ class Protocol(asyncio.Protocol):
                                                str(value).encode()))
         self.writer.write(b'\r\n')
         self.writer.write(self.resp.body)
+        if not self.parser.should_keep_alive():
+            self.writer.close()
 
 
 class Request:
@@ -121,18 +128,13 @@ class Roll:
         self.hooks = {}
         options(self)
 
-    def __call__(self):
-        # Needed by Gunicorn.
-        # cf https://github.com/benoitc/gunicorn/blob/2407dd29a6b44e96150d48ac12d0d16be2506725/gunicorn/util.py#L374  # noqa
-        ...
-
     async def startup(self):
         await self.hook('startup')
 
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def respond(self, req, resp):
+    async def __call__(self, req, resp):
         try:
             if not await self.hook('request', request=req, response=resp):
                 params, handler = self.dispatch(req)
