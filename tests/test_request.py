@@ -13,9 +13,14 @@ class Transport:
         ...
 
 
-async def test_request_parse_simple_get_response(app):
+@pytest.fixture
+def protocol(app):
     protocol = Protocol(app)
     protocol.connection_made(Transport())
+    return protocol
+
+
+async def test_request_parse_simple_get_response(protocol):
     protocol.data_received(
         b'GET /feeds HTTP/1.1\r\n'
         b'Host: localhost:1707\r\n'
@@ -34,9 +39,7 @@ async def test_request_parse_simple_get_response(app):
     assert protocol.req.headers['Accept'] == '*/*'
 
 
-async def test_request_parse_query_string(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_request_parse_query_string(protocol):
     protocol.data_received(
         b'GET /feeds?foo=bar&bar=baz HTTP/1.1\r\n'
         b'Host: localhost:1707\r\n'
@@ -50,9 +53,7 @@ async def test_request_parse_query_string(app):
     assert protocol.req.query['bar'][0] == 'baz'
 
 
-async def test_request_parse_multivalue_query_string(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_request_parse_multivalue_query_string(protocol):
     protocol.data_received(
         b'GET /feeds?foo=bar&foo=baz HTTP/1.1\r\n'
         b'Host: localhost:1707\r\n'
@@ -65,9 +66,7 @@ async def test_request_parse_multivalue_query_string(app):
     assert protocol.req.query['foo'] == ['bar', 'baz']
 
 
-async def test_request_parse_POST_body(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_request_parse_POST_body(protocol):
     protocol.data_received(
         b'POST /feed HTTP/1.1\r\n'
         b'Host: localhost:1707\r\n'
@@ -83,41 +82,31 @@ async def test_request_parse_POST_body(app):
     assert protocol.req.body == b'{"link": "https://example.org"}'
 
 
-async def test_invalid_request(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_invalid_request(protocol):
     protocol.data_received(
         b'INVALID HTTP/1.22\r\n')
     assert protocol.resp.status == b'400 Bad Request'
 
 
-async def test_query_get_should_return_value(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_get_should_return_value(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value')
     assert protocol.req.query.get('key') == 'value'
 
 
-async def test_query_get_should_return_first_value_if_multiple(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_get_should_return_first_value_if_multiple(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value&key=value2')
     assert protocol.req.query.get('key') == 'value'
 
 
-async def test_query_getlist_should_return_list_of_values(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_getlist_should_return_list_of_values(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value&key=value2')
     assert protocol.req.query.get_list('key') == ['value', 'value2']
 
 
-async def test_query_get_should_return_default_if_key_is_missing(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_get_should_return_default_if_key_is_missing(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value')
     assert protocol.req.query.get('other') is None
@@ -132,43 +121,33 @@ async def test_query_get_should_return_default_if_key_is_missing(app):
     (b'0', False),
     (b'off', False),
 ])
-async def test_query_bool_should_cast_to_boolean(app, input, expected):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_bool_should_cast_to_boolean(input, expected, protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=' + input)
     assert protocol.req.query.bool('key') == expected
 
 
-async def test_query_bool_should_return_default(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_bool_should_return_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=1')
     assert protocol.req.query.bool('other', default=False) is False
 
 
-async def test_query_bool_should_raise_if_not_castable(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_bool_should_raise_if_not_castable(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
         assert protocol.req.query.bool('key')
 
 
-async def test_query_bool_should_raise_if_key_not_present_and_no_default(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_bool_should_raise_if_not_key_and_no_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
         assert protocol.req.query.bool('other')
 
 
-async def test_query_bool_should_return_default_if_key_not_present(app):
-    protocol = Protocol(app)
-    protocol.connection_made(Transport())
+async def test_query_bool_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     assert protocol.req.query.bool('other', default=False) is False
