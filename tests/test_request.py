@@ -183,3 +183,35 @@ async def test_query_int_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     assert protocol.req.query.int('other', default=22) == 22
+
+
+async def test_query_float_should_cast_to_float(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=2.234')
+    assert protocol.req.query.float('key') == 2.234
+
+
+async def test_query_float_should_return_default(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=1')
+    assert protocol.req.query.float('other', default=2.234) == 2.234
+
+
+async def test_query_float_should_raise_if_not_castable(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=one')
+    with pytest.raises(HttpError):
+        assert protocol.req.query.float('key')
+
+
+async def test_query_float_should_raise_if_not_key_and_no_default(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=one')
+    with pytest.raises(HttpError):
+        assert protocol.req.query.float('other')
+
+
+async def test_query_float_should_return_default_if_key_not_present(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=one')
+    assert protocol.req.query.float('other', default=2.234) == 2.234

@@ -126,6 +126,22 @@ class Query(dict):
             return default
         return value
 
+    def float(self, key, default=...):
+        try:
+            value = float(self.get(key))
+        except TypeError:
+            if default is ...:
+                raise HttpError(
+                    HTTPStatus.BAD_REQUEST,
+                    'Key {} must be present and castable to float'.format(key))
+            return default
+        except ValueError:
+            if default is ...:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                'Key {} must be castable to float'.format(key))
+            return default
+        return value
+
 
 class Request:
 
