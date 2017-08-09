@@ -110,6 +110,22 @@ class Query(dict):
                             'Missing {} key'.format(key))
         return default
 
+    def int(self, key, default=...):
+        try:
+            value = int(self.get(key))
+        except TypeError:
+            if default is ...:
+                raise HttpError(
+                    HTTPStatus.BAD_REQUEST,
+                    'Key {} must be present and castable to int'.format(key))
+            return default
+        except ValueError:
+            if default is ...:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                'Key {} must be castable to int'.format(key))
+            return default
+        return value
+
 
 class Request:
 

@@ -151,3 +151,35 @@ async def test_query_bool_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     assert protocol.req.query.bool('other', default=False) is False
+
+
+async def test_query_int_should_cast_to_int(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=22')
+    assert protocol.req.query.int('key') == 22
+
+
+async def test_query_int_should_return_default(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=1')
+    assert protocol.req.query.int('other', default=22) == 22
+
+
+async def test_query_int_should_raise_if_not_castable(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=one')
+    with pytest.raises(HttpError):
+        assert protocol.req.query.int('key')
+
+
+async def test_query_int_should_raise_if_not_key_and_no_default(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=one')
+    with pytest.raises(HttpError):
+        assert protocol.req.query.int('other')
+
+
+async def test_query_int_should_return_default_if_key_not_present(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=one')
+    assert protocol.req.query.int('other', default=22) == 22
