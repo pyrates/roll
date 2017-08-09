@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-python app.py &
+exec python app.py
 
-# gunicorn app:app --config gunicorn.conf &
+# exec gunicorn app:app --config gunicorn.conf

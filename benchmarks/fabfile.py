@@ -38,7 +38,7 @@ def put_dir(ctx, local, remote):
 
 @task
 def bench(ctx, names=''):
-    as_bench(ctx, f'sh -c ". /srv/bench/venv/bin/activate && '
+    as_bench(ctx, f'/bin/bash -c ". /srv/bench/venv/bin/activate && '
                   f'cd /srv/bench/src/benchmarks && ./bench.sh {names}"')
 
 
@@ -71,5 +71,5 @@ def deploy(ctx):
     put_dir(ctx, Path(__file__).parent.parent, '/srv/bench/src')
     as_bench(ctx, '/srv/bench/venv/bin/pip install -r '
                   '/srv/bench/src/benchmarks/requirements.txt')
-    as_bench(ctx, 'sh -c "cd /srv/bench/src/; '
+    as_bench(ctx, '/bin/bash -c "cd /srv/bench/src/; '
                   '/srv/bench/venv/bin/python setup.py develop"')

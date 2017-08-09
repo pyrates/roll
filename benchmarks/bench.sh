@@ -3,7 +3,7 @@
 mkdir -p logs/
 
 function run_ab() {
-  cd $1 && source ./run.sh && cd ..
+  cd $1 && . ./run.sh &
   sleep 1
   PID=$!
   http "http://127.0.0.1:8000/$2"
@@ -13,7 +13,7 @@ function run_ab() {
 }
 
 function run_wrk() {
-  cd $1; source ./run.sh; cd ..
+  cd $1 && . ./run.sh &
   sleep 1
   PID=$!
   http "http://127.0.0.1:8000/$2"
@@ -31,18 +31,18 @@ else
 fi
 LEN=${#NAMES[@]}
 
-# COUNTER=0
-# for NAME in $NAMES
-# do
-#   echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-#   echo "Running bench with ab for $NAME"
-#   run_ab $NAME hello/bench
-#   let COUNTER++
-#   if (($COUNTER < $LEN))
-#     then sleep 20
-#   fi
-#   echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-# done
+COUNTER=0
+for NAME in $NAMES
+do
+  echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "Running bench with ab for $NAME"
+  run_ab $NAME hello/bench
+  let COUNTER++
+  if (($COUNTER < $LEN))
+    then sleep 20
+  fi
+  echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+done
 
 COUNTER=0
 for NAME in $NAMES
