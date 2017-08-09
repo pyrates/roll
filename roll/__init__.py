@@ -56,7 +56,7 @@ class Protocol(asyncio.Protocol):
         parsed = parse_url(url)
         self.req.path = parsed.path.decode()
         self.req.query_string = (parsed.query or b'').decode()
-        self.req.query = parse_qs(self.req.query_string)
+        self.req.query = Query(parse_qs(self.req.query_string))
 
     def on_message_begin(self):
         self.req = Request()
@@ -82,6 +82,33 @@ class Protocol(asyncio.Protocol):
         self.writer.write(self.resp.body)
         if not self.parser.should_keep_alive():
             self.writer.close()
+
+
+class Query(dict):
+
+    TRUE_STRINGS = ('true', 'True', 'yes', '1', 'on')
+    FALSE_STRINGS = ('false', 'False', 'no', '0', 'off')
+
+    def get(self, key, default=None):
+        return super().get(key, [default])[0]
+
+    def get_list(self, key, default=None):
+        return super().get(key, default)
+
+    def bool(self, key, default=...):
+        if key in self:
+            value = self.get(key)
+            if value in self.TRUE_STRINGS:
+                return True
+            elif value in self.FALSE_STRINGS:
+                return False
+            raise HttpError(
+                HTTPStatus.BAD_REQUEST,
+                'Wrong boolean value for {}={}'.format(key, self.get(key)))
+        if default is ...:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            'Missing {} key'.format(key))
+        return default
 
 
 class Request:
