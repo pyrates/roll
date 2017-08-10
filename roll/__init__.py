@@ -56,7 +56,8 @@ class Protocol(asyncio.Protocol):
         parsed = parse_url(url)
         self.req.path = parsed.path.decode()
         self.req.query_string = (parsed.query or b'').decode()
-        self.req.query = Query(parse_qs(self.req.query_string))
+        self.req.query = Query(
+            parse_qs(self.req.query_string, keep_blank_values=True))
 
     def on_message_begin(self):
         self.req = Request()
@@ -88,7 +89,7 @@ class Query(dict):
 
     TRUE_STRINGS = ('true', 'True', 'yes', '1', 'on')
     FALSE_STRINGS = ('false', 'False', 'no', '0', 'off')
-    NONE_STRINGS = ('none', 'None', 'null', 'NULL')
+    NONE_STRINGS = ('none', 'None', 'null', 'NULL', '')
 
     def get(self, key, default=None):
         return super().get(key, [default])[0]
