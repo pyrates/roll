@@ -88,6 +88,7 @@ class Query(dict):
 
     TRUE_STRINGS = ('true', 'True', 'yes', '1', 'on')
     FALSE_STRINGS = ('false', 'False', 'no', '0', 'off')
+    NONE_STRINGS = ('none', 'None', 'null', 'NULL')
 
     def get(self, key, default=None):
         return super().get(key, [default])[0]
@@ -102,6 +103,8 @@ class Query(dict):
                 return True
             elif value in self.FALSE_STRINGS:
                 return False
+            elif value in self.NONE_STRINGS:
+                return None
             raise HttpError(
                 HTTPStatus.BAD_REQUEST,
                 'Wrong boolean value for {}={}'.format(key, self.get(key)))
