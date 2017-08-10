@@ -56,8 +56,7 @@ class Protocol(asyncio.Protocol):
         parsed = parse_url(url)
         self.req.path = parsed.path.decode()
         self.req.query_string = (parsed.query or b'').decode()
-        self.req.query = Query(
-            parse_qs(self.req.query_string, keep_blank_values=True))
+        self.req.query = self.parse_query_string(self.req.query_string)
 
     def on_message_begin(self):
         self.req = Request()
@@ -67,6 +66,9 @@ class Protocol(asyncio.Protocol):
         self.req.method = self.parser.get_method().decode().upper()
         task = self.app.loop.create_task(self.app(self.req, self.resp))
         task.add_done_callback(self.write)
+
+    def parse_query_string(self, query_string):
+        return Query(parse_qs(query_string, keep_blank_values=True))
 
     def write(self, *args):
         # May or may not have "future" as arg.
