@@ -114,17 +114,21 @@ async def test_query_get_should_return_default_if_key_is_missing(protocol):
 
 
 @pytest.mark.parametrize('input,expected', [
+    (b't', True),
     (b'true', True),
     (b'True', True),
     (b'1', True),
     (b'on', True),
+    (b'f', False),
     (b'false', False),
     (b'False', False),
     (b'0', False),
     (b'off', False),
+    (b'n', None),
     (b'none', None),
     (b'null', None),
     (b'NULL', None),
+    (b'', None),
     (b'%00', None),
 ])
 async def test_query_bool_should_cast_to_boolean(input, expected, protocol):
