@@ -87,9 +87,9 @@ class Protocol(asyncio.Protocol):
 
 class Query(dict):
 
-    TRUE_STRINGS = ('true', 'True', 'yes', '1', 'on')
-    FALSE_STRINGS = ('false', 'False', 'no', '0', 'off')
-    NONE_STRINGS = ('none', 'None', 'null', 'NULL', '\x00')  # NULL char.
+    TRUE_STRINGS = ('true', 'yes', '1', 'on')
+    FALSE_STRINGS = ('false', 'no', '0', 'off')
+    NONE_STRINGS = ('none', 'null', '\x00')  # NULL char.
 
     def get(self, key, default=None):
         return super().get(key, [default])[0]
@@ -99,7 +99,7 @@ class Query(dict):
 
     def bool(self, key, default=...):
         if key in self:
-            value = self.get(key)
+            value = self.get(key).lower()
             if value in self.TRUE_STRINGS:
                 return True
             elif value in self.FALSE_STRINGS:
