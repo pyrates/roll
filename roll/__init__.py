@@ -91,7 +91,7 @@ class Query(dict):
 
     TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
     FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
-    NONE_STRINGS = ('n', 'none', 'null', '')
+    NONE_STRINGS = ('n', 'none', 'null')
 
     def get(self, key, default=None):
         return super().get(key, [default])[0]
