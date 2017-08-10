@@ -89,7 +89,7 @@ class Query(dict):
 
     TRUE_STRINGS = ('true', 'True', 'yes', '1', 'on')
     FALSE_STRINGS = ('false', 'False', 'no', '0', 'off')
-    NONE_STRINGS = ('none', 'None', 'null', 'NULL', '')
+    NONE_STRINGS = ('none', 'None', 'null', 'NULL', '\x00')  # NULL char.
 
     def get(self, key, default=None):
         return super().get(key, [default])[0]
