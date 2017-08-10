@@ -129,7 +129,6 @@ async def test_query_get_should_return_default_if_key_is_missing(protocol):
     (b'null', None),
     (b'NULL', None),
     (b'', None),
-    (b'%00', None),
 ])
 async def test_query_bool_should_cast_to_boolean(input, expected, protocol):
     protocol.on_message_begin()
