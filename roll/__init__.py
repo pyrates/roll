@@ -56,7 +56,7 @@ class Protocol(asyncio.Protocol):
         parsed = parse_url(url)
         self.req.path = parsed.path.decode()
         self.req.query_string = (parsed.query or b'').decode()
-        self.req.query = parse_qs(self.req.query_string)
+        self.req.query = self.parse_query_string(self.req.query_string)
 
     def on_message_begin(self):
         self.req = Request()
@@ -66,6 +66,9 @@ class Protocol(asyncio.Protocol):
         self.req.method = self.parser.get_method().decode().upper()
         task = self.app.loop.create_task(self.app(self.req, self.resp))
         task.add_done_callback(self.write)
+
+    def parse_query_string(self, query_string):
+        return Query(parse_qs(query_string, keep_blank_values=True))
 
     def write(self, *args):
         # May or may not have "future" as arg.
@@ -82,6 +85,68 @@ class Protocol(asyncio.Protocol):
         self.writer.write(self.resp.body)
         if not self.parser.should_keep_alive():
             self.writer.close()
+
+
+class Query(dict):
+
+    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
+    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
+    NONE_STRINGS = ('n', 'none', 'null')
+
+    def get(self, key, default=None):
+        return super().get(key, [default])[0]
+
+    def get_list(self, key, default=None):
+        return super().get(key, default)
+
+    def bool(self, key, default=...):
+        if key in self:
+            value = self.get(key).lower()
+            if value in self.TRUE_STRINGS:
+                return True
+            elif value in self.FALSE_STRINGS:
+                return False
+            elif value in self.NONE_STRINGS:
+                return None
+            raise HttpError(
+                HTTPStatus.BAD_REQUEST,
+                'Wrong boolean value for {}={}'.format(key, self.get(key)))
+        if default is ...:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            'Missing {} key'.format(key))
+        return default
+
+    def int(self, key, default=...):
+        try:
+            value = int(self.get(key))
+        except TypeError:
+            if default is ...:
+                raise HttpError(
+                    HTTPStatus.BAD_REQUEST,
+                    'Key {} must be present and castable to int'.format(key))
+            return default
+        except ValueError:
+            if default is ...:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                'Key {} must be castable to int'.format(key))
+            return default
+        return value
+
+    def float(self, key, default=...):
+        try:
+            value = float(self.get(key))
+        except TypeError:
+            if default is ...:
+                raise HttpError(
+                    HTTPStatus.BAD_REQUEST,
+                    'Key {} must be present and castable to float'.format(key))
+            return default
+        except ValueError:
+            if default is ...:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                'Key {} must be castable to float'.format(key))
+            return default
+        return value
 
 
 class Request:
