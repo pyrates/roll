@@ -73,7 +73,7 @@ class Query(dict):
 class Protocol(asyncio.Protocol):
 
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
-    query_class = Query
+    Query = Query
 
     def __init__(self, app):
         self.app = app
@@ -107,7 +107,7 @@ class Protocol(asyncio.Protocol):
         self.req.path = parsed.path.decode()
         self.req.query_string = (parsed.query or b'').decode()
         parsed_qs = parse_qs(self.req.query_string, keep_blank_values=True)
-        self.req.query = self.query_class(parsed_qs)
+        self.req.query = self.Query(parsed_qs)
 
     def on_message_begin(self):
         self.req = Request()
@@ -173,6 +173,7 @@ class Response:
 
 
 class Roll:
+    Protocol = Protocol
 
     def __init__(self):
         self.routes = Routes()
@@ -212,7 +213,7 @@ class Roll:
             response.body = str(error)
 
     def factory(self):
-        return Protocol(self)
+        return self.Protocol(self)
 
     def route(self, path, methods=None):
         if methods is None:
