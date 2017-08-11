@@ -22,72 +22,6 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Protocol(asyncio.Protocol):
-
-    __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
-
-    def __init__(self, app):
-        self.app = app
-        self.parser = HttpRequestParser(self)
-
-    def data_received(self, data: bytes):
-        try:
-            self.parser.feed_data(data)
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.resp = Response()
-            self.resp.status = HTTPStatus.BAD_REQUEST
-            self.resp.body = b'Unparsable request'
-            self.write()
-
-    def connection_made(self, transport):
-        self.writer = transport
-
-    # All on_xxx methods are in use by httptools parser.
-    # See https://github.com/MagicStack/httptools#apis
-    def on_header(self, name: bytes, value: bytes):
-        self.req.headers[name.decode()] = value.decode()
-
-    def on_body(self, body: bytes):
-        self.req.body += body
-
-    def on_url(self, url: bytes):
-        self.req.url = url
-        parsed = parse_url(url)
-        self.req.path = parsed.path.decode()
-        self.req.query_string = (parsed.query or b'').decode()
-        self.req.query = self.parse_query_string(self.req.query_string)
-
-    def on_message_begin(self):
-        self.req = Request()
-        self.resp = Response()
-
-    def on_message_complete(self):
-        self.req.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.req, self.resp))
-        task.add_done_callback(self.write)
-
-    def parse_query_string(self, query_string):
-        return Query(parse_qs(query_string, keep_blank_values=True))
-
-    def write(self, *args):
-        # May or may not have "future" as arg.
-        self.writer.write(b'HTTP/1.1 %b\r\n' % self.resp.status)
-        if not isinstance(self.resp.body, bytes):
-            self.resp.body = self.resp.body.encode()
-        if 'Content-Length' not in self.resp.headers:
-            length = len(self.resp.body)
-            self.resp.headers['Content-Length'] = str(length)
-        for key, value in self.resp.headers.items():
-            self.writer.write(b'%b: %b\r\n' % (key.encode(),
-                                               str(value).encode()))
-        self.writer.write(b'\r\n')
-        self.writer.write(self.resp.body)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
-
-
 class Query(dict):
 
     TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
@@ -136,6 +70,71 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
+class Protocol(asyncio.Protocol):
+
+    __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
+    Query = Query
+
+    def __init__(self, app):
+        self.app = app
+        self.parser = HttpRequestParser(self)
+
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            self.resp = Response()
+            self.resp.status = HTTPStatus.BAD_REQUEST
+            self.resp.body = b'Unparsable request'
+            self.write()
+
+    def connection_made(self, transport):
+        self.writer = transport
+
+    # All on_xxx methods are in use by httptools parser.
+    # See https://github.com/MagicStack/httptools#apis
+    def on_header(self, name: bytes, value: bytes):
+        self.req.headers[name.decode()] = value.decode()
+
+    def on_body(self, body: bytes):
+        self.req.body += body
+
+    def on_url(self, url: bytes):
+        self.req.url = url
+        parsed = parse_url(url)
+        self.req.path = parsed.path.decode()
+        self.req.query_string = (parsed.query or b'').decode()
+        parsed_qs = parse_qs(self.req.query_string, keep_blank_values=True)
+        self.req.query = self.Query(parsed_qs)
+
+    def on_message_begin(self):
+        self.req = Request()
+        self.resp = Response()
+
+    def on_message_complete(self):
+        self.req.method = self.parser.get_method().decode().upper()
+        task = self.app.loop.create_task(self.app(self.req, self.resp))
+        task.add_done_callback(self.write)
+
+    def write(self, *args):
+        # May or may not have "future" as arg.
+        self.writer.write(b'HTTP/1.1 %b\r\n' % self.resp.status)
+        if not isinstance(self.resp.body, bytes):
+            self.resp.body = self.resp.body.encode()
+        if 'Content-Length' not in self.resp.headers:
+            length = len(self.resp.body)
+            self.resp.headers['Content-Length'] = str(length)
+        for key, value in self.resp.headers.items():
+            self.writer.write(b'%b: %b\r\n' % (key.encode(),
+                                               str(value).encode()))
+        self.writer.write(b'\r\n')
+        self.writer.write(self.resp.body)
+        if not self.parser.should_keep_alive():
+            self.writer.close()
+
+
 class Request:
 
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
@@ -174,6 +173,7 @@ class Response:
 
 
 class Roll:
+    Protocol = Protocol
 
     def __init__(self):
         self.routes = Routes()
@@ -213,7 +213,7 @@ class Roll:
             response.body = str(error)
 
     def factory(self):
-        return Protocol(self)
+        return self.Protocol(self)
 
     def route(self, path, methods=None):
         if methods is None:
