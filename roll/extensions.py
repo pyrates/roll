@@ -19,7 +19,7 @@ def logger(app, level=logging.DEBUG, handler=None):
 
     @app.listen('request')
     async def log_request(request, response):
-        logger.info("{} {}".format(request.method, request.path))
+        logger.info("{} {}".format(request.method, request.url.decode()))
 
     @app.listen('startup')
     async def startup():
