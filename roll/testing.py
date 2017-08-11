@@ -37,7 +37,7 @@ class Client:
         if content_type:
             headers['Content-Type'] = content_type
         body, headers = self.encode_body(body, headers)
-        protocol = Protocol(self.app)
+        protocol = self.app.factory()
         protocol.on_message_begin()
         protocol.on_url(path.encode())
         protocol.req.body = body
