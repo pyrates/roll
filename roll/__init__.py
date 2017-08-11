@@ -53,6 +53,7 @@ class Protocol(asyncio.Protocol):
         self.req.body += body
 
     def on_url(self, url: bytes):
+        self.req.url = url
         parsed = parse_url(url)
         self.req.path = parsed.path.decode()
         self.req.query_string = (parsed.query or b'').decode()
@@ -151,7 +152,7 @@ class Query(dict):
 
 class Request:
 
-    __slots__ = ('path', 'query_string', 'query', 'method', 'kwargs',
+    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
                  'body', 'headers')
 
     def __init__(self):
