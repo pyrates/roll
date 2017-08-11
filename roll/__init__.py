@@ -94,60 +94,46 @@ class Query(dict):
     FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
     NONE_STRINGS = ('n', 'none', 'null')
 
-    def get(self, key, default=None):
-        return super().get(key, [default])[0]
+    def get(self, key, default=...):
+        return self.list(key, [default])[0]
 
-    def get_list(self, key, default=None):
-        return super().get(key, default)
+    def list(self, key, default=...):
+        try:
+            return self[key]
+        except KeyError:
+            if default is ... or default == [...]:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                "Missing '{}' key".format(key))
+            return default
 
     def bool(self, key, default=...):
-        if key in self:
-            value = self.get(key).lower()
-            if value in self.TRUE_STRINGS:
-                return True
-            elif value in self.FALSE_STRINGS:
-                return False
-            elif value in self.NONE_STRINGS:
-                return None
-            raise HttpError(
-                HTTPStatus.BAD_REQUEST,
-                'Wrong boolean value for {}={}'.format(key, self.get(key)))
-        if default is ...:
-            raise HttpError(HTTPStatus.BAD_REQUEST,
-                            'Missing {} key'.format(key))
-        return default
+        value = self.get(key, default)
+        if value in (True, False, None):
+            return value
+        value = value.lower()
+        if value in self.TRUE_STRINGS:
+            return True
+        elif value in self.FALSE_STRINGS:
+            return False
+        elif value in self.NONE_STRINGS:
+            return None
+        raise HttpError(
+            HTTPStatus.BAD_REQUEST,
+            "Wrong boolean value for '{}={}'".format(key, self.get(key)))
 
     def int(self, key, default=...):
         try:
-            value = int(self.get(key))
-        except TypeError:
-            if default is ...:
-                raise HttpError(
-                    HTTPStatus.BAD_REQUEST,
-                    'Key {} must be present and castable to int'.format(key))
-            return default
+            return int(self.get(key, default))
         except ValueError:
-            if default is ...:
-                raise HttpError(HTTPStatus.BAD_REQUEST,
-                                'Key {} must be castable to int'.format(key))
-            return default
-        return value
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            "Key '{}' must be castable to int".format(key))
 
     def float(self, key, default=...):
         try:
-            value = float(self.get(key))
-        except TypeError:
-            if default is ...:
-                raise HttpError(
-                    HTTPStatus.BAD_REQUEST,
-                    'Key {} must be present and castable to float'.format(key))
-            return default
+            return float(self.get(key, default))
         except ValueError:
-            if default is ...:
-                raise HttpError(HTTPStatus.BAD_REQUEST,
-                                'Key {} must be castable to float'.format(key))
-            return default
-        return value
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            "Key '{}' must be castable to float".format(key))
 
 
 class Request:

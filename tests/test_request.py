@@ -100,16 +100,23 @@ async def test_query_get_should_return_first_value_if_multiple(protocol):
     assert protocol.req.query.get('key') == 'value'
 
 
+async def test_query_get_should_raise_if_no_key_and_no_default(protocol):
+    protocol.on_message_begin()
+    protocol.on_url(b'/?key=value')
+    with pytest.raises(HttpError):
+        protocol.req.query.get('other')
+
+
 async def test_query_getlist_should_return_list_of_values(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value&key=value2')
-    assert protocol.req.query.get_list('key') == ['value', 'value2']
+    assert protocol.req.query.list('key') == ['value', 'value2']
 
 
 async def test_query_get_should_return_default_if_key_is_missing(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value')
-    assert protocol.req.query.get('other') is None
+    assert protocol.req.query.get('other', None) is None
     assert protocol.req.query.get('other', 'default') == 'default'
 
 
