@@ -3,7 +3,8 @@
 Create a venv, install requirements.txt dependencies, and then run:
 
     ./bench.sh
-    ./bench.sh "roll sanic"  # To run only roll and sanic.
+    ./bench.sh wrk  # To run only wrk suite
+    ./bench.sh wrk "roll sanic"  # To run only roll and sanic with wrk.
 
 
 ## Running remotely
@@ -19,4 +20,4 @@ then bootstrap the server:
 then run the benchmarks:
 
     fab -eH user@ip.ip.ip.ip bench
-    fab -eH user@ip.ip.ip.ip bench --names "roll sanic"
+    fab -eH user@ip.ip.ip.ip bench --tools ab --names "roll sanic"

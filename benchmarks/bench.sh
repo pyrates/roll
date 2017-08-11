@@ -3,56 +3,52 @@
 mkdir -p logs/
 
 function run_ab() {
-  cd $1 && . ./run.sh &
-  sleep 1
-  PID=$!
-  http "http://127.0.0.1:8000/$2"
-  time ab -c 50 -n 1000 http://127.0.0.1:8000/$2 >> $1/ab.log
-  kill $PID
-  wait $PID
+  ab -c 50 -n 1000 http://127.0.0.1:8000/$URLPATH
 }
 
 function run_wrk() {
-  cd $1 && . ./run.sh &
-  sleep 1
-  PID=$!
-  http "http://127.0.0.1:8000/$2"
-  time wrk -t20 -c100 -d20s http://127.0.0.1:8000/$2 >> $1/wrk.log
-  kill $PID
-  wait $PID
-  tail -2 $1/wrk.log
+  wrk -t20 -c100 -d20s http://127.0.0.1:8000/$URLPATH
 }
 
-if test -z "$1"
+function run () {
+  echo "Running bench with $TOOL for $NAME"
+  cd $NAME && . ./run.sh &
+  sleep 1
+  PID=$!
+  http "http://127.0.0.1:8000/$URLPATH"
+  time run_$TOOL | tee $NAME/$TOOL.log
+  kill $PID
+  wait $PID
+}
+
+if test -z "$2"
+then
+  TOOLS="ab wrk"
+else
+  TOOLS=$1
+fi
+
+if test -z "$2"
 then
   NAMES="aiohttp falcon roll sanic"
 else
-  NAMES=$1
+  NAMES=$2
 fi
 LEN=${#NAMES[@]}
 
-COUNTER=0
-for NAME in $NAMES
-do
-  echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "Running bench with ab for $NAME"
-  run_ab $NAME hello/bench
-  let COUNTER++
-  if (($COUNTER < $LEN))
-    then sleep 20
-  fi
-  echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-done
 
-COUNTER=0
-for NAME in $NAMES
+URLPATH=hello/bench
+for TOOL in $TOOLS
 do
-  echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "Running bench with wrk for $NAME"
-  run_wrk $NAME hello/bench
-  let COUNTER++
-  echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-  if (($COUNTER < $LEN))
-    then sleep 20
-  fi
+  COUNTER=0
+  for NAME in $NAMES
+  do
+    echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+    run $TOOL $NAME hello/bench
+    let COUNTER++
+    if (($COUNTER < $LEN))
+      then sleep 20
+    fi
+    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  done
 done
