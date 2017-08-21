@@ -7,7 +7,7 @@ from roll import extensions
 pytestmark = pytest.mark.asyncio
 
 
-async def test_cors(client,  app):
+async def test_cors(client, app):
 
     extensions.cors(app)
 

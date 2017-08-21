@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from http import HTTPStatus
 from traceback import print_exc
@@ -18,7 +19,7 @@ def logger(app, level=logging.DEBUG, handler=None):
 
     @app.listen('request')
     async def log_request(request, response):
-        logger.info("{} {}".format(request.method, request.path))
+        logger.info("{} {}".format(request.method, request.url.decode()))
 
     @app.listen('startup')
     async def startup():
@@ -59,3 +60,19 @@ def igniter(app):
         |______\___|\__|  |___/   |_|  \___/|_|_| ()
 
         ''')
+
+
+def simple_server(app, port=3579, host='127.0.0.1'):
+    app.loop = asyncio.get_event_loop()
+    app.loop.run_until_complete(app.startup())
+    print('Rolling on http://%s:%d' % (host, port))
+    server = app.loop.create_server(app.factory, host, port)
+    app.loop.create_task(server)
+    try:
+        app.loop.run_forever()
+    except KeyboardInterrupt:
+        print('Bye.')
+    finally:
+        app.loop.run_until_complete(app.shutdown())
+        server.close()
+        app.loop.close()

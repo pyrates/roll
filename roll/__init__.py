@@ -2,7 +2,7 @@ import asyncio
 from http import HTTPStatus
 from urllib.parse import parse_qs
 
-from httptools import HttpRequestParser, parse_url
+from httptools import HttpRequestParser, parse_url, HttpParserError
 from kua.routes import RouteError, Routes
 
 from .extensions import options
@@ -22,46 +22,128 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Request:
+class Query(dict):
 
-    __slots__ = ('EOF', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
+    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
+    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
+    NONE_STRINGS = ('n', 'none', 'null')
 
-    def __init__(self):
-        self.EOF = False
-        self.kwargs = {}
-        self.headers = {}
-        self.body = b''
+    def get(self, key, default=...):
+        return self.list(key, [default])[0]
+
+    def list(self, key, default=...):
+        try:
+            return self[key]
+        except KeyError:
+            if default is ... or default == [...]:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                "Missing '{}' key".format(key))
+            return default
+
+    def bool(self, key, default=...):
+        value = self.get(key, default)
+        if value in (True, False, None):
+            return value
+        value = value.lower()
+        if value in self.TRUE_STRINGS:
+            return True
+        elif value in self.FALSE_STRINGS:
+            return False
+        elif value in self.NONE_STRINGS:
+            return None
+        raise HttpError(
+            HTTPStatus.BAD_REQUEST,
+            "Wrong boolean value for '{}={}'".format(key, self.get(key)))
+
+    def int(self, key, default=...):
+        try:
+            return int(self.get(key, default))
+        except ValueError:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            "Key '{}' must be castable to int".format(key))
+
+    def float(self, key, default=...):
+        try:
+            return float(self.get(key, default))
+        except ValueError:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            "Key '{}' must be castable to float".format(key))
+
+
+class Protocol(asyncio.Protocol):
+
+    __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
+    Query = Query
+
+    def __init__(self, app):
+        self.app = app
+        self.parser = HttpRequestParser(self)
+
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            self.resp = Response()
+            self.resp.status = HTTPStatus.BAD_REQUEST
+            self.resp.body = b'Unparsable request'
+            self.write()
+
+    def connection_made(self, transport):
+        self.writer = transport
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
     def on_header(self, name: bytes, value: bytes):
-        self.headers[name.decode()] = value.decode()
+        self.req.headers[name.decode()] = value.decode()
 
     def on_body(self, body: bytes):
-        self.body += body
+        self.req.body += body
 
     def on_url(self, url: bytes):
+        self.req.url = url
         parsed = parse_url(url)
-        self.path = parsed.path.decode()
-        self.query_string = (parsed.query or b'').decode()
-        self.query = parse_qs(self.query_string)
+        self.req.path = parsed.path.decode()
+        self.req.query_string = (parsed.query or b'').decode()
+        parsed_qs = parse_qs(self.req.query_string, keep_blank_values=True)
+        self.req.query = self.Query(parsed_qs)
+
+    def on_message_begin(self):
+        self.req = Request()
+        self.resp = Response()
 
     def on_message_complete(self):
-        self.EOF = True
+        self.req.method = self.parser.get_method().decode().upper()
+        task = self.app.loop.create_task(self.app(self.req, self.resp))
+        task.add_done_callback(self.write)
 
-    @classmethod
-    async def parse(cls, reader):
-        chunks = 2 ** 16
-        req = cls()
-        parser = HttpRequestParser(req)
-        while True:
-            data = await reader.read(chunks)
-            parser.feed_data(data)
-            if not data or req.EOF:
-                break
-        req.method = parser.get_method().decode().upper()
-        return req
+    def write(self, *args):
+        # May or may not have "future" as arg.
+        self.writer.write(b'HTTP/1.1 %b\r\n' % self.resp.status)
+        if not isinstance(self.resp.body, bytes):
+            self.resp.body = self.resp.body.encode()
+        if 'Content-Length' not in self.resp.headers:
+            length = len(self.resp.body)
+            self.resp.headers['Content-Length'] = str(length)
+        for key, value in self.resp.headers.items():
+            self.writer.write(b'%b: %b\r\n' % (key.encode(),
+                                               str(value).encode()))
+        self.writer.write(b'\r\n')
+        self.writer.write(self.resp.body)
+        if not self.parser.should_keep_alive():
+            self.writer.close()
+
+
+class Request:
+
+    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
+                 'body', 'headers')
+
+    def __init__(self):
+        self.kwargs = {}
+        self.headers = {}
+        self.body = b''
 
 
 class Response:
@@ -91,6 +173,7 @@ class Response:
 
 
 class Roll:
+    Protocol = Protocol
 
     def __init__(self):
         self.routes = Routes()
@@ -103,13 +186,7 @@ class Roll:
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, reader, writer):
-        req = await Request.parse(reader)
-        resp = await self.respond(req)
-        self.write(writer, resp)
-
-    async def respond(self, req):
-        resp = Response()
+    async def __call__(self, req, resp):
         try:
             if not await self.hook('request', request=req, response=resp):
                 params, handler = self.dispatch(req)
@@ -135,31 +212,8 @@ class Roll:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(error)
 
-    def serve(self, port=3579, host='127.0.0.1'):
-        self.loop = asyncio.get_event_loop()
-        self.loop.run_until_complete(self.startup())
-        print("Rolling on http://%s:%d" % (host, port))
-        self.loop.create_task(asyncio.start_server(self, host, port))
-        try:
-            self.loop.run_forever()
-        except KeyboardInterrupt:
-            print('Bye.')
-        finally:
-            self.loop.run_until_complete(self.shutdown())
-            self.loop.close()
-
-    def write(self, writer, resp):
-        writer.write(b'HTTP/1.1 %b\r\n' % resp.status)
-        if not isinstance(resp.body, bytes):
-            resp.body = resp.body.encode()
-        if 'Content-Length' not in resp.headers:
-            length = len(resp.body)
-            resp.headers['Content-Length'] = str(length)
-        for key, value in resp.headers.items():
-            writer.write(b'%b: %b\r\n' % (key.encode(), str(value).encode()))
-        writer.write(b'\r\n')
-        writer.write(resp.body)
-        writer.write_eof()
+    def factory(self):
+        return self.Protocol(self)
 
     def route(self, path, methods=None):
         if methods is None:
