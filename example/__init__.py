@@ -3,13 +3,15 @@ import asyncio
 import uvloop
 
 from roll import Roll
-from roll.extensions import cors, logger, traceback, simple_server
+from roll.extensions import cors, logger, igniter
+from roll.extensions import cors, logger, traceback, simple_server, igniter
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 app = Roll()
 cors(app)
 logger(app)
+igniter(app)
 traceback(app)
 
 
@@ -20,8 +22,7 @@ async def hello(request, response, parameter):
 
 @app.listen('startup')
 async def on_startup():
-    # Because https://www.youtube.com/watch?v=hh9rUe_JARE
-    print("Ready to roll out!")
+    print('https://vimeo.com/34926862')
 
 
 if __name__ == '__main__':

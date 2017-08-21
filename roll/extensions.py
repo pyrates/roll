@@ -46,6 +46,22 @@ def traceback(app):
             print_exc()
 
 
+def igniter(app):
+
+    @app.listen('startup')
+    async def make_it_roll_like_it_never_rolled_before():
+        logger = logging.getLogger('roll')
+        logger.debug('''
+         _          _                        _ _
+        | |        | |  ()                  | | |
+        | |     ___| |_  / ___     ____ ___ | | |
+        | |    / _ \ __|  / __|   |  __/ _ \| | |
+        | |___|  __/ |_   \__ \   | | | (_) | | |
+        |______\___|\__|  |___/   |_|  \___/|_|_| ()
+
+        ''')
+
+
 def simple_server(app, port=3579, host='127.0.0.1'):
     app.loop = asyncio.get_event_loop()
     app.loop.run_until_complete(app.startup())
