@@ -3,7 +3,7 @@ from http import HTTPStatus
 from urllib.parse import parse_qs
 
 from httptools import HttpParserError, HttpRequestParser, parse_url
-from kua.routes import Routes as BaseRoutes
+from kua.routes import Routes as KuaRoutes
 from kua.routes import RouteError
 
 from .extensions import options
@@ -173,18 +173,20 @@ class Response:
     json = property(None, json)
 
 
-class Routes(BaseRoutes):
+class Routes(KuaRoutes):
+
+    CACHE = {}
 
     def __init__(self, *args, **kwargs):
-        self._cache = {}
+        self.CACHE = {}
         super().__init__(*args, **kwargs)
 
     def add(self, url, **payload):
         # Allow to define twice the same route with different payloads
-        # (GET vs POST for example).
-        if url in self._cache:
-            payload.update(self._cache[url])
-        self._cache[url] = payload
+        # (GET and POST for example).
+        if url in self.CACHE:
+            payload.update(self.CACHE[url])
+        self.CACHE[url] = payload
         super().add(url, payload)
 
 
