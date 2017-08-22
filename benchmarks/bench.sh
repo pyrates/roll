@@ -3,43 +3,52 @@
 mkdir -p logs/
 
 function run_ab() {
-  gunicorn run_$1:app --config gunicorn_$1.conf &
-  sleep 1
-  PID=$!
-  echo "Running bench with ab for $1"
-  time ab -c 50 -n 1000 http://127.0.0.1:8000/$2 > logs/ab-$1.log
-  kill $PID
-  wait $PID
-  sleep 1
+  ab -c 50 -n 1000 http://127.0.0.1:8000/$URLPATH
 }
 
 function run_wrk() {
-  echo "Running bench with wrk for $1"
-  gunicorn run_$1:app --config gunicorn_$1.conf &
-  sleep 1
-  PID=$!
-  curl -i http://127.0.0.1:8000/$2
-  time wrk -t20 -c100 -d20s http://127.0.0.1:8000/$2 >> logs/wrk-$1.log
-  kill $PID
-  wait $PID
-  if test -n "$3"
-  then
-    sleep $3
-  fi
+  wrk -t20 -c100 -d20s http://127.0.0.1:8000/$URLPATH
 }
 
-# Run a first test to warm up Memory/CPU/HTTP connections,
-# this way the order of tests below should not anymore be significant.
-# run_ab roll hello/bench
+function run () {
+  echo "Running bench with $TOOL for $NAME"
+  cd $NAME && . ./run.sh &
+  sleep 1
+  PID=$!
+  http "http://127.0.0.1:8000/$URLPATH"
+  time run_$TOOL | tee $NAME/$TOOL.log
+  kill $PID
+  wait $PID
+}
 
-# run_ab sanic hello/bench
-# run_ab aiohttp hello/bench
-# run_ab falcon hello/bench
-# run_ab roll hello/bench
+if test -z "$2"
+then
+  TOOLS="ab wrk"
+else
+  TOOLS=$1
+fi
 
-run_wrk roll hello/bench 20
-run_wrk sanic hello/bench 20
-run_wrk roll hello/bench 20
-run_wrk sanic hello/bench
-# run_wrk aiohttp hello/bench
-# run_wrk falcon hello/bench
+if test -z "$2"
+then
+  NAMES="aiohttp falcon roll sanic"
+else
+  NAMES=$2
+fi
+LEN=${#NAMES[@]}
+
+
+URLPATH=hello/bench
+for TOOL in $TOOLS
+do
+  COUNTER=0
+  for NAME in $NAMES
+  do
+    echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+    run $TOOL $NAME hello/bench
+    let COUNTER++
+    if (($COUNTER < $LEN))
+      then sleep 20
+    fi
+    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+  done
+done

@@ -15,3 +15,7 @@ app = Sanic(log_config=None)
 @app.route('/hello/<parameter>')
 async def hello(request, parameter):
     return json({'message': f'Hello {parameter}'})
+
+
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=8000, workers=6)
