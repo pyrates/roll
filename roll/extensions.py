@@ -62,16 +62,18 @@ def igniter(app):
         ''')
 
 
-def simple_server(app, port=3579, host='127.0.0.1'):
+def simple_server(app, port=3579, host='127.0.0.1', quiet=False):
     app.loop = asyncio.get_event_loop()
     app.loop.run_until_complete(app.startup())
-    print('Rolling on http://%s:%d' % (host, port))
+    if not quiet:
+        print('Rolling on http://%s:%d' % (host, port))
     server = app.loop.create_server(app.factory, host, port)
     app.loop.create_task(server)
     try:
         app.loop.run_forever()
     except KeyboardInterrupt:
-        print('Bye.')
+        if not quiet:
+            print('Bye.')
     finally:
         app.loop.run_until_complete(app.shutdown())
         server.close()
