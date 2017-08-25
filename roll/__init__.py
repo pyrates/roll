@@ -2,8 +2,9 @@ import asyncio
 from http import HTTPStatus
 from urllib.parse import parse_qs
 
-from httptools import HttpRequestParser, parse_url, HttpParserError
-from kua.routes import RouteError, Routes
+from httptools import HttpParserError, HttpRequestParser, parse_url
+from kua.routes import Routes as KuaRoutes
+from kua.routes import RouteError
 
 from .extensions import options
 
@@ -172,11 +173,33 @@ class Response:
     json = property(None, json)
 
 
+class Routes(KuaRoutes):
+
+    def __init__(self, *args, **kwargs):
+        self._cache = {}
+        super().__init__(*args, **kwargs)
+
+    def add(self, url, **payload):
+        # Allow to define twice the same route with different payloads
+        # (GET and POST for example).
+        if url in self._cache:
+            payload.update(self._cache[url])
+        self._cache[url] = payload
+        super().add(url, payload)
+
+    def match(self, url):
+        try:
+            return super().match(url)
+        except RouteError:
+            raise HttpError(HTTPStatus.NOT_FOUND, url)
+
+
 class Roll:
     Protocol = Protocol
+    Routes = Routes
 
     def __init__(self):
-        self.routes = Routes()
+        self.routes = self.Routes()
         self.hooks = {}
         options(self)
 
@@ -220,16 +243,13 @@ class Roll:
             methods = ['GET']
 
         def wrapper(func):
-            self.routes.add(path, {m: func for m in methods})
+            self.routes.add(path, **{m: func for m in methods})
             return func
 
         return wrapper
 
     def dispatch(self, req):
-        try:
-            params, handlers = self.routes.match(req.path)
-        except RouteError:
-            raise HttpError(HTTPStatus.NOT_FOUND, req.path)
+        params, handlers = self.routes.match(req.path)
         if req.method not in handlers:
             raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
         req.kwargs.update(params)

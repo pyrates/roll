@@ -66,3 +66,22 @@ async def test_post_urlencoded(client, app):
     resp = await client.post('/test', body={"key": "value"})
     assert resp.status == b'200 OK'
     assert resp.body == 'key=value'
+
+
+async def test_can_define_twice_a_route_with_different_payloads(client, app):
+
+    @app.route('/test', methods=['GET'])
+    async def get(req, resp):
+        resp.body = b'GET'
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        resp.body = b'POST'
+
+    resp = await client.get('/test')
+    assert resp.status == b'200 OK'
+    assert resp.body == b'GET'
+
+    resp = await client.post('/test', {})
+    assert resp.status == b'200 OK'
+    assert resp.body == b'POST'
