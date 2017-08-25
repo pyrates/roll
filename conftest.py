@@ -1,8 +1,11 @@
 import pytest
 
 from roll import Roll
+from roll.extensions import traceback
 
 
 @pytest.fixture(scope='function')
 def app():
-    return Roll()
+    app_ = Roll()
+    traceback(app_)
+    return app_
