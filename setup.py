@@ -1,10 +1,9 @@
 "Async pico server that rolls."
-import glob
 import sys
 from codecs import open  # To use a consistent encoding
 from os import path
 
-from setuptools import find_packages, setup
+from setuptools import Extension, find_packages, setup
 
 here = path.abspath(path.dirname(__file__))
 
@@ -15,18 +14,6 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 def is_pkg(line):
     return line and not line.startswith(('--', 'git', '#'))
-
-
-def list_modules(dirname):
-    filenames = glob.glob(path.join(dirname, '*.py'))
-
-    module_names = []
-    for name in filenames:
-        module, ext = path.splitext(path.basename(name))
-        if module != '__init__':
-            module_names.append(module)
-
-    return module_names
 
 
 with open('requirements.txt', encoding='utf-8') as reqs:
@@ -42,8 +29,11 @@ except ImportError:
     cmdclass = {}
     ext_modules = []
 else:
-    # TODO.
-    pass
+    ext_modules = [
+        Extension('roll', ['roll/__init__.py']),
+        Extension('roll.extensions', ['roll/extensions.py']),
+        Extension('roll.worker', ['roll/worker.py']),
+    ]
 
     cmdclass = {'build_ext': build_ext}
 
