@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 import pytest
 
 pytestmark = pytest.mark.asyncio
@@ -10,7 +12,7 @@ async def test_simple_get_request(client, app):
         resp.body = 'test response'
 
     resp = await client.get('/test')
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
     assert resp.body == 'test response'
 
 
@@ -21,7 +23,7 @@ async def test_simple_non_200_response(client, app):
         resp.status = 204
 
     resp = await client.get('/test')
-    assert resp.status == b'204 No Content'
+    assert resp.status == HTTPStatus.NO_CONTENT
     assert resp.body == b''
 
 
@@ -32,7 +34,7 @@ async def test_not_found_path(client, app):
         ...
 
     resp = await client.get('/testing')
-    assert resp.status == b'404 Not Found'
+    assert resp.status == HTTPStatus.NOT_FOUND
 
 
 async def test_invalid_method(client, app):
@@ -42,7 +44,7 @@ async def test_invalid_method(client, app):
         ...
 
     resp = await client.post('/test', body=b'')
-    assert resp.status == b'405 Method Not Allowed'
+    assert resp.status == HTTPStatus.METHOD_NOT_ALLOWED
 
 
 async def test_post_json(client, app):
@@ -52,7 +54,7 @@ async def test_post_json(client, app):
         resp.body = req.body
 
     resp = await client.post('/test', body={"key": "value"})
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
     assert resp.body == '{"key": "value"}'
 
 
@@ -64,7 +66,7 @@ async def test_post_urlencoded(client, app):
 
     client.content_type = 'application/x-www-form-urlencoded'
     resp = await client.post('/test', body={"key": "value"})
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
     assert resp.body == 'key=value'
 
 
@@ -79,9 +81,9 @@ async def test_can_define_twice_a_route_with_different_payloads(client, app):
         resp.body = b'POST'
 
     resp = await client.get('/test')
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
     assert resp.body == b'GET'
 
     resp = await client.post('/test', {})
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
     assert resp.body == b'POST'

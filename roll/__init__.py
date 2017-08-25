@@ -121,7 +121,9 @@ class Protocol(asyncio.Protocol):
 
     def write(self, *args):
         # May or may not have "future" as arg.
-        self.writer.write(b'HTTP/1.1 %b\r\n' % self.resp.status)
+        status = '{} {}'.format(self.resp.status.value,
+                                self.resp.status.phrase).encode()
+        self.writer.write(b'HTTP/1.1 %b\r\n' % status)
         if not isinstance(self.resp.body, bytes):
             self.resp.body = self.resp.body.encode()
         if 'Content-Length' not in self.resp.headers:
@@ -163,8 +165,8 @@ class Response:
 
     @status.setter
     def status(self, code):
-        status_ = HTTPStatus(code)
-        self._status = '{} {}'.format(status_.value, status_.phrase).encode()
+        # Allow to pass either the HttpStatus or the numeric value.
+        self._status = HTTPStatus(code)
 
     def json(self, value):
         self.headers['Content-Type'] = 'application/json'

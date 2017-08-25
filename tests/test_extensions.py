@@ -1,7 +1,7 @@
 import json
+from http import HTTPStatus
 
 import pytest
-
 from roll import extensions
 
 pytestmark = pytest.mark.asyncio
@@ -16,7 +16,7 @@ async def test_cors(client, app):
         resp.body = 'test response'
 
     resp = await client.get('/test')
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
     assert resp.body == 'test response'
     assert resp.headers['Access-Control-Allow-Origin'] == '*'
 
@@ -59,7 +59,7 @@ async def test_json_with_default_code(client, app):
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json'
     assert json.loads(resp.body) == {'key': 'value'}
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK
 
 
 async def test_json_with_custom_code(client, app):
@@ -72,7 +72,7 @@ async def test_json_with_custom_code(client, app):
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json'
     assert json.loads(resp.body) == {'key': 'value'}
-    assert resp.status == b'400 Bad Request'
+    assert resp.status == HTTPStatus.BAD_REQUEST
 
 
 async def test_traceback(client, app, capsys):
@@ -85,7 +85,7 @@ async def test_traceback(client, app, capsys):
 
     resp = await client.get('/test')
     _, err = capsys.readouterr()
-    assert resp.status == b'500 Internal Server Error'
+    assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
     assert 'Unhandled exception' in err
 
 
@@ -96,4 +96,4 @@ async def test_options(client, app):
         raise  # Should not be called.
 
     resp = await client.options('/test')
-    assert resp.status == b'200 OK'
+    assert resp.status == HTTPStatus.OK

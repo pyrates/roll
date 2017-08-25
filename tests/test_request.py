@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 import pytest
 from roll import Protocol, HttpError
 
@@ -85,7 +87,7 @@ async def test_request_parse_POST_body(protocol):
 async def test_invalid_request(protocol):
     protocol.data_received(
         b'INVALID HTTP/1.22\r\n')
-    assert protocol.resp.status == b'400 Bad Request'
+    assert protocol.resp.status == HTTPStatus.BAD_REQUEST
 
 
 async def test_query_get_should_return_value(protocol):
