@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-mkdir -p logs/
-
 function run_ab() {
   ab -c 50 -n 1000 http://127.0.0.1:8000/$URLPATH
 }
@@ -21,7 +19,7 @@ function run () {
   wait $PID
 }
 
-if test -z "$2"
+if test -z "$1"
 then
   TOOLS="ab wrk"
 else
@@ -35,6 +33,13 @@ else
   NAMES=$2
 fi
 LEN=${#NAMES[@]}
+
+if test -z "$3"
+then
+  WORKERS=6
+else
+  WORKERS=$3
+fi
 
 
 URLPATH=hello/bench

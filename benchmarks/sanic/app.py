@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 import uvloop
 
@@ -18,4 +19,5 @@ async def hello(request, parameter):
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8000, workers=6)
+    app.run(host='127.0.0.1', port=8000,
+            workers=int(os.environ.get('WORKERS')))
