@@ -36,7 +36,7 @@ LEN=${#NAMES[@]}
 
 if test -z "$3"
 then
-  WORKERS=6
+  WORKERS=1
 else
   WORKERS=$3
 fi
