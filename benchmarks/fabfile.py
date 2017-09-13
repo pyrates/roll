@@ -37,10 +37,10 @@ def put_dir(ctx, local, remote):
 
 
 @task
-def bench(ctx, tools='', names=''):
+def bench(ctx, tools='', names='', workers=''):
     as_bench(ctx, '/bin/bash -c ". /srv/bench/venv/bin/activate && '
                   'cd /srv/bench/src/benchmarks && ./bench.sh '
-                  f'\"{tools}\" \"{names}\""')
+                  f'\"{tools}\" \"{names}\" \"{workers}\""')
 
 
 @task

@@ -121,19 +121,17 @@ class Protocol(asyncio.Protocol):
 
     def write(self, *args):
         # May or may not have "future" as arg.
-        status = '{} {}'.format(self.resp.status.value,
-                                self.resp.status.phrase).encode()
-        self.writer.write(b'HTTP/1.1 %b\r\n' % status)
+        payload = b'HTTP/1.1 %a %b\r\n' % (self.resp.status.value,
+                                           self.resp.status.phrase.encode())
         if not isinstance(self.resp.body, bytes):
             self.resp.body = self.resp.body.encode()
         if 'Content-Length' not in self.resp.headers:
             length = len(self.resp.body)
             self.resp.headers['Content-Length'] = str(length)
         for key, value in self.resp.headers.items():
-            self.writer.write(b'%b: %b\r\n' % (key.encode(),
-                                               str(value).encode()))
-        self.writer.write(b'\r\n')
-        self.writer.write(self.resp.body)
+            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+        payload += b'\r\n%b' % self.resp.body
+        self.writer.write(payload)
         if not self.parser.should_keep_alive():
             self.writer.close()
 
