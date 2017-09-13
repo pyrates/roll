@@ -3,8 +3,7 @@ from http import HTTPStatus
 from urllib.parse import parse_qs
 
 from httptools import HttpParserError, HttpRequestParser, parse_url
-from kua.routes import Routes as KuaRoutes
-from kua.routes import RouteError
+from autoroutes import Routes as BaseRoutes
 
 from .extensions import options
 
@@ -173,25 +172,13 @@ class Response:
     json = property(None, json)
 
 
-class Routes(KuaRoutes):
-
-    def __init__(self, *args, **kwargs):
-        self._cache = {}
-        super().__init__(*args, **kwargs)
-
-    def add(self, url, **payload):
-        # Allow to define twice the same route with different payloads
-        # (GET and POST for example).
-        if url in self._cache:
-            payload.update(self._cache[url])
-        self._cache[url] = payload
-        super().add(url, payload)
+class Routes(BaseRoutes):
 
     def match(self, url):
-        try:
-            return super().match(url)
-        except RouteError:
+        payload, params = super().match(url)
+        if not payload:
             raise HttpError(HTTPStatus.NOT_FOUND, url)
+        return payload, params
 
 
 class Roll:
@@ -249,7 +236,7 @@ class Roll:
         return wrapper
 
     def dispatch(self, req):
-        params, handlers = self.routes.match(req.path)
+        handlers, params = self.routes.match(req.path)
         if req.method not in handlers:
             raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
         req.kwargs.update(params)
