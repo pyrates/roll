@@ -21,9 +21,9 @@ async def test_cors(client, app):
     assert resp.headers['Access-Control-Allow-Origin'] == '*'
 
 
-async def test_custom_cors(client, app):
+async def test_custom_cors_origin(client, app):
 
-    extensions.cors(app, value='mydomain.org')
+    extensions.cors(app, origin='mydomain.org')
 
     @app.route('/test')
     async def get(req, resp):
@@ -31,6 +31,19 @@ async def test_custom_cors(client, app):
 
     resp = await client.get('/test')
     assert resp.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
+    assert 'PUT' in resp.headers['Access-Control-Allow-Methods']
+
+
+async def test_custom_cors_methods(client, app):
+
+    extensions.cors(app, methods=['PATCH', 'PUT'])
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.body = 'test response'
+
+    resp = await client.get('/test')
+    assert resp.headers['Access-Control-Allow-Methods'] == 'PATCH,PUT'
 
 
 async def test_logger(client, app, capsys):
