@@ -1,0 +1,9 @@
+site_name: Roll
+pages:
+  - Home: index.md
+  - Tutorials: tutorials.md
+  - How-to guides: how-to-guides.md
+  - Discussions: discussions.md
+  - Reference: reference.md
+  - Changelog: changelog.md
+theme: readthedocs
