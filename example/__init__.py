@@ -3,8 +3,7 @@ import asyncio
 import uvloop
 
 from roll import Roll
-from roll.extensions import cors, logger, igniter
-from roll.extensions import cors, logger, traceback, simple_server, igniter
+from roll.extensions import cors, igniter, logger, simple_server, traceback
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
