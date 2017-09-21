@@ -36,6 +36,7 @@ A container for `status`, `headers` and `body`.
 
 *Note: there is a shortcut to set JSON content as a dict (`json`).*
 
+
 ### `Query`
 
 Handy parsing of GET HTTP parameters (`get`, `list`, `bool`, `int`,
@@ -44,10 +45,8 @@ Handy parsing of GET HTTP parameters (`get`, `list`, `bool`, `int`,
 
 ### `Protocol`
 
-You can subclass it to set your own `Query` class.
-
-If you have to customize your `Request` or `Response` classes, you must
-redefine the `on_message_begin` method of that class.
+You can subclass it to set your own `Query`, `Request` or `Response`
+classes.
 
 
 ### `Routes`

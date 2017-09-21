@@ -70,10 +70,49 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
+class Request:
+
+    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
+                 'body', 'headers')
+
+    def __init__(self):
+        self.kwargs = {}
+        self.headers = {}
+        self.body = b''
+
+
+class Response:
+
+    __slots__ = ('_status', 'headers', 'body')
+
+    def __init__(self):
+        self._status = None
+        self.body = b''
+        self.status = HTTPStatus.OK
+        self.headers = {}
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, code):
+        # Allow to pass either the HttpStatus or the numeric value.
+        self._status = HTTPStatus(code)
+
+    def json(self, value):
+        self.headers['Content-Type'] = 'application/json'
+        self.body = json.dumps(value)
+
+    json = property(None, json)
+
+
 class Protocol(asyncio.Protocol):
 
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
     Query = Query
+    Request = Request
+    Response = Response
 
     def __init__(self, app):
         self.app = app
@@ -110,8 +149,8 @@ class Protocol(asyncio.Protocol):
         self.req.query = self.Query(parsed_qs)
 
     def on_message_begin(self):
-        self.req = Request()
-        self.resp = Response()
+        self.req = self.Request()
+        self.resp = self.Response()
 
     def on_message_complete(self):
         self.req.method = self.parser.get_method().decode().upper()
@@ -133,43 +172,6 @@ class Protocol(asyncio.Protocol):
         self.writer.write(payload)
         if not self.parser.should_keep_alive():
             self.writer.close()
-
-
-class Request:
-
-    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
-
-    def __init__(self):
-        self.kwargs = {}
-        self.headers = {}
-        self.body = b''
-
-
-class Response:
-
-    __slots__ = ('_status', 'headers', 'body')
-
-    def __init__(self):
-        self._status = None
-        self.body = b''
-        self.status = HTTPStatus.OK
-        self.headers = {}
-
-    @property
-    def status(self):
-        return self._status
-
-    @status.setter
-    def status(self, code):
-        # Allow to pass either the HttpStatus or the numeric value.
-        self._status = HTTPStatus(code)
-
-    def json(self, value):
-        self.headers['Content-Type'] = 'application/json'
-        self.body = json.dumps(value)
-
-    json = property(None, json)
 
 
 class Routes(BaseRoutes):
