@@ -34,10 +34,9 @@ else:
         Extension('roll.extensions', ['roll/extensions.py']),
         Extension('roll.worker', ['roll/worker.py']),
     ]
-
     cmdclass = {'build_ext': build_ext}
 
-VERSION = (0, 2, 0)
+VERSION = (0, 4, 0)
 
 __author__ = 'Yohan Boniface'
 __contact__ = "yohan.boniface@data.gouv.fr"
@@ -56,11 +55,9 @@ setup(
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        'Development Status :: 3 - Alpha',
-
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
-
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
