@@ -124,9 +124,9 @@ class Protocol(asyncio.Protocol):
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.resp = Response()
-            self.resp.status = HTTPStatus.BAD_REQUEST
-            self.resp.body = b'Unparsable request'
+            self.response = Response()
+            self.response.status = HTTPStatus.BAD_REQUEST
+            self.response.body = b'Unparsable request'
             self.write()
 
     def connection_made(self, transport):
@@ -135,40 +135,40 @@ class Protocol(asyncio.Protocol):
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
     def on_header(self, name: bytes, value: bytes):
-        self.req.headers[name.decode()] = value.decode()
+        self.request.headers[name.decode()] = value.decode()
 
     def on_body(self, body: bytes):
-        self.req.body += body
+        self.request.body += body
 
     def on_url(self, url: bytes):
-        self.req.url = url
+        self.request.url = url
         parsed = parse_url(url)
-        self.req.path = parsed.path.decode()
-        self.req.query_string = (parsed.query or b'').decode()
-        parsed_qs = parse_qs(self.req.query_string, keep_blank_values=True)
-        self.req.query = self.Query(parsed_qs)
+        self.request.path = parsed.path.decode()
+        self.request.query_string = (parsed.query or b'').decode()
+        parsed_qs = parse_qs(self.request.query_string, keep_blank_values=True)
+        self.request.query = self.Query(parsed_qs)
 
     def on_message_begin(self):
-        self.req = self.Request()
-        self.resp = self.Response()
+        self.request = self.Request()
+        self.response = self.Response()
 
     def on_message_complete(self):
-        self.req.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.req, self.resp))
+        self.request.method = self.parser.get_method().decode().upper()
+        task = self.app.loop.create_task(self.app(self.request, self.response))
         task.add_done_callback(self.write)
 
     def write(self, *args):
         # May or may not have "future" as arg.
-        payload = b'HTTP/1.1 %a %b\r\n' % (self.resp.status.value,
-                                           self.resp.status.phrase.encode())
-        if not isinstance(self.resp.body, bytes):
-            self.resp.body = self.resp.body.encode()
-        if 'Content-Length' not in self.resp.headers:
-            length = len(self.resp.body)
-            self.resp.headers['Content-Length'] = str(length)
-        for key, value in self.resp.headers.items():
+        payload = b'HTTP/1.1 %a %b\r\n' % (
+            self.response.status.value, self.response.status.phrase.encode())
+        if not isinstance(self.response.body, bytes):
+            self.response.body = self.response.body.encode()
+        if 'Content-Length' not in self.response.headers:
+            length = len(self.response.body)
+            self.response.headers['Content-Length'] = str(length)
+        for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n%b' % self.resp.body
+        payload += b'\r\n%b' % self.response.body
         self.writer.write(payload)
         if not self.parser.should_keep_alive():
             self.writer.close()
@@ -198,19 +198,20 @@ class Roll:
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, req, resp):
+    async def __call__(self, request, response):
         try:
-            if not await self.hook('request', request=req, response=resp):
-                params, handler = self.dispatch(req)
-                await handler(req, resp, **params)
+            if not await self.hook('request', request=request,
+                                   response=response):
+                params, handler = self.dispatch(request)
+                await handler(request, response, **params)
         except Exception as error:
-            await self.on_error(error, resp)
+            await self.on_error(error, response)
         try:
             # Views exceptions should still pass by the response hooks.
-            await self.hook('response', response=resp, request=req)
+            await self.hook('response', response=response, request=request)
         except Exception as error:
-            await self.on_error(error, resp)
-        return resp
+            await self.on_error(error, response)
+        return response
 
     async def on_error(self, error, response):
         if not isinstance(error, HttpError):
@@ -237,12 +238,12 @@ class Roll:
 
         return wrapper
 
-    def dispatch(self, req):
-        handlers, params = self.routes.match(req.path)
-        if req.method not in handlers:
+    def dispatch(self, request):
+        handlers, params = self.routes.match(request.path)
+        if request.method not in handlers:
             raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-        req.kwargs.update(params)
-        return params, handlers[req.method]
+        request.kwargs.update(params)
+        return params, handlers[request.method]
 
     def listen(self, name):
         def wrapper(func):
