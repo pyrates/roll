@@ -8,7 +8,7 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## 0.5.0 — 2017-09-21
+## In progress
 
 * Add documentation.
 * **Breaking change**:
