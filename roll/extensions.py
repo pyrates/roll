@@ -4,11 +4,14 @@ from http import HTTPStatus
 from traceback import print_exc
 
 
-def cors(app, value='*'):
+def cors(app, origin='*', methods=None):
 
     @app.listen('response')
     async def add_cors_headers(response, request):
-        response.headers['Access-Control-Allow-Origin'] = value
+        response.headers['Access-Control-Allow-Origin'] = origin
+        if methods is not None:
+            allow_methods = ','.join(methods)
+            response.headers['Access-Control-Allow-Methods'] = allow_methods
 
 
 def logger(app, level=logging.DEBUG, handler=None):
