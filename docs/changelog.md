@@ -6,7 +6,7 @@ A changelog:
 * links to related issues
 * is concise
 
-* Analogy: git blame :p*
+*Analogy: git blame :p*
 
 ## In progress
 
