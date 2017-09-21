@@ -40,10 +40,10 @@ class Client:
         protocol = self.app.factory()
         protocol.on_message_begin()
         protocol.on_url(path.encode())
-        protocol.req.body = body
-        protocol.req.method = method
-        protocol.req.headers = headers
-        return await self.app(protocol.req, protocol.resp)
+        protocol.request.body = body
+        protocol.request.method = method
+        protocol.request.headers = headers
+        return await self.app(protocol.request, protocol.response)
 
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)

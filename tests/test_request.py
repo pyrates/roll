@@ -36,9 +36,9 @@ async def test_request_parse_simple_get_response(protocol):
         b'DNT: 1\r\n'
         b'Connection: keep-alive\r\n'
         b'\r\n')
-    assert protocol.req.method == 'GET'
-    assert protocol.req.path == '/feeds'
-    assert protocol.req.headers['Accept'] == '*/*'
+    assert protocol.request.method == 'GET'
+    assert protocol.request.path == '/feeds'
+    assert protocol.request.headers['Accept'] == '*/*'
 
 
 async def test_request_parse_query_string(protocol):
@@ -50,9 +50,9 @@ async def test_request_parse_query_string(protocol):
         b'Accept: */*\r\n'
         b'Connection: keep-alive\r\n'
         b'\r\n')
-    assert protocol.req.path == '/feeds'
-    assert protocol.req.query['foo'][0] == 'bar'
-    assert protocol.req.query['bar'][0] == 'baz'
+    assert protocol.request.path == '/feeds'
+    assert protocol.request.query['foo'][0] == 'bar'
+    assert protocol.request.query['bar'][0] == 'baz'
 
 
 async def test_request_parse_multivalue_query_string(protocol):
@@ -64,8 +64,8 @@ async def test_request_parse_multivalue_query_string(protocol):
         b'Accept: */*\r\n'
         b'Connection: keep-alive\r\n'
         b'\r\n')
-    assert protocol.req.path == '/feeds'
-    assert protocol.req.query['foo'] == ['bar', 'baz']
+    assert protocol.request.path == '/feeds'
+    assert protocol.request.query['foo'] == ['bar', 'baz']
 
 
 async def test_request_parse_POST_body(protocol):
@@ -80,46 +80,46 @@ async def test_request_parse_POST_body(protocol):
         b'Content-Length: 31\r\n'
         b'\r\n'
         b'{"link": "https://example.org"}')
-    assert protocol.req.method == 'POST'
-    assert protocol.req.body == b'{"link": "https://example.org"}'
+    assert protocol.request.method == 'POST'
+    assert protocol.request.body == b'{"link": "https://example.org"}'
 
 
 async def test_invalid_request(protocol):
     protocol.data_received(
         b'INVALID HTTP/1.22\r\n')
-    assert protocol.resp.status == HTTPStatus.BAD_REQUEST
+    assert protocol.response.status == HTTPStatus.BAD_REQUEST
 
 
 async def test_query_get_should_return_value(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value')
-    assert protocol.req.query.get('key') == 'value'
+    assert protocol.request.query.get('key') == 'value'
 
 
 async def test_query_get_should_return_first_value_if_multiple(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value&key=value2')
-    assert protocol.req.query.get('key') == 'value'
+    assert protocol.request.query.get('key') == 'value'
 
 
 async def test_query_get_should_raise_if_no_key_and_no_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value')
     with pytest.raises(HttpError):
-        protocol.req.query.get('other')
+        protocol.request.query.get('other')
 
 
 async def test_query_getlist_should_return_list_of_values(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value&key=value2')
-    assert protocol.req.query.list('key') == ['value', 'value2']
+    assert protocol.request.query.list('key') == ['value', 'value2']
 
 
 async def test_query_get_should_return_default_if_key_is_missing(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=value')
-    assert protocol.req.query.get('other', None) is None
-    assert protocol.req.query.get('other', 'default') == 'default'
+    assert protocol.request.query.get('other', None) is None
+    assert protocol.request.query.get('other', 'default') == 'default'
 
 
 @pytest.mark.parametrize('input,expected', [
@@ -141,94 +141,94 @@ async def test_query_get_should_return_default_if_key_is_missing(protocol):
 async def test_query_bool_should_cast_to_boolean(input, expected, protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=' + input)
-    assert protocol.req.query.bool('key') == expected
+    assert protocol.request.query.bool('key') == expected
 
 
 async def test_query_bool_should_return_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=1')
-    assert protocol.req.query.bool('other', default=False) is False
+    assert protocol.request.query.bool('other', default=False) is False
 
 
 async def test_query_bool_should_raise_if_not_castable(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
-        assert protocol.req.query.bool('key')
+        assert protocol.request.query.bool('key')
 
 
 async def test_query_bool_should_raise_if_not_key_and_no_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
-        assert protocol.req.query.bool('other')
+        assert protocol.request.query.bool('other')
 
 
 async def test_query_bool_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
-    assert protocol.req.query.bool('other', default=False) is False
+    assert protocol.request.query.bool('other', default=False) is False
 
 
 async def test_query_int_should_cast_to_int(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=22')
-    assert protocol.req.query.int('key') == 22
+    assert protocol.request.query.int('key') == 22
 
 
 async def test_query_int_should_return_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=1')
-    assert protocol.req.query.int('other', default=22) == 22
+    assert protocol.request.query.int('other', default=22) == 22
 
 
 async def test_query_int_should_raise_if_not_castable(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
-        assert protocol.req.query.int('key')
+        assert protocol.request.query.int('key')
 
 
 async def test_query_int_should_raise_if_not_key_and_no_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
-        assert protocol.req.query.int('other')
+        assert protocol.request.query.int('other')
 
 
 async def test_query_int_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
-    assert protocol.req.query.int('other', default=22) == 22
+    assert protocol.request.query.int('other', default=22) == 22
 
 
 async def test_query_float_should_cast_to_float(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=2.234')
-    assert protocol.req.query.float('key') == 2.234
+    assert protocol.request.query.float('key') == 2.234
 
 
 async def test_query_float_should_return_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=1')
-    assert protocol.req.query.float('other', default=2.234) == 2.234
+    assert protocol.request.query.float('other', default=2.234) == 2.234
 
 
 async def test_query_float_should_raise_if_not_castable(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
-        assert protocol.req.query.float('key')
+        assert protocol.request.query.float('key')
 
 
 async def test_query_float_should_raise_if_not_key_and_no_default(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     with pytest.raises(HttpError):
-        assert protocol.req.query.float('other')
+        assert protocol.request.query.float('other')
 
 
 async def test_query_float_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
-    assert protocol.req.query.float('other', default=2.234) == 2.234
+    assert protocol.request.query.float('other', default=2.234) == 2.234

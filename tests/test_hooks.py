@@ -28,7 +28,7 @@ async def test_request_hook_can_alter_response(client, app):
 async def test_response_hook_can_alter_response(client, app):
 
     @app.listen('response')
-    async def listener(response, request):
+    async def listener(request, response):
         assert response.body == 'test response'
         response.body = 'another response'
         response.status = 400
@@ -45,7 +45,7 @@ async def test_response_hook_can_alter_response(client, app):
 async def test_error_with_json_format(client, app):
 
     @app.listen('error')
-    async def listener(error, response):
+    async def listener(request, response, error):
         assert error.message == 'JSON error'
         response.json = {'status': error.status, 'message': error.message}
 

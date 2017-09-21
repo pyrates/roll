@@ -70,71 +70,6 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
-class Protocol(asyncio.Protocol):
-
-    __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
-    Query = Query
-
-    def __init__(self, app):
-        self.app = app
-        self.parser = HttpRequestParser(self)
-
-    def data_received(self, data: bytes):
-        try:
-            self.parser.feed_data(data)
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.resp = Response()
-            self.resp.status = HTTPStatus.BAD_REQUEST
-            self.resp.body = b'Unparsable request'
-            self.write()
-
-    def connection_made(self, transport):
-        self.writer = transport
-
-    # All on_xxx methods are in use by httptools parser.
-    # See https://github.com/MagicStack/httptools#apis
-    def on_header(self, name: bytes, value: bytes):
-        self.req.headers[name.decode()] = value.decode()
-
-    def on_body(self, body: bytes):
-        self.req.body += body
-
-    def on_url(self, url: bytes):
-        self.req.url = url
-        parsed = parse_url(url)
-        self.req.path = parsed.path.decode()
-        self.req.query_string = (parsed.query or b'').decode()
-        parsed_qs = parse_qs(self.req.query_string, keep_blank_values=True)
-        self.req.query = self.Query(parsed_qs)
-
-    def on_message_begin(self):
-        self.req = Request()
-        self.resp = Response()
-
-    def on_message_complete(self):
-        self.req.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.req, self.resp))
-        task.add_done_callback(self.write)
-
-    def write(self, *args):
-        # May or may not have "future" as arg.
-        payload = b'HTTP/1.1 %a %b\r\n' % (self.resp.status.value,
-                                           self.resp.status.phrase.encode())
-        if not isinstance(self.resp.body, bytes):
-            self.resp.body = self.resp.body.encode()
-        if 'Content-Length' not in self.resp.headers:
-            length = len(self.resp.body)
-            self.resp.headers['Content-Length'] = str(length)
-        for key, value in self.resp.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n%b' % self.resp.body
-        self.writer.write(payload)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
-
-
 class Request:
 
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
@@ -172,6 +107,73 @@ class Response:
     json = property(None, json)
 
 
+class Protocol(asyncio.Protocol):
+
+    __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
+    Query = Query
+    Request = Request
+    Response = Response
+
+    def __init__(self, app):
+        self.app = app
+        self.parser = HttpRequestParser(self)
+
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            self.response = Response()
+            self.response.status = HTTPStatus.BAD_REQUEST
+            self.response.body = b'Unparsable request'
+            self.write()
+
+    def connection_made(self, transport):
+        self.writer = transport
+
+    # All on_xxx methods are in use by httptools parser.
+    # See https://github.com/MagicStack/httptools#apis
+    def on_header(self, name: bytes, value: bytes):
+        self.request.headers[name.decode()] = value.decode()
+
+    def on_body(self, body: bytes):
+        self.request.body += body
+
+    def on_url(self, url: bytes):
+        self.request.url = url
+        parsed = parse_url(url)
+        self.request.path = parsed.path.decode()
+        self.request.query_string = (parsed.query or b'').decode()
+        parsed_qs = parse_qs(self.request.query_string, keep_blank_values=True)
+        self.request.query = self.Query(parsed_qs)
+
+    def on_message_begin(self):
+        self.request = self.Request()
+        self.response = self.Response()
+
+    def on_message_complete(self):
+        self.request.method = self.parser.get_method().decode().upper()
+        task = self.app.loop.create_task(self.app(self.request, self.response))
+        task.add_done_callback(self.write)
+
+    def write(self, *args):
+        # May or may not have "future" as arg.
+        payload = b'HTTP/1.1 %a %b\r\n' % (
+            self.response.status.value, self.response.status.phrase.encode())
+        if not isinstance(self.response.body, bytes):
+            self.response.body = self.response.body.encode()
+        if 'Content-Length' not in self.response.headers:
+            length = len(self.response.body)
+            self.response.headers['Content-Length'] = str(length)
+        for key, value in self.response.headers.items():
+            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+        payload += b'\r\n%b' % self.response.body
+        self.writer.write(payload)
+        if not self.parser.should_keep_alive():
+            self.writer.close()
+
+
 class Routes(BaseRoutes):
 
     def match(self, url):
@@ -196,28 +198,28 @@ class Roll:
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, req, resp):
+    async def __call__(self, request, response):
         try:
-            if not await self.hook('request', request=req, response=resp):
-                params, handler = self.dispatch(req)
-                await handler(req, resp, **params)
+            if not await self.hook('request', request, response):
+                params, handler = self.dispatch(request)
+                await handler(request, response, **params)
         except Exception as error:
-            await self.on_error(error, resp)
+            await self.on_error(request, response, error)
         try:
             # Views exceptions should still pass by the response hooks.
-            await self.hook('response', response=resp, request=req)
+            await self.hook('response', request, response)
         except Exception as error:
-            await self.on_error(error, resp)
-        return resp
+            await self.on_error(request, response, error)
+        return response
 
-    async def on_error(self, error, response):
+    async def on_error(self, request, response, error):
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
         response.status = error.status
         response.body = error.message
         try:
-            await self.hook('error', error=error, response=response)
+            await self.hook('error', request, response, error)
         except Exception as error:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(error)
@@ -235,12 +237,12 @@ class Roll:
 
         return wrapper
 
-    def dispatch(self, req):
-        handlers, params = self.routes.match(req.path)
-        if req.method not in handlers:
+    def dispatch(self, request):
+        handlers, params = self.routes.match(request.path)
+        if request.method not in handlers:
             raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-        req.kwargs.update(params)
-        return params, handlers[req.method]
+        request.kwargs.update(params)
+        return params, handlers[request.method]
 
     def listen(self, name):
         def wrapper(func):
@@ -248,10 +250,10 @@ class Roll:
             self.hooks[name].append(func)
         return wrapper
 
-    async def hook(self, name, **kwargs):
+    async def hook(self, name, *kwargs):
         try:
             for func in self.hooks[name]:
-                result = await func(**kwargs)
+                result = await func(*kwargs)
                 if result:
                     return result
         except KeyError:

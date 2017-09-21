@@ -40,7 +40,7 @@ VERSION = (0, 4, 0)
 
 __author__ = 'Yohan Boniface'
 __contact__ = "yohan.boniface@data.gouv.fr"
-__homepage__ = "https://framagit.org/drone/roll"
+__homepage__ = "https://github.com/pyrates/roll"
 __version__ = ".".join(map(str, VERSION))
 
 setup(

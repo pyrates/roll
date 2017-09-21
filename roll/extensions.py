@@ -7,7 +7,7 @@ from traceback import print_exc
 def cors(app, origin='*', methods=None):
 
     @app.listen('response')
-    async def add_cors_headers(response, request):
+    async def add_cors_headers(request, response):
         response.headers['Access-Control-Allow-Origin'] = origin
         if methods is not None:
             allow_methods = ','.join(methods)
@@ -44,7 +44,7 @@ def options(app):
 def traceback(app):
 
     @app.listen('error')
-    async def on_error(error, response):
+    async def on_error(request, response, error):
         if error.status == HTTPStatus.INTERNAL_SERVER_ERROR:
             print_exc()
 
