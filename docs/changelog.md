@@ -8,9 +8,12 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## In progress
+## 0.5.0 — 2017-09-21
 
 * Add documentation.
+* **Breaking change**:
+  order of parameters in events is always `request`, `response` and
+  optionnaly `error` if any, in that particular order.
 
 ## 0.4.0 — 2017-09-21
 

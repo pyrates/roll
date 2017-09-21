@@ -142,4 +142,4 @@ Receives `request` and `response` parameters.
 Fired in case of error, can be at each request.
 Use it to customize HTTP error formatting for instance.
 
-Receives `error` and `response` parameters.
+Receives `request`, `response` and `error` parameters.

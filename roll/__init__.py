@@ -200,27 +200,26 @@ class Roll:
 
     async def __call__(self, request, response):
         try:
-            if not await self.hook('request', request=request,
-                                   response=response):
+            if not await self.hook('request', request, response):
                 params, handler = self.dispatch(request)
                 await handler(request, response, **params)
         except Exception as error:
-            await self.on_error(error, response)
+            await self.on_error(request, response, error)
         try:
             # Views exceptions should still pass by the response hooks.
-            await self.hook('response', response=response, request=request)
+            await self.hook('response', request, response)
         except Exception as error:
-            await self.on_error(error, response)
+            await self.on_error(request, response, error)
         return response
 
-    async def on_error(self, error, response):
+    async def on_error(self, request, response, error):
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
         response.status = error.status
         response.body = error.message
         try:
-            await self.hook('error', error=error, response=response)
+            await self.hook('error', request, response, error)
         except Exception as error:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(error)
@@ -251,10 +250,10 @@ class Roll:
             self.hooks[name].append(func)
         return wrapper
 
-    async def hook(self, name, **kwargs):
+    async def hook(self, name, *kwargs):
         try:
             for func in self.hooks[name]:
-                result = await func(**kwargs)
+                result = await func(*kwargs)
                 if result:
                     return result
         except KeyError:
