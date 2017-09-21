@@ -5,13 +5,13 @@ from traceback import print_exc
 
 
 def cors(app, origin='*', methods=None):
-    if methods is None:
-        methods = ['POST', 'PUT', 'PATCH', 'DELETE']
 
     @app.listen('response')
     async def add_cors_headers(response, request):
         response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = ','.join(methods)
+        if methods is not None:
+            allow_methods = ','.join(methods)
+            response.headers['Access-Control-Allow-Methods'] = allow_methods
 
 
 def logger(app, level=logging.DEBUG, handler=None):

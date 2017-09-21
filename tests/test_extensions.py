@@ -31,7 +31,7 @@ async def test_custom_cors_origin(client, app):
 
     resp = await client.get('/test')
     assert resp.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
-    assert 'PUT' in resp.headers['Access-Control-Allow-Methods']
+    assert 'Access-Control-Allow-Methods' not in resp.headers
 
 
 async def test_custom_cors_methods(client, app):
