@@ -1,7 +1,6 @@
 import asyncio
 
 import uvloop
-
 from roll import Roll
 from roll.extensions import cors, igniter, logger, simple_server, traceback
 
@@ -14,7 +13,7 @@ igniter(app)
 traceback(app)
 
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.body = f'Hello {parameter}'
 

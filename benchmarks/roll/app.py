@@ -11,6 +11,6 @@ logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 app = Roll()
 
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.json = {'message': f'Hello {parameter}'}
