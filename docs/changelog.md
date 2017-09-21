@@ -16,7 +16,7 @@ A changelog:
 
 * Switch routes from kua to autoroutes for performances.
 * **Breaking change**:
-  routes syntax change from `:parameter` to `{parameter}`
+  routes placeholder syntax changed from `:parameter` to `{parameter}`
 
 ## 0.3.0 — 2017-09-21
 

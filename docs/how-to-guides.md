@@ -178,3 +178,23 @@ Content-Length: 10
 
 2017-09-20
 ```
+
+
+## How to deploy Roll into production
+
+The recommended way to deploy Roll is using
+[Gunicorn](http://docs.gunicorn.org/).
+
+First install gunicorn in your virtualenv:
+
+    pip install gunicorn
+
+To run it, you need to pass it the pythonpath to your roll project
+application. For example, if you have created a module `core.py`
+in your package `mypackage`, where you create your application
+with `app = Roll()`, then you need to issue this command line:
+
+    gunicorn mypackage.core:app --worker roll.worker.Worker
+
+See [gunicorn documentation](http://docs.gunicorn.org/en/stable/settings.html)
+for more details about the available arguments.

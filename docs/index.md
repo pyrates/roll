@@ -37,9 +37,8 @@ A how-to guide:
 * [How to return an HTTP error](how-to-guides.md#how-to-return-an-http-error)
 * [How to return JSON content](how-to-guides.md#how-to-return-json-content)
 * [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
+* [How to deploy Roll into production](how-to-guides.md#how-to-deploy-roll-into-production)
 
-
-## How to return JSON content
 
 ## [Discussions](discussions.md)
 

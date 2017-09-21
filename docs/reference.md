@@ -12,8 +12,7 @@ A reference guide:
 
 ### `Roll`
 
-Returns a [WSGI-compliant](http://wsgi.tutorial.codepoint.net/)
-application.
+Roll provides an asyncio protocol.
 
 You can subclass it to set your own `Protocol` or `Routes` class.
 
@@ -22,7 +21,7 @@ You can subclass it to set your own `Protocol` or `Routes` class.
 
 The object to raise when an error must be returned.
 Accepts a `status` and a `message`.
-The `status` can be a `http.HTTPStatus` instance.
+The `status` can be either a `http.HTTPStatus` instance or an integer.
 
 
 ### `Request`
@@ -125,22 +124,23 @@ Fired once when shutting down the server.
 
 Fired at each request before any dispatching/route matching.
 
-Receive `request` and `response` parameters.
+Receives `request` and `response` parameters.
 
 Returning `True` allows to shortcut everything and return the current
 response object directly, see the [options extension](#extensions) for
-and example.
+an example.
 
 
 ### `response`
 
 Fired at each request after all processing.
 
-Receive `request` and `response` parameters.
+Receives `request` and `response` parameters.
 
 
 ### `error`
 
 Fired in case of error, can be at each request.
+Use it to customize HTTP error formatting for instance.
 
-Receive `error` and `response` parameters.
+Receives `error` and `response` parameters.

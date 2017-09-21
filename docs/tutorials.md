@@ -31,10 +31,9 @@ if __name__ == '__main__':
     simple_server(app)
 ```
 
-`Roll` is a [WSGI-compliant](http://wsgi.tutorial.codepoint.net/)
-application dealing with routes, requests and responses. Everything else
-is done via extensions. Default routing is done by
-[autoroutes](https://github.com/pyrates/autoroutes).
+Roll provides an asyncio protocol dealing with routes, requests and
+responses. Everything else is done via extensions. Default routing is
+done by [autoroutes](https://github.com/pyrates/autoroutes).
 
 *Note: if you are not familiar with that `f''` thing, it is Python 3.6
 shortcut for `.format()`.*
