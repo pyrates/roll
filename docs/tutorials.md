@@ -22,7 +22,7 @@ from roll.extensions import simple_server
 app = Roll()
 
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.body = f'Hello {parameter}'
 
@@ -33,7 +33,8 @@ if __name__ == '__main__':
 
 `Roll` is a [WSGI-compliant](http://wsgi.tutorial.codepoint.net/)
 application dealing with routes, requests and responses. Everything else
-is done via extensions.
+is done via extensions. Default routing is done by
+[autoroutes](https://github.com/pyrates/autoroutes).
 
 *Note: if you are not familiar with that `f''` thing, it is Python 3.6
 shortcut for `.format()`.*
@@ -111,7 +112,7 @@ from roll.extensions import logger, simple_server
 app = Roll()
 logger(app)  # <- This is the only change we made! (+ import)
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.body = f'Hello {parameter}'
 
@@ -161,7 +162,7 @@ from roll.extensions import simple_server
 app = Roll()
 
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.body = f'Hello {parameter}'
 

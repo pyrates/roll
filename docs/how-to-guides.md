@@ -60,7 +60,7 @@ from roll.extensions import simple_server
 app = Roll()
 
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     if parameter == 'foo':
         raise HttpError(HTTPStatus.BAD_REQUEST, 'Run, you foo(l)!')
@@ -97,7 +97,7 @@ from roll.extensions import simple_server
 app = Roll()
 
 
-@app.route('/hello/:parameter')
+@app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.json = {'hello': parameter}
 

@@ -10,8 +10,19 @@ A changelog:
 
 ## In progress
 
-* Improve benchmarks and performances.
 * Add documentation.
+
+## 0.4.0 — 2017-09-21
+
+* Switch routes from kua to autoroutes for performances.
+* **Breaking change**:
+  routes syntax change from `:parameter` to `{parameter}`
+
+## 0.3.0 — 2017-09-21
+
+* Improve benchmarks and overall performances.
+* **Breaking change**:
+  `cors` extension parameter is no longer `value` but `origin`
 
 ## 0.2.0 — 2017-08-25
 

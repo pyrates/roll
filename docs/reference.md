@@ -54,7 +54,8 @@ redefine the `on_message_begin` method of that class.
 ### `Routes`
 
 Responsible for URL-pattern matching. Allows to switch to your own
-parser.
+parser. Default routes use [autoroutes](https://github.com/pyrates/autoroutes),
+please refers to that documentation for available patterns.
 
 
 ## Extensions
@@ -67,10 +68,15 @@ for usage.
 
 Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers. Especially useful for APIs.
 
+You can set the `Access-Control-Allow-Origin` header with the `origin`
+parameter and the `Access-Control-Allow-Methods` header with the
+`methods` parameter (list).
+
 
 ### `logger`
 
-Log each and every request.
+Log each and every request by default. You can pass a `level` parameter
+and a `handler`. Both are classic `logging` module objects.
 
 
 ### `options`
@@ -94,7 +100,9 @@ Quite useless, hence so essential!
 
 Special extension that does not rely on the events’ mechanism.
 
-Launch a local server on port `3579`.
+Launch a local server on `127.0.0.1:3579` by default. `port` and `host`
+parameters allow you to customize. The `quiet` parameter does not
+display any message on startup.
 
 
 ## Events
