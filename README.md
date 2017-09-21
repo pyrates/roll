@@ -17,7 +17,7 @@ Roll is a pico framework with performances and aesthetic in mind.
 
     myapp = Roll()
 
-    @myapp.route('/hello/:parameter')
+    @myapp.route('/hello/{parameter}')
     async def hello(request, response, parameter='world'):
         response.body = f'Hello {parameter}'
 
@@ -25,7 +25,7 @@ Roll is a pico framework with performances and aesthetic in mind.
 ## Contains
 
 * async everywhere
-* basic routing through [kua](https://github.com/nitely/kua)
+* basic routing through [autoroutes](https://github.com/pyrates/autoroutes)
 * extensible system through hooks, see extensions for inspiration
 * decent HTTP errors
 
