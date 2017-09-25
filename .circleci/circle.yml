@@ -1,30 +1,10 @@
-version: 2
-jobs:
-  build:
-
-    steps:
-      - wget https://s3.amazonaws.com/circle-downloads/circle-pyenv-python-3.5.1_1.0_amd64.deb
-      - sudo dpkg -i circle-pyenv-python-3.5.1_1.0_amd64.deb
-      - checkout
-
-      # - restore_cache:
-      #     keys:
-      #     - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
-
-      - run:
-          name: install dependencies
-          command: |
-            python3.5 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements-dev.txt
-
-      # - save_cache:
-      #     paths:
-      #       - ./venv
-      #     key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
-
-      - run:
-          name: run tests
-          command: |
-            . venv/bin/activate
-            py.test
+# The reason we use deb file directly from circle-ci is speed:
+# https://discuss.circleci.com/t/speed-up-python-3-5-1-builds/1760/7
+machine:
+  pre:
+    - cd /opt/circleci/.pyenv; git pull
+  python:
+    version: 3.6.2
+test:
+  override:
+    - py.test
