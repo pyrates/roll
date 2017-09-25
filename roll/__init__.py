@@ -1,3 +1,13 @@
+"""Howdy fellow developer!
+
+We are glad you are taking a look at our code :-)
+Make sure to check out our documentation too:
+http://roll.readthedocs.io/en/latest/
+
+If you do not understand why something is not working as expected,
+please submit an issue (or even better a pull-request with at least
+a test failing): https://github.com/pyrates/roll/issues/new
+"""
 import asyncio
 from http import HTTPStatus
 from urllib.parse import parse_qs
@@ -8,30 +18,44 @@ from autoroutes import Routes as BaseRoutes
 from .extensions import options
 
 try:
+    # In case you use json heavily, we recommend installing
+    # https://pypi.python.org/pypi/ujson for better performances.
     import ujson as json
 except ImportError:
     import json as json
 
 
 class HttpError(Exception):
+    """Exception meant to be raised when an error is occurring.
+
+    E.g.:
+        Within your view `raise HttpError(HTTPStatus.BAD_REQUEST)` will
+        direcly return a 400 HTTP status code with descriptive content.
+    """
 
     __slots__ = ('status', 'message')
 
-    def __init__(self, code, message=None):
+    def __init__(self, code: int or HTTPStatus, message: str=None):
+        # Idempotent if `code` is already an `HTTPStatus` instance.
         self.status = HTTPStatus(code)
         self.message = message or self.status.phrase
 
 
 class Query(dict):
+    """Allow to access casted GET parameters from `request.query`.
+
+    E.g.:
+        `request.query.int('weight', 0)` will return an integer or zero.
+    """
 
     TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
     FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
     NONE_STRINGS = ('n', 'none', 'null')
 
-    def get(self, key, default=...):
+    def get(self, key: str, default=...):
         return self.list(key, [default])[0]
 
-    def list(self, key, default=...):
+    def list(self, key: str, default=...):
         try:
             return self[key]
         except KeyError:
@@ -40,7 +64,7 @@ class Query(dict):
                                 "Missing '{}' key".format(key))
             return default
 
-    def bool(self, key, default=...):
+    def bool(self, key: str, default=...):
         value = self.get(key, default)
         if value in (True, False, None):
             return value
@@ -55,14 +79,14 @@ class Query(dict):
             HTTPStatus.BAD_REQUEST,
             "Wrong boolean value for '{}={}'".format(key, self.get(key)))
 
-    def int(self, key, default=...):
+    def int(self, key: str, default=...):
         try:
             return int(self.get(key, default))
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             "Key '{}' must be castable to int".format(key))
 
-    def float(self, key, default=...):
+    def float(self, key: str, default=...):
         try:
             return float(self.get(key, default))
         except ValueError:
@@ -71,7 +95,10 @@ class Query(dict):
 
 
 class Request:
+    """A container for the result of the parsing on each request.
 
+    The parsing is made by `httptools.HttpRequestParser`.
+    """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
                  'body', 'headers')
 
@@ -82,7 +109,7 @@ class Request:
 
 
 class Response:
-
+    """A container for `status`, `headers` and `body`."""
     __slots__ = ('_status', 'headers', 'body')
 
     def __init__(self):
@@ -96,11 +123,12 @@ class Response:
         return self._status
 
     @status.setter
-    def status(self, code):
-        # Allow to pass either the HttpStatus or the numeric value.
+    def status(self, code: int or HTTPStatus):
+        # Allow to pass either the HTTPStatus or the numeric value.
         self._status = HTTPStatus(code)
 
-    def json(self, value):
+    def json(self, value: dict):
+        # Shortcut from a dict to a JSON with proper content type.
         self.headers['Content-Type'] = 'application/json'
         self.body = json.dumps(value)
 
@@ -108,6 +136,11 @@ class Response:
 
 
 class Protocol(asyncio.Protocol):
+    """Responsible of parsing the request and writing the response.
+
+    You can subclass it to set your own `Query`, `Request` or `Response`
+    classes.
+    """
 
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
     Query = Query
@@ -157,8 +190,9 @@ class Protocol(asyncio.Protocol):
         task = self.app.loop.create_task(self.app(self.request, self.response))
         task.add_done_callback(self.write)
 
+    # May or may not have "future" as arg.
     def write(self, *args):
-        # May or may not have "future" as arg.
+        # Appends bytes for performances.
         payload = b'HTTP/1.1 %a %b\r\n' % (
             self.response.status.value, self.response.status.phrase.encode())
         if not isinstance(self.response.body, bytes):
@@ -175,8 +209,9 @@ class Protocol(asyncio.Protocol):
 
 
 class Routes(BaseRoutes):
+    """Customized to raise our own `HttpError` in case of 404."""
 
-    def match(self, url):
+    def match(self, url: str):
         payload, params = super().match(url)
         if not payload:
             raise HttpError(HTTPStatus.NOT_FOUND, url)
@@ -184,6 +219,10 @@ class Routes(BaseRoutes):
 
 
 class Roll:
+    """Deal with routes dispatching and events listening.
+
+    You can subclass it to set your own `Protocol` or `Routes` class.
+    """
     Protocol = Protocol
     Routes = Routes
 
@@ -198,7 +237,7 @@ class Roll:
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, request, response):
+    async def __call__(self, request: Request, response: Response):
         try:
             if not await self.hook('request', request, response):
                 params, handler = self.dispatch(request)
@@ -212,7 +251,7 @@ class Roll:
             await self.on_error(request, response, error)
         return response
 
-    async def on_error(self, request, response, error):
+    async def on_error(self, request: Request, response: Response, error):
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
@@ -227,7 +266,7 @@ class Roll:
     def factory(self):
         return self.Protocol(self)
 
-    def route(self, path, methods=None):
+    def route(self, path: str, methods: list=None):
         if methods is None:
             methods = ['GET']
 
@@ -237,24 +276,24 @@ class Roll:
 
         return wrapper
 
-    def dispatch(self, request):
+    def dispatch(self, request: Request):
         handlers, params = self.routes.match(request.path)
         if request.method not in handlers:
             raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
         request.kwargs.update(params)
         return params, handlers[request.method]
 
-    def listen(self, name):
+    def listen(self, name: str):
         def wrapper(func):
             self.hooks.setdefault(name, [])
             self.hooks[name].append(func)
         return wrapper
 
-    async def hook(self, name, *kwargs):
+    async def hook(self, name: str, *kwargs):
         try:
             for func in self.hooks[name]:
                 result = await func(*kwargs)
-                if result:
+                if result:  # Allows to shortcut the chain.
                     return result
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
