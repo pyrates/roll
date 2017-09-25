@@ -198,3 +198,16 @@ with `app = Roll()`, then you need to issue this command line:
 
 See [gunicorn documentation](http://docs.gunicorn.org/en/stable/settings.html)
 for more details about the available arguments.
+
+
+## How to run Roll’s tests
+
+Roll exposes a pytest fixture (`client`), and for this needs to be
+properly installed so pytest sees it. Once in the roll root (and with
+your virtualenv active), run:
+
+    python setup.py develop
+
+Then you can run the tests:
+
+    py.test

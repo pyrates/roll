@@ -1,4 +1,4 @@
-"Async pico server that rolls."
+"Roll is a pico framework with performances and aesthetic in mind."
 import sys
 from codecs import open  # To use a consistent encoding
 from os import path

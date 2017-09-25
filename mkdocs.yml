@@ -1,4 +1,4 @@
-site_name: Roll
+site_name: Roll - async, simple, fast.
 pages:
   - Home: index.md
   - Tutorials: tutorials.md
