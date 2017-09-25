@@ -1,13 +1,10 @@
 version: 2
 jobs:
   build:
-    docker:
-      - image: circleci/python:3.6.2
-
-    python:
-      version: 3.6.2
 
     steps:
+      - wget https://s3.amazonaws.com/circle-downloads/circle-pyenv-python-3.5.1_1.0_amd64.deb
+      - sudo dpkg -i circle-pyenv-python-3.5.1_1.0_amd64.deb
       - checkout
 
       # - restore_cache:
@@ -17,7 +14,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            python3 -m venv venv
+            python3.5 -m venv venv
             . venv/bin/activate
             pip install -r requirements-dev.txt
 
