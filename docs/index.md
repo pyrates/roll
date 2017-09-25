@@ -1,9 +1,30 @@
 # Let’s Roll!
 
+Async, simple, fast : pick three! Roll is a pico framework with
+performances and aesthetic in mind.
+
+
+## Contains
+
+* async everywhere
+* basic routing through [autoroutes](https://github.com/pyrates/autoroutes)
+* extensible system through events
+* decent HTTP errors
+
+
+## Will NOT contain
+
+* a templating system
+* a lot of extensions (share yours!)
+
+
 The documentation structure is based on that
 [excellent article from Divio](https://www.divio.com/en/blog/documentation/).
 
-Please provide us any feedback as an early reader!
+Please [provide us any feedback](https://github.com/pyrates/roll/issues/new)
+as an early reader! If you are curious about the code, it is hosted
+[on Github](https://github.com/pyrates/roll/blob/master/roll/__init__.py)
+and you should be able to read it within the next half-hour.
 
 
 ## [Tutorials](tutorials.md)
@@ -38,6 +59,7 @@ A how-to guide:
 * [How to return JSON content](how-to-guides.md#how-to-return-json-content)
 * [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
 * [How to deploy Roll into production](how-to-guides.md#how-to-deploy-roll-into-production)
+* [How to run Roll’s tests](how-to-guides.md##how-to-run-rolls-tests)
 
 
 ## [Discussions](discussions.md)
