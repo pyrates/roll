@@ -77,3 +77,10 @@ A changelog:
 * is concise
 
 *Analogy: git blame :p*
+
+
+## Source
+
+The Roll source code is on Github:
+
+[https://github.com/pyrates/roll](https://github.com/pyrates/roll)
