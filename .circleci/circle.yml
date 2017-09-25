@@ -4,6 +4,9 @@ jobs:
     docker:
       - image: circleci/python:3.6.2
 
+    python:
+      version: 3.6.2
+
     steps:
       - checkout
 
