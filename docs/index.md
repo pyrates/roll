@@ -10,6 +10,7 @@ performances and aesthetic in mind.
 * basic routing through [autoroutes](https://github.com/pyrates/autoroutes)
 * extensible system through events
 * decent HTTP errors
+* easy to test
 
 
 ## Will NOT contain
