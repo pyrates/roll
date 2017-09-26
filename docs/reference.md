@@ -82,6 +82,9 @@ and a `handler`. Both are classic `logging` module objects.
 Performant return in case of `OPTIONS` HTTP request.
 Combine it with the `cors` extension to handle the preflight request.
 
+This extension is applied by default, customize the `Roll` class if you
+want to deactivate it.
+
 
 ### `traceback`
 
