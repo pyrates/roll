@@ -293,7 +293,7 @@ class Roll:
         try:
             for func in self.hooks[name]:
                 result = await func(*args, **kwargs)
-                if result:
+                if result:  # Allows to shortcut the chain.
                     return result
         except KeyError:
             # Nobody registered to this event, let's roll anyway.

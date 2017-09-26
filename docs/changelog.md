@@ -8,6 +8,10 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## dev version
+
+* Changed `Roll.hook` signature to also accept kwargs.
+
 ## 0.5.0 — 2017-09-21
 
 * Add documentation.

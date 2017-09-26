@@ -60,7 +60,8 @@ A how-to guide:
 * [How to return JSON content](how-to-guides.md#how-to-return-json-content)
 * [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
 * [How to deploy Roll into production](how-to-guides.md#how-to-deploy-roll-into-production)
-* [How to run Roll’s tests](how-to-guides.md##how-to-run-rolls-tests)
+* [How to run Roll’s tests](how-to-guides.md#how-to-run-rolls-tests)
+* [How to send custom events](how-to-guides.md#how-to-send-custom-events)
 
 
 ## [Discussions](discussions.md)
