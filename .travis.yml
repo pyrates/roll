@@ -6,6 +6,9 @@ install:
 - python setup.py develop
 - pip install -r requirements-dev.txt
 script: py.test
+branches:
+  only:
+    - master
 notifications:
   email:
     on_failure: always
