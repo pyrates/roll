@@ -57,3 +57,13 @@ async def test_error_with_json_format(client, app):
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
     error = json.loads(resp.body)
     assert error == {"status": 500, "message": "JSON error"}
+
+
+async def test_third_parties_can_call_hook_their_way(client, app):
+
+    @app.listen('custom')
+    async def listener(myarg):
+        return myarg
+
+    assert await app.hook('custom', myarg='kwarg') == 'kwarg'
+    assert await app.hook('custom', 'arg') == 'arg'
