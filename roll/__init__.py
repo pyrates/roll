@@ -10,10 +10,11 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
 from http import HTTPStatus
+from typing import TypeVar
 from urllib.parse import parse_qs
 
-from httptools import HttpParserError, HttpRequestParser, parse_url
 from autoroutes import Routes as BaseRoutes
+from httptools import HttpParserError, HttpRequestParser, parse_url
 
 from .extensions import options
 
@@ -23,6 +24,9 @@ try:
     import ujson as json
 except ImportError:
     import json as json
+
+
+HttpCode = TypeVar('HttpCode', HTTPStatus, int)
 
 
 class HttpError(Exception):
@@ -35,9 +39,9 @@ class HttpError(Exception):
 
     __slots__ = ('status', 'message')
 
-    def __init__(self, code: int or HTTPStatus, message: str=None):
-        # Idempotent if `code` is already an `HTTPStatus` instance.
-        self.status = HTTPStatus(code)
+    def __init__(self, http_code: HttpCode, message: str=None):
+        # Idempotent if `http_code` is already an `HTTPStatus` instance.
+        self.status = HTTPStatus(http_code)
         self.message = message or self.status.phrase
 
 
@@ -123,9 +127,9 @@ class Response:
         return self._status
 
     @status.setter
-    def status(self, code: int or HTTPStatus):
-        # Allow to pass either the HTTPStatus or the numeric value.
-        self._status = HTTPStatus(code)
+    def status(self, http_code: HttpCode):
+        # Idempotent if `http_code` is already an `HTTPStatus` instance.
+        self._status = HTTPStatus(http_code)
 
     def json(self, value: dict):
         # Shortcut from a dict to a JSON with proper content type.
