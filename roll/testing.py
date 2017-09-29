@@ -3,8 +3,6 @@ from urllib.parse import urlencode
 
 import pytest
 
-from . import Protocol
-
 
 class Client:
 

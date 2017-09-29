@@ -259,9 +259,9 @@ class Roll:
         response.body = error.message
         try:
             await self.hook('error', request, response, error)
-        except Exception as error:
+        except Exception as e:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
-            response.body = str(error)
+            response.body = str(e)
 
     def factory(self):
         return self.Protocol(self)
