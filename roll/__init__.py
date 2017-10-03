@@ -293,10 +293,10 @@ class Roll:
             self.hooks[name].append(func)
         return wrapper
 
-    async def hook(self, name: str, *kwargs):
+    async def hook(self, name: str, *args, **kwargs):
         try:
             for func in self.hooks[name]:
-                result = await func(*kwargs)
+                result = await func(*args, **kwargs)
                 if result:  # Allows to shortcut the chain.
                     return result
         except KeyError:

@@ -211,3 +211,33 @@ your virtualenv active), run:
 Then you can run the tests:
 
     py.test
+
+
+## How to send custom events
+
+Roll has a very small API for listening and sending events. It's possible to use
+it in your project for your own events.
+
+Events are useful when you want other users to extend your own code, whether
+it's a Roll extension, or a full project built with Roll.
+They differ from configuration in that they are more adapted for dynamic
+modularity.
+
+For example, say we develop a DB pooling extension for Roll. We
+would use a simple configuration parameter to let users change the connection
+credentials (host, username, password…). But if we want users to run some
+code each time a new connection is created, we may use a custom event.
+
+Our extension usage would look like this:
+
+    app = Roll()
+    db_pool_extension(app, dbname='mydb', username='foo', password='bar')
+
+    @app.listen('new_connection')
+    def listener(connection):
+        # dosomething with the connection,
+        # for example register some PostgreSQL custom types.
+
+Then, in our extension, when creating a new connection, we'd do something like
+that:
+    app.hook('new_connection', connection=connection)
