@@ -2,7 +2,7 @@
 
 ## Philosophy
 
-Async, simple, fast : pick three! Roll is a pico framework with
+Async, simple, fast: pick three! Roll is a pico framework with
 performances and aesthetic in mind.
 
 
