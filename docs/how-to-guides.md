@@ -11,12 +11,14 @@ A how-to guide:
 
 ## How to install Roll
 
+Roll requires Python 3.5+ to be installed.
+
+It is recommended to install it within
+[a pipenv or virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
+
 You can install Roll through [pip](https://pip.pypa.io/en/stable/):
 
     pip install roll
-
-It is recommended to install it within
-[a pipenv or virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/) though.
 
 
 ## How to create an extension
