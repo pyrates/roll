@@ -71,9 +71,3 @@ def client(app, event_loop):
     app.loop.run_until_complete(app.startup())
     yield Client(app)
     app.loop.run_until_complete(app.shutdown())
-
-
-# Retrocompat, remove me.
-@pytest.fixture
-def req(client):
-    return client.request
