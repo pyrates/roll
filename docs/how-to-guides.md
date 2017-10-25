@@ -243,3 +243,20 @@ Our extension usage would look like this:
 Then, in our extension, when creating a new connection, we'd do something like
 that:
     app.hook('new_connection', connection=connection)
+
+
+## How to use a livereload development server
+
+First, install [hupper](https://pypi.python.org/pypi/hupper).
+
+Then turn your Roll service into an importable module. Basically, a folder with
+`__init__.py` and `__main__.py` files and put your `simple_server` call within
+the `__main__.py` file (see the `example` folder for… an example!).
+
+Once you did that, you can run the server using `hupper -m example`. Each and
+every time you modify a python file, the server will reload and take into
+account your modifications accordingly.
+
+One of the pros of using hupper is that you can even set an `ipdb` call within
+your code and it will work seamlessly (as opposed to using solutions like
+[entr](http://www.entrproject.org/)).
