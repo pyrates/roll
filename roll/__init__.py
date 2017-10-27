@@ -9,6 +9,7 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
+from cgi import parse_header
 from http import HTTPStatus
 from typing import TypeVar
 from urllib.parse import parse_qs
@@ -17,6 +18,7 @@ from autoroutes import Routes as BaseRoutes
 from httptools import HttpParserError, HttpRequestParser, parse_url
 
 from .extensions import options
+from .forms import parse_multipart_form
 
 try:
     # In case you use json heavily, we recommend installing
@@ -104,7 +106,7 @@ class Request:
     The parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
+                 'body', 'headers', 'fields', 'files')
 
     def __init__(self):
         self.kwargs = {}
@@ -149,13 +151,14 @@ class Protocol(asyncio.Protocol):
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
     Query = Query
     Request = Request
+    RequestParser = HttpRequestParser
     Response = Response
 
     def __init__(self, app):
         self.app = app
-        self.parser = HttpRequestParser(self)
 
     def data_received(self, data: bytes):
+        self.parser = self.RequestParser(self)
         try:
             self.parser.feed_data(data)
         except HttpParserError:
@@ -175,7 +178,13 @@ class Protocol(asyncio.Protocol):
         self.request.headers[name.decode()] = value.decode()
 
     def on_body(self, body: bytes):
-        self.request.body += body
+        content_type = self.request.headers['Content-Type']
+        if 'multipart/form-data' in content_type:
+            content_type, parameters = parse_header(content_type)
+            self.request.fields, self.request.files = parse_multipart_form(
+                body, parameters['boundary'].encode())
+        else:
+            self.request.body += body
 
     def on_url(self, url: bytes):
         self.request.url = url
@@ -203,7 +212,7 @@ class Protocol(asyncio.Protocol):
             self.response.body = self.response.body.encode()
         if 'Content-Length' not in self.response.headers:
             length = len(self.response.body)
-            self.response.headers['Content-Length'] = str(length)
+            self.response.headers['Content-Length'] = length
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n%b' % self.response.body
