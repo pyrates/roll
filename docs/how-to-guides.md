@@ -115,7 +115,7 @@ regular JSON and set the appropriated content type:
 $ http :3579/hello/world
 HTTP/1.1 200 OK
 Content-Length: 17
-Content-Type: application/json
+Content-Type: application/json; charset=utf-8
 
 {
     "hello": "world"
