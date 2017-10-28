@@ -10,6 +10,7 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
 from cgi import parse_header
+from collections import namedtuple
 from http import HTTPStatus
 from typing import TypeVar
 from urllib.parse import parse_qs
@@ -18,7 +19,6 @@ from autoroutes import Routes as BaseRoutes
 from httptools import HttpParserError, HttpRequestParser, parse_url
 
 from .extensions import options
-from .forms import parse_multipart_form
 
 try:
     # In case you use json heavily, we recommend installing
@@ -47,16 +47,8 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Query(dict):
-    """Allow to access casted GET parameters from `request.query`.
-
-    E.g.:
-        `request.query.int('weight', 0)` will return an integer or zero.
-    """
-
-    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
-    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
-    NONE_STRINGS = ('n', 'none', 'null')
+class ListDict(dict):
+    """Deal with dicts containing either lists or a single element."""
 
     def get(self, key: str, default=...):
         return self.list(key, [default])[0]
@@ -69,6 +61,18 @@ class Query(dict):
                 raise HttpError(HTTPStatus.BAD_REQUEST,
                                 "Missing '{}' key".format(key))
             return default
+
+
+class Query(ListDict):
+    """Allow to access casted GET parameters from `request.query`.
+
+    E.g.:
+        `request.query.int('weight', 0)` will return an integer or zero.
+    """
+
+    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
+    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
+    NONE_STRINGS = ('n', 'none', 'null')
 
     def bool(self, key: str, default=...):
         value = self.get(key, default)
@@ -98,6 +102,55 @@ class Query(dict):
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             "Key '{}' must be castable to float".format(key))
+
+
+def parse_multipart_form(body: bytes, boundary: bytes):
+    """Parse a request body and returns fields and files ListDicts."""
+    File = namedtuple('File', ['type', 'body', 'name'])
+    files = ListDict()
+    fields = ListDict()
+    form_parts = body.split(boundary)
+    for form_part in form_parts[1:-1]:
+        file_name = None
+        file_type = None
+        field_name = None
+        line_index = 2
+        line_end_index = 0
+        while not line_end_index == -1:
+            line_end_index = form_part.find(b'\r\n', line_index)
+            form_line = form_part[line_index:line_end_index].decode('utf-8')
+            line_index = line_end_index + 2
+
+            if not form_line:
+                break
+
+            colon_index = form_line.index(':')
+            form_header_field = form_line[0:colon_index].lower()
+            form_header_value, form_parameters = parse_header(
+                form_line[colon_index + 2:])
+
+            if form_header_field == 'content-disposition':
+                if 'filename' in form_parameters:
+                    file_name = form_parameters['filename']
+                field_name = form_parameters.get('name')
+            elif form_header_field == 'content-type':
+                file_type = form_header_value
+
+        post_data = form_part[line_index:-4]
+        if file_name or file_type:
+            file_ = File(type=file_type, name=file_name, body=post_data)
+            if field_name in files:
+                files[field_name].append(file_)
+            else:
+                files[field_name] = [file_]
+        else:
+            value = post_data.decode('utf-8')
+            if field_name in fields:
+                fields[field_name].append(value)
+            else:
+                fields[field_name] = [value]
+
+    return fields, files
 
 
 class Request:
