@@ -9,6 +9,8 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
+from cgi import parse_header
+from collections import namedtuple
 from http import HTTPStatus
 from typing import TypeVar
 from urllib.parse import parse_qs
@@ -45,16 +47,8 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Query(dict):
-    """Allow to access casted GET parameters from `request.query`.
-
-    E.g.:
-        `request.query.int('weight', 0)` will return an integer or zero.
-    """
-
-    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
-    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
-    NONE_STRINGS = ('n', 'none', 'null')
+class ListDict(dict):
+    """Deal with dicts containing either lists or a single element."""
 
     def get(self, key: str, default=...):
         return self.list(key, [default])[0]
@@ -67,6 +61,18 @@ class Query(dict):
                 raise HttpError(HTTPStatus.BAD_REQUEST,
                                 "Missing '{}' key".format(key))
             return default
+
+
+class Query(ListDict):
+    """Allow to access casted GET parameters from `request.query`.
+
+    E.g.:
+        `request.query.int('weight', 0)` will return an integer or zero.
+    """
+
+    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
+    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
+    NONE_STRINGS = ('n', 'none', 'null')
 
     def bool(self, key: str, default=...):
         value = self.get(key, default)
@@ -98,13 +104,62 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
+def parse_multipart_form(body: bytes, boundary: bytes):
+    """Parse a request body and returns fields and files ListDicts."""
+    File = namedtuple('File', ['type', 'body', 'name'])
+    files = ListDict()
+    fields = ListDict()
+    form_parts = body.split(boundary)
+    for form_part in form_parts[1:-1]:
+        file_name = None
+        file_type = None
+        field_name = None
+        line_index = 2
+        line_end_index = 0
+        while not line_end_index == -1:
+            line_end_index = form_part.find(b'\r\n', line_index)
+            form_line = form_part[line_index:line_end_index].decode('utf-8')
+            line_index = line_end_index + 2
+
+            if not form_line:
+                break
+
+            colon_index = form_line.index(':')
+            form_header_field = form_line[0:colon_index].lower()
+            form_header_value, form_parameters = parse_header(
+                form_line[colon_index + 2:])
+
+            if form_header_field == 'content-disposition':
+                if 'filename' in form_parameters:
+                    file_name = form_parameters['filename']
+                field_name = form_parameters.get('name')
+            elif form_header_field == 'content-type':
+                file_type = form_header_value
+
+        post_data = form_part[line_index:-4]
+        if file_name or file_type:
+            file_ = File(type=file_type, name=file_name, body=post_data)
+            if field_name in files:
+                files[field_name].append(file_)
+            else:
+                files[field_name] = [file_]
+        else:
+            value = post_data.decode('utf-8')
+            if field_name in fields:
+                fields[field_name].append(value)
+            else:
+                fields[field_name] = [value]
+
+    return fields, files
+
+
 class Request:
     """A container for the result of the parsing on each request.
 
     The parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
+                 'body', 'headers', 'fields', 'files')
 
     def __init__(self):
         self.kwargs = {}
@@ -149,13 +204,14 @@ class Protocol(asyncio.Protocol):
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
     Query = Query
     Request = Request
+    RequestParser = HttpRequestParser
     Response = Response
 
     def __init__(self, app):
         self.app = app
-        self.parser = HttpRequestParser(self)
 
     def data_received(self, data: bytes):
+        self.parser = self.RequestParser(self)
         try:
             self.parser.feed_data(data)
         except HttpParserError:
@@ -175,7 +231,13 @@ class Protocol(asyncio.Protocol):
         self.request.headers[name.decode()] = value.decode()
 
     def on_body(self, body: bytes):
-        self.request.body += body
+        content_type = self.request.headers['Content-Type']
+        if 'multipart/form-data' in content_type:
+            content_type, parameters = parse_header(content_type)
+            self.request.fields, self.request.files = parse_multipart_form(
+                body, parameters['boundary'].encode())
+        else:
+            self.request.body += body
 
     def on_url(self, url: bytes):
         self.request.url = url
@@ -203,7 +265,7 @@ class Protocol(asyncio.Protocol):
             self.response.body = self.response.body.encode()
         if 'Content-Length' not in self.response.headers:
             length = len(self.response.body)
-            self.response.headers['Content-Length'] = str(length)
+            self.response.headers['Content-Length'] = length
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n%b' % self.response.body
