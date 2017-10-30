@@ -11,13 +11,10 @@ logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 
 class Protocol(asyncio.Protocol):
 
-    def data_received(self, data: bytes):
-        self.write()
-
     def connection_made(self, transport):
         self.writer = transport
 
-    def write(self):
+    def data_received(self, data: bytes):
         self.writer.write(b'HTTP/1.1 200 OK\r\n')
         self.writer.write(b'Content-Length: 25\r\n')
         self.writer.write(b'Content-Type: application/json\r\n')
