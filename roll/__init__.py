@@ -132,8 +132,8 @@ class Response:
         self._status = HTTPStatus(http_code)
 
     def json(self, value: dict):
-        # Shortcut from a dict to a JSON with proper content type.
-        self.headers['Content-Type'] = 'application/json'
+        # Shortcut from a dict to JSON with proper content type.
+        self.headers['Content-Type'] = 'application/json; charset=utf-8'
         self.body = json.dumps(value)
 
     json = property(None, json)

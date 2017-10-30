@@ -8,7 +8,7 @@ class Client:
 
     # Default content type for request body encoding, change it to your own
     # taste if needed.
-    content_type = 'application/json'
+    content_type = 'application/json; charset=utf-8'
 
     def __init__(self, app):
         self.app = app

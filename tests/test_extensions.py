@@ -83,7 +83,7 @@ async def test_json_with_default_code(client, app):
         resp.json = {'key': 'value'}
 
     resp = await client.get('/test')
-    assert resp.headers['Content-Type'] == 'application/json'
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
     assert json.loads(resp.body) == {'key': 'value'}
     assert resp.status == HTTPStatus.OK
 
@@ -96,7 +96,7 @@ async def test_json_with_custom_code(client, app):
         resp.status = 400
 
     resp = await client.get('/test')
-    assert resp.headers['Content-Type'] == 'application/json'
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
     assert json.loads(resp.body) == {'key': 'value'}
     assert resp.status == HTTPStatus.BAD_REQUEST
 
