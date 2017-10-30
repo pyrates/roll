@@ -46,6 +46,19 @@ async def test_custom_cors_methods(client, app):
     assert resp.headers['Access-Control-Allow-Methods'] == 'PATCH,PUT'
 
 
+async def test_custom_cors_headers(client, app):
+
+    extensions.cors(app, headers=['X-Powered-By', 'X-Requested-With'])
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.body = 'test response'
+
+    resp = await client.get('/test')
+    assert (resp.headers['Access-Control-Allow-Headers'] ==
+            'X-Powered-By,X-Requested-With')
+
+
 async def test_logger(client, app, capsys):
 
     # startup has yet been called, but logger extensions was not registered

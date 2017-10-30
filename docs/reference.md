@@ -67,8 +67,9 @@ for usage.
 Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers. Especially useful for APIs.
 
 You can set the `Access-Control-Allow-Origin` header with the `origin`
-parameter and the `Access-Control-Allow-Methods` header with the
-`methods` parameter (list).
+parameter, the `Access-Control-Allow-Methods` header with the
+`methods` parameter (list) and the `Access-Control-Allow-Headers` header
+with the `headers` parameter (list).
 
 
 ### `logger`
