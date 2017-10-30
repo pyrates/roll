@@ -62,6 +62,7 @@ A how-to guide:
 * [How to deploy Roll into production](how-to-guides.md#how-to-deploy-roll-into-production)
 * [How to run Roll’s tests](how-to-guides.md#how-to-run-rolls-tests)
 * [How to send custom events](how-to-guides.md#how-to-send-custom-events)
+* [How to use a livereload development server](how-to-guides.md#how-to-use-a-livereload-development-server)
 
 
 ## [Discussions](discussions.md)

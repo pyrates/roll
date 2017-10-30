@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 import pytest
 
-from . import app as app_
+from .__main__ import app as app_
 
 pytestmark = pytest.mark.asyncio
 
