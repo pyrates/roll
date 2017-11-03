@@ -10,21 +10,21 @@ A reference guide:
 
 ## Core objects
 
-### `Roll`
+### Roll
 
 Roll provides an asyncio protocol.
 
 You can subclass it to set your own `Protocol` or `Routes` class.
 
 
-### `HttpError`
+### HttpError
 
 The object to raise when an error must be returned.
 Accepts a `status` and a `message`.
 The `status` can be either a `http.HTTPStatus` instance or an integer.
 
 
-### `Request`
+### Request
 
 A container for the result of the parsing on each request made by
 `httptools.HttpRequestParser`.
@@ -41,7 +41,7 @@ A container for the result of the parsing on each request made by
 - **kwargs** (`dict`): store here any extra data needed in the Request lifetime
 
 
-### `Response`
+### Response
 
 A container for `status`, `headers` and `body`.
 
@@ -71,7 +71,7 @@ response.json = {'some': 'dict'}
 response.json = [{'some': 'dict'}, {'another': 'one'}]
 ```
 
-### `Query`
+### Query
 
 Handy parsing of GET HTTP parameters.
 
@@ -91,14 +91,14 @@ Handy parsing of GET HTTP parameters.
   `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 
 
-### `Protocol`
+### Protocol
 
 You can subclass it to set your own `Query`, `Request` or `Response`
 classes. See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
 guide.
 
 
-### `Routes`
+### Routes
 
 Responsible for URL-pattern matching. Allows to switch to your own
 parser. Default routes use [autoroutes](https://github.com/pyrates/autoroutes),
@@ -115,7 +115,7 @@ All built-in extensions are imported from `roll.extensions`:
 
     from roll.extensions import cors, logger, …
 
-### `cors`
+### cors
 
 Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers.
 Especially useful for APIs.
@@ -130,7 +130,7 @@ Especially useful for APIs.
   `Access-Control-Allow-Methods` header; if `None` the header will not be set
 
 
-### `logger`
+### logger
 
 Log each and every request by default.
 
@@ -141,19 +141,20 @@ Log each and every request by default.
 - **handler** (default: `logging.StreamHandler`): `logging` handler
 
 
-### `options`
+### options
 
 Performant return in case of `OPTIONS` HTTP request.
 Combine it with the `cors` extension to handle the preflight request.
 
-This extension is applied by default, customize the `Roll` class if you
+This extension is applied by default,
+[customize](how-to-guides.md#how-to-subclass-roll-itself) the `Roll` class if you
 want to deactivate it.
 
 #### Parameters
 
 - **app**: Roll app to register the extension against
 
-### `traceback`
+### traceback
 
 Print the traceback on the server side if any. Handy for debugging.
 
@@ -161,7 +162,7 @@ Print the traceback on the server side if any. Handy for debugging.
 
 - **app**: Roll app to register the extension against
 
-### `igniter`
+### igniter
 
 Display a BIG message when running the server.
 Quite useless, hence so essential!
@@ -170,7 +171,7 @@ Quite useless, hence so essential!
 
 - **app**: Roll app to register the extension against
 
-### `static`
+### static
 
 Serve static files. Should not be used in production.
 
@@ -182,7 +183,7 @@ Serve static files. Should not be used in production.
   filesystem path to look for static files
 
 
-### `simple_server`
+### simple_server
 
 Special extension that does not rely on the events’ mechanism.
 
@@ -203,17 +204,17 @@ Please read
 [How to create an extension](how-to-guides.md#how-to-create-an-extension)
 for usage.
 
-### `startup`
+### startup
 
 Fired once when launching the server.
 
 
-### `shutdown`
+### shutdown
 
 Fired once when shutting down the server.
 
 
-### `request`
+### request
 
 Fired at each request before any dispatching/route matching.
 
@@ -224,14 +225,14 @@ response object directly, see the [options extension](#extensions) for
 an example.
 
 
-### `response`
+### response
 
 Fired at each request after all processing.
 
 Receives `request` and `response` parameters.
 
 
-### `error`
+### error
 
 Fired in case of error, can be at each request.
 Use it to customize HTTP error formatting for instance.
