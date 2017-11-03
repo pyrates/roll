@@ -29,24 +29,73 @@ The `status` can be either a `http.HTTPStatus` instance or an integer.
 A container for the result of the parsing on each request made by
 `httptools.HttpRequestParser`.
 
+#### Properties
+
+- **url** (`bytes`): raw URL as received by Roll
+- **path** (`str`): path element of the URL
+- **query_string** (`str`): extracted query string
+- **query** (`Query`): Query instance with parsed query string
+- **method** (`str`): HTTP verb
+- **body** (`bytes`): raw body as received by Roll
+- **headers** (`dict`): HTTP headers
+- **kwargs** (`dict`): store here any extra data needed in the Request lifetime
+
 
 ### `Response`
 
 A container for `status`, `headers` and `body`.
 
-*Note: there is a shortcut to set JSON content as a dict (`json`).*
+#### Properties
 
+- **status** (`http.HTTPStatus`): the response status
+
+```python
+# you can set the `status` with the HTTP code directly
+response.status = 204
+# same as
+response.status = http.HTTPStatus.OK
+```
+- **headers** (`dict`): case sensitive HTTP headers
+- **body** (`bytes`): raw Response body; if `str` body is set, Roll will convert
+  to `bytes` on the fly
+
+
+#### Shortcuts
+
+- **json**: takes any python object castable to `json` and set the body and the
+  `Content-Type` header
+
+```python
+response.json = {'some': 'dict'}
+# Works also with a `list`:
+response.json = [{'some': 'dict'}, {'another': 'one'}]
+```
 
 ### `Query`
 
-Handy parsing of GET HTTP parameters (`get`, `list`, `bool`, `int`,
-`float`).
+Handy parsing of GET HTTP parameters.
+
+#### Methods
+
+- **get(key: str, default=...)**: returns a single value for the given `key`,
+  raises an `HttpError(BAD_REQUEST)` if the `key` is missing and no `default` is
+  given
+- **list(key: str, default=...)**: returns the values for the given `key` as `list`,
+  raises an `HttpError(BAD_REQUEST)` if the `key` is missing and no `default` is
+  given
+- **bool(key: str, default=...)**: same as `get` but try to cast the value as
+  `boolean`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
+- **int(key: str, default=...)**: same as `get` but try to cast the value as
+  `int`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
+- **float(key: str, default=...)**: same as `get` but try to cast the value as
+  `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 
 
 ### `Protocol`
 
 You can subclass it to set your own `Query`, `Request` or `Response`
-classes.
+classes. See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
+guide.
 
 
 ### `Routes`
