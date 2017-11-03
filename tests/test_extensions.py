@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from http import HTTPStatus
 
 import pytest
@@ -123,3 +124,44 @@ async def test_options(client, app):
 
     resp = await client.options('/test')
     assert resp.status == HTTPStatus.OK
+
+
+async def test_static(client, app):
+
+    # startup has yet been called, but static extensions was not registered
+    # yet, so let's simulate a new startup.
+    app.hooks['startup'] = []
+    extensions.static(app, root=Path(__file__).parent / 'static')
+    await app.startup()
+
+    resp = await client.get('/static/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Test' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
+
+    resp = await client.get('/static/style.css')
+    assert resp.status == HTTPStatus.OK
+    assert b'chocolate' in resp.body
+    assert resp.headers['Content-Type'] == 'text/css'
+
+
+async def test_static_raises_if_path_is_outside_root(client, app):
+
+    app.hooks['startup'] = []
+    extensions.static(app, root=Path(__file__).parent / 'static')
+    await app.startup()
+
+    resp = await client.get('/static/../../README.md')
+    assert resp.status == HTTPStatus.BAD_REQUEST
+
+
+async def test_can_change_static_prefix(client, app):
+
+    app.hooks['startup'] = []
+    extensions.static(app, root=Path(__file__).parent / 'static',
+                      prefix='/foo')
+    await app.startup()
+
+    resp = await client.get('/foo/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Test' in resp.body

@@ -41,6 +41,18 @@ async def test_request_parse_simple_get_response(protocol):
     assert protocol.request.headers['Accept'] == '*/*'
 
 
+async def test_request_path_is_unquoted(protocol):
+    protocol.data_received(
+        b'GET /foo%2Bbar HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: HTTPie/0.9.8\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Accept: */*\r\n'
+        b'Connection: keep-alive\r\n'
+        b'\r\n')
+    assert protocol.request.path == '/foo+bar'
+
+
 async def test_request_parse_query_string(protocol):
     protocol.data_received(
         b'GET /feeds?foo=bar&bar=baz HTTP/1.1\r\n'

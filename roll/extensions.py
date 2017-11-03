@@ -1,7 +1,11 @@
 import asyncio
 import logging
+import mimetypes
 from http import HTTPStatus
+from pathlib import Path
 from traceback import print_exc
+
+from . import HttpError
 
 
 def cors(app, origin='*', methods=None, headers=None):
@@ -84,3 +88,29 @@ def simple_server(app, port=3579, host='127.0.0.1', quiet=False):
         app.loop.run_until_complete(app.shutdown())
         server.close()
         app.loop.close()
+
+
+def static(app, prefix='/static/', root=Path()):
+    """Serve static files. Never use in production."""
+
+    root = Path(root).resolve()
+
+    if not prefix.endswith('/'):
+        prefix += '/'
+    prefix += '{path:path}'
+
+    async def serve(request, response, path):
+        abspath = (root / path).resolve()
+        if root not in abspath.parents:
+            raise HttpError(HTTPStatus.BAD_REQUEST, abspath)
+        if not abspath.exists():
+            raise HttpError(HTTPStatus.NOT_FOUND, abspath)
+        content_type, encoding = mimetypes.guess_type(str(abspath))
+        with abspath.open('rb') as source:
+            response.body = source.read()
+            response.headers['Content-Type'] = (content_type
+                                                or 'application/octet-stream')
+
+    @app.listen('startup')
+    async def register_route():
+        app.route(prefix)(serve)
