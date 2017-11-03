@@ -11,6 +11,8 @@ A changelog:
 ## dev version
 
 * Changed `Roll.hook` signature to also accept kwargs.
+* **Breaking change**:
+  `options` extension is no more applied by default
 
 ## 0.5.0 — 2017-09-21
 

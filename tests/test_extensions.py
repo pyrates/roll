@@ -118,6 +118,8 @@ async def test_traceback(client, app, capsys):
 
 async def test_options(client, app):
 
+    extensions.options(app)
+
     @app.route('/test')
     async def get(req, resp):
         raise  # Should not be called.

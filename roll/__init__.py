@@ -231,8 +231,6 @@ class Roll:
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = {}
-        from .extensions import options
-        options(self)
 
     async def startup(self):
         await self.hook('startup')

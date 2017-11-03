@@ -118,7 +118,8 @@ All built-in extensions are imported from `roll.extensions`:
 ### cors
 
 Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers.
-Especially useful for APIs.
+Especially useful for APIs. You generally want to also use the `options`
+extension in the same time.
 
 #### Parameters
 
@@ -146,9 +147,10 @@ Log each and every request by default.
 Performant return in case of `OPTIONS` HTTP request.
 Combine it with the `cors` extension to handle the preflight request.
 
-This extension is applied by default,
-[customize](how-to-guides.md#how-to-subclass-roll-itself) the `Roll` class if you
-want to deactivate it.
+#### Parameters
+
+- **app**: Roll app to register the extension against
+
 
 #### Parameters
 
