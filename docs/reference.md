@@ -111,20 +111,34 @@ Please read
 [How to create an extension](how-to-guides.md#how-to-create-an-extension)
 for usage.
 
+All built-in extensions are imported from `roll.extensions`:
+
+    from roll.extensions import cors, logger, …
+
 ### `cors`
 
-Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers. Especially useful for APIs.
+Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers.
+Especially useful for APIs.
 
-You can set the `Access-Control-Allow-Origin` header with the `origin`
-parameter, the `Access-Control-Allow-Methods` header with the
-`methods` parameter (list) and the `Access-Control-Allow-Headers` header
-with the `headers` parameter (list).
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **origin** (`str`; default: `*`): value of the `Access-Control-Allow-Origin` header
+- **methods** (`list` of `str`; default: `None`): value of the
+  `Access-Control-Allow-Methods` header; if `None` the header will not be set
+- **headers** (`list` of `str`; default: `None`): value of the
+  `Access-Control-Allow-Methods` header; if `None` the header will not be set
 
 
 ### `logger`
 
-Log each and every request by default. You can pass a `level` parameter
-and a `handler`. Both are classic `logging` module objects.
+Log each and every request by default.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **level** (default: `logging.DEBUG`): `logging` level
+- **handler** (default: `logging.StreamHandler`): `logging` handler
 
 
 ### `options`
@@ -135,25 +149,52 @@ Combine it with the `cors` extension to handle the preflight request.
 This extension is applied by default, customize the `Roll` class if you
 want to deactivate it.
 
+#### Parameters
+
+- **app**: Roll app to register the extension against
 
 ### `traceback`
 
 Print the traceback on the server side if any. Handy for debugging.
 
+#### Parameters
+
+- **app**: Roll app to register the extension against
 
 ### `igniter`
 
 Display a BIG message when running the server.
 Quite useless, hence so essential!
 
+#### Parameters
+
+- **app**: Roll app to register the extension against
+
+### `static`
+
+Serve static files. Should not be used in production.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **prefix** (`str`, default=`/static/`): URL prefix to serve the statics
+- **root** (`str` or `pathlib.Path`, default=current executable path):
+  filesystem path to look for static files
+
 
 ### `simple_server`
 
 Special extension that does not rely on the events’ mechanism.
 
-Launch a local server on `127.0.0.1:3579` by default. `port` and `host`
-parameters allow you to customize. The `quiet` parameter does not
-display any message on startup.
+Launch a local server on `127.0.0.1:3579` by default.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **port** (`int`; default=`3579`): the port to listen
+- **host** (`str`; default=`127.0.0.1`): where to bind the server
+- **quiet** (`bool`; default=`False`): prevent the server to output startup
+  debug infos
 
 
 ## Events
