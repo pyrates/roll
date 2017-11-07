@@ -55,7 +55,7 @@ def content_negociation(app):
     @app.listen('request')
     async def reject_unacceptable_requests(request, response):
         accept = request.headers.get('Accept', '*/*')
-        if get_best_match(accept, request.routing['accepts']) is None:
+        if get_best_match(accept, request.route.payload['accepts']) is None:
             raise HttpError(HTTPStatus.NOT_ACCEPTABLE)
 
 

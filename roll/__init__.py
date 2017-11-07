@@ -9,6 +9,7 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
+from collections import namedtuple
 from http import HTTPStatus
 from typing import TypeVar
 from urllib.parse import parse_qs, unquote
@@ -99,10 +100,10 @@ class Query(dict):
 class Request:
     """A container for the result of the parsing on each request.
 
-    The parsing is made by `httptools.HttpRequestParser`.
+    The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers', 'routing')
+                 'body', 'headers', 'route')
 
     def __init__(self):
         self.kwargs = {}
@@ -224,6 +225,9 @@ class Routes(BaseRoutes):
         return payload, params
 
 
+Route = namedtuple('Route', ['payload', 'vars'])
+
+
 class Roll:
     """Deal with routes dispatching and events listening.
 
@@ -244,13 +248,13 @@ class Roll:
 
     async def __call__(self, request: Request, response: Response):
         try:
-            request.routing, params = self.routes.match(request.path)
+            request.route = Route(*self.routes.match(request.path))
             if not await self.hook('request', request, response):
-                if request.method not in request.routing:
+                if request.method not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-                request.kwargs.update(params)
-                handler = request.routing[request.method]
-                await handler(request, response, **params)
+                request.kwargs.update(request.route.vars)
+                handler = request.route.payload[request.method]
+                await handler(request, response, **request.route.vars)
         except Exception as error:
             await self.on_error(request, response, error)
         try:
