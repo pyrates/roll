@@ -200,7 +200,7 @@ async def test_get_accept_content_negociation_if_many(client, app):
     assert resp.headers['Content-Type'] == 'text/html'
     resp = await client.get('/test', headers={'Accept': 'application/json'})
     assert resp.status == HTTPStatus.OK
-    assert resp.body == b'{"status":"accepted"}'
+    assert json.loads(resp.body) == {'status': 'accepted'}
     assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
 
 
@@ -241,7 +241,7 @@ async def test_post_accept_content_negociation(client, app):
                              headers={'Accept': 'application/json'})
     assert resp.status == HTTPStatus.OK
     assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert resp.body == b'{"status":"accepted"}'
+    assert json.loads(resp.body) == {'status': 'accepted'}
 
 
 async def test_post_reject_content_negociation(client, app):
