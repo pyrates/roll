@@ -10,21 +10,21 @@ A reference guide:
 
 ## Core objects
 
-### `Roll`
+### Roll
 
 Roll provides an asyncio protocol.
 
 You can subclass it to set your own `Protocol` or `Routes` class.
 
 
-### `HttpError`
+### HttpError
 
 The object to raise when an error must be returned.
 Accepts a `status` and a `message`.
 The `status` can be either a `http.HTTPStatus` instance or an integer.
 
 
-### `Request`
+### Request
 
 A container for the result of the parsing on each request made by
 `httptools.HttpRequestParser`.
@@ -41,7 +41,7 @@ A container for the result of the parsing on each request made by
 - **kwargs** (`dict`): store here any extra data needed in the Request lifetime
 
 
-### `Response`
+### Response
 
 A container for `status`, `headers` and `body`.
 
@@ -71,7 +71,7 @@ response.json = {'some': 'dict'}
 response.json = [{'some': 'dict'}, {'another': 'one'}]
 ```
 
-### `Query`
+### Query
 
 Handy parsing of GET HTTP parameters.
 
@@ -91,14 +91,14 @@ Handy parsing of GET HTTP parameters.
   `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 
 
-### `Protocol`
+### Protocol
 
 You can subclass it to set your own `Query`, `Request` or `Response`
 classes. See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
 guide.
 
 
-### `Routes`
+### Routes
 
 Responsible for URL-pattern matching. Allows to switch to your own
 parser. Default routes use [autoroutes](https://github.com/pyrates/autoroutes),
@@ -111,49 +111,93 @@ Please read
 [How to create an extension](how-to-guides.md#how-to-create-an-extension)
 for usage.
 
-### `cors`
+All built-in extensions are imported from `roll.extensions`:
 
-Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers. Especially useful for APIs.
+    from roll.extensions import cors, logger, …
 
-You can set the `Access-Control-Allow-Origin` header with the `origin`
-parameter, the `Access-Control-Allow-Methods` header with the
-`methods` parameter (list) and the `Access-Control-Allow-Headers` header
-with the `headers` parameter (list).
+### cors
+
+Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers.
+Especially useful for APIs. You generally want to also use the `options`
+extension in the same time.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **origin** (`str`; default: `*`): value of the `Access-Control-Allow-Origin` header
+- **methods** (`list` of `str`; default: `None`): value of the
+  `Access-Control-Allow-Methods` header; if `None` the header will not be set
+- **headers** (`list` of `str`; default: `None`): value of the
+  `Access-Control-Allow-Methods` header; if `None` the header will not be set
 
 
-### `logger`
+### logger
 
-Log each and every request by default. You can pass a `level` parameter
-and a `handler`. Both are classic `logging` module objects.
+Log each and every request by default.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **level** (default: `logging.DEBUG`): `logging` level
+- **handler** (default: `logging.StreamHandler`): `logging` handler
 
 
-### `options`
+### options
 
 Performant return in case of `OPTIONS` HTTP request.
 Combine it with the `cors` extension to handle the preflight request.
 
-This extension is applied by default, customize the `Roll` class if you
-want to deactivate it.
+#### Parameters
+
+- **app**: Roll app to register the extension against
 
 
-### `traceback`
+#### Parameters
+
+- **app**: Roll app to register the extension against
+
+### traceback
 
 Print the traceback on the server side if any. Handy for debugging.
 
+#### Parameters
 
-### `igniter`
+- **app**: Roll app to register the extension against
+
+### igniter
 
 Display a BIG message when running the server.
 Quite useless, hence so essential!
 
+#### Parameters
 
-### `simple_server`
+- **app**: Roll app to register the extension against
+
+### static
+
+Serve static files. Should not be used in production.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **prefix** (`str`, default=`/static/`): URL prefix to serve the statics
+- **root** (`str` or `pathlib.Path`, default=current executable path):
+  filesystem path to look for static files
+
+
+### simple_server
 
 Special extension that does not rely on the events’ mechanism.
 
-Launch a local server on `127.0.0.1:3579` by default. `port` and `host`
-parameters allow you to customize. The `quiet` parameter does not
-display any message on startup.
+Launch a local server on `127.0.0.1:3579` by default.
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+- **port** (`int`; default=`3579`): the port to listen
+- **host** (`str`; default=`127.0.0.1`): where to bind the server
+- **quiet** (`bool`; default=`False`): prevent the server to output startup
+  debug infos
 
 
 ## Events
@@ -162,17 +206,17 @@ Please read
 [How to create an extension](how-to-guides.md#how-to-create-an-extension)
 for usage.
 
-### `startup`
+### startup
 
 Fired once when launching the server.
 
 
-### `shutdown`
+### shutdown
 
 Fired once when shutting down the server.
 
 
-### `request`
+### request
 
 Fired at each request before any dispatching/route matching.
 
@@ -183,14 +227,14 @@ response object directly, see the [options extension](#extensions) for
 an example.
 
 
-### `response`
+### response
 
 Fired at each request after all processing.
 
 Receives `request` and `response` parameters.
 
 
-### `error`
+### error
 
 Fired in case of error, can be at each request.
 Use it to customize HTTP error formatting for instance.

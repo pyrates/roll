@@ -11,12 +11,10 @@ a test failing): https://github.com/pyrates/roll/issues/new
 import asyncio
 from http import HTTPStatus
 from typing import TypeVar
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes as BaseRoutes
 from httptools import HttpParserError, HttpRequestParser, parse_url
-
-from .extensions import options
 
 try:
     # In case you use json heavily, we recommend installing
@@ -181,7 +179,7 @@ class Protocol(asyncio.Protocol):
     def on_url(self, url: bytes):
         self.request.url = url
         parsed = parse_url(url)
-        self.request.path = parsed.path.decode()
+        self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
         parsed_qs = parse_qs(self.request.query_string, keep_blank_values=True)
         self.request.query = self.Query(parsed_qs)
@@ -234,7 +232,6 @@ class Roll:
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = {}
-        options(self)
 
     async def startup(self):
         await self.hook('startup')

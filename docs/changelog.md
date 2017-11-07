@@ -10,7 +10,13 @@ A changelog:
 
 ## dev version
 
-* Changed `Roll.hook` signature to also accept kwargs.
+* Changed `Roll.hook` signature to also accept kwargs ([#5](https://github.com/pyrates/roll/pull/5))
+* `json` shorcut sets `utf-8` charset in `Content-Type` header ([#13](https://github.com/pyrates/roll/pull/13))
+* Added `static` extension to serve static files for development ([#16](https://github.com/pyrates/roll/pull/16))
+* `cors` accepts `headers` parameter to control `Access-Control-Allow-Headers` ([#12](https://github.com/pyrates/roll/pull/12))
+* **Breaking changes**:
+    * `options` extension is no more applied by default ([#16](https://github.com/pyrates/roll/pull/16))
+    * deprecated `req` pytest fixture is now removed ([#9](https://github.com/pyrates/roll/pull/9))
 
 ## 0.5.0 — 2017-09-21
 
