@@ -55,7 +55,7 @@ async def test_error_with_json_format(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    error = json.loads(resp.body)
+    error = json.loads(resp.body.decode())
     assert error == {"status": 500, "message": "JSON error"}
 
 
