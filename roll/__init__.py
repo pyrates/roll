@@ -150,7 +150,6 @@ class Protocol(asyncio.Protocol):
     Request = Request
     Response = Response
     RequestParser = HttpRequestParser
-    DEFAULT_CONTENT_TYPE = 'text/html'
 
     def __init__(self, app):
         self.app = app
@@ -205,8 +204,6 @@ class Protocol(asyncio.Protocol):
         if 'Content-Length' not in self.response.headers:
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
-        if 'Content-Type' not in self.response.headers:
-            self.response.headers['Content-Type'] = self.DEFAULT_CONTENT_TYPE
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n%b' % self.response.body

@@ -175,6 +175,7 @@ async def test_get_accept_content_negociation(client, app):
 
     @app.route('/test', accepts=['text/html'])
     async def get(req, resp):
+        resp.headers['Content-Type'] = 'text/html'
         resp.body = 'accepted'
 
     resp = await client.get('/test', headers={'Accept': 'text/html'})
@@ -190,6 +191,7 @@ async def test_get_accept_content_negociation_if_many(client, app):
     @app.route('/test', accepts=['text/html', 'application/json'])
     async def get(req, resp):
         if req.headers['Accept'] == 'text/html':
+            resp.headers['Content-Type'] = 'text/html'
             resp.body = '<h1>accepted</h1>'
         elif req.headers['Accept'] == 'application/json':
             resp.json = {'status': 'accepted'}
