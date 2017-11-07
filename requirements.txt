@@ -1,3 +1,4 @@
 autoroutes==0.2.0
 httptools==0.0.9
+mimetype-match==1.0.4
 uvloop==0.8.1

@@ -2,17 +2,9 @@ from http import HTTPStatus
 
 import pytest
 from roll import Protocol, HttpError
+from roll.testing import Transport
 
 pytestmark = pytest.mark.asyncio
-
-
-class Transport:
-
-    def write(self, data):
-        ...
-
-    def close(self):
-        ...
 
 
 @pytest.fixture

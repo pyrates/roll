@@ -152,9 +152,18 @@ Combine it with the `cors` extension to handle the preflight request.
 - **app**: Roll app to register the extension against
 
 
+### content_negociation
+
+Deal with content negociation declared during routes definition.
+Will return a `406 Not Acceptable` response in case of mismatch between
+the `Accept` header from the client and the `accepts` parameter set in
+routes. Useful to reject requests which are not expecting the available
+response.
+
 #### Parameters
 
 - **app**: Roll app to register the extension against
+
 
 ### traceback
 
@@ -164,6 +173,7 @@ Print the traceback on the server side if any. Handy for debugging.
 
 - **app**: Roll app to register the extension against
 
+
 ### igniter
 
 Display a BIG message when running the server.
@@ -172,6 +182,7 @@ Quite useless, hence so essential!
 #### Parameters
 
 - **app**: Roll app to register the extension against
+
 
 ### static
 
@@ -240,3 +251,12 @@ Fired in case of error, can be at each request.
 Use it to customize HTTP error formatting for instance.
 
 Receives `request`, `response` and `error` parameters.
+
+
+### dispatch
+
+Fired after the route matching at each request.
+Use it to customize routes restrictions for instance.
+
+Receives `request` and `payload` parameters. The latter being the result
+of the routes matching (dict).

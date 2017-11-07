@@ -18,7 +18,7 @@ async def test_cors(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.OK
-    assert resp.body == 'test response'
+    assert resp.body == b'test response'
     assert resp.headers['Access-Control-Allow-Origin'] == '*'
 
 
@@ -167,3 +167,92 @@ async def test_can_change_static_prefix(client, app):
     resp = await client.get('/foo/index.html')
     assert resp.status == HTTPStatus.OK
     assert b'Test' in resp.body
+
+
+async def test_get_accept_content_negociation(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', accepts=['text/html'])
+    async def get(req, resp):
+        resp.body = 'accepted'
+
+    resp = await client.get('/test', headers={'Accept': 'text/html'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'accepted'
+    assert resp.headers['Content-Type'] == 'text/html'
+
+
+async def test_get_accept_content_negociation_if_many(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', accepts=['text/html', 'application/json'])
+    async def get(req, resp):
+        if req.headers['Accept'] == 'text/html':
+            resp.body = '<h1>accepted</h1>'
+        elif req.headers['Accept'] == 'application/json':
+            resp.json = {'status': 'accepted'}
+
+    resp = await client.get('/test', headers={'Accept': 'text/html'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'<h1>accepted</h1>'
+    assert resp.headers['Content-Type'] == 'text/html'
+    resp = await client.get('/test', headers={'Accept': 'application/json'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'{"status":"accepted"}'
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+
+
+async def test_get_reject_content_negociation(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', accepts=['text/html'])
+    async def get(req, resp):
+        resp.body = 'rejected'
+
+    resp = await client.get('/test', headers={'Accept': 'text/css'})
+    assert resp.status == HTTPStatus.NOT_ACCEPTABLE
+
+
+async def test_get_accept_star_content_negociation(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', accepts=['text/css'])
+    async def get(req, resp):
+        resp.body = 'accepted'
+
+    resp = await client.get('/test', headers={'Accept': 'text/*'})
+    assert resp.status == HTTPStatus.OK
+
+
+async def test_post_accept_content_negociation(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', methods=['POST'], accepts=['application/json'])
+    async def get(req, resp):
+        resp.json = {'status': 'accepted'}
+
+    client.content_type = 'application/x-www-form-urlencoded'
+    resp = await client.post('/test', body={'key': 'value'},
+                             headers={'Accept': 'application/json'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+    assert resp.body == b'{"status":"accepted"}'
+
+
+async def test_post_reject_content_negociation(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', methods=['POST'], accepts=['text/html'])
+    async def get(req, resp):
+        resp.json = {'status': 'accepted'}
+
+    client.content_type = 'application/x-www-form-urlencoded'
+    resp = await client.post('/test', body={'key': 'value'},
+                             headers={'Accept': 'application/json'})
+    assert resp.status == HTTPStatus.NOT_ACCEPTABLE

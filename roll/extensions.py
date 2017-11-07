@@ -5,6 +5,8 @@ from http import HTTPStatus
 from pathlib import Path
 from traceback import print_exc
 
+from mimetype_match import get_best_match
+
 from . import HttpError
 
 
@@ -46,6 +48,15 @@ def options(app):
     async def handle_options(request, response):
         # Shortcut the request handling for OPTIONS requests.
         return request.method == 'OPTIONS'
+
+
+def content_negociation(app):
+
+    @app.listen('dispatch')
+    async def reject_unacceptable_requests(request, payload):
+        accept = request.headers.get('Accept', '*/*')
+        if get_best_match(accept, payload['accepts']) is None:
+            raise HttpError(HTTPStatus.NOT_ACCEPTABLE)
 
 
 def traceback(app):
@@ -108,8 +119,8 @@ def static(app, prefix='/static/', root=Path()):
         content_type, encoding = mimetypes.guess_type(str(abspath))
         with abspath.open('rb') as source:
             response.body = source.read()
-            response.headers['Content-Type'] = (content_type
-                                                or 'application/octet-stream')
+            response.headers['Content-Type'] = (content_type or
+                                                'application/octet-stream')
 
     @app.listen('startup')
     async def register_route():
