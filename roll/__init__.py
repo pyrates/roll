@@ -102,7 +102,7 @@ class Request:
     The parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
+                 'body', 'headers', 'routing')
 
     def __init__(self):
         self.kwargs = {}
@@ -149,6 +149,7 @@ class Protocol(asyncio.Protocol):
     Request = Request
     Response = Response
     RequestParser = HttpRequestParser
+    DEFAULT_CONTENT_TYPE = 'text/html'
 
     def __init__(self, app):
         self.app = app
@@ -204,7 +205,7 @@ class Protocol(asyncio.Protocol):
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
         if 'Content-Type' not in self.response.headers:
-            self.response.headers['Content-Type'] = 'text/html'
+            self.response.headers['Content-Type'] = self.DEFAULT_CONTENT_TYPE
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n%b' % self.response.body
@@ -243,8 +244,12 @@ class Roll:
 
     async def __call__(self, request: Request, response: Response):
         try:
+            request.routing, params = self.routes.match(request.path)
             if not await self.hook('request', request, response):
-                params, handler = await self.dispatch(request)
+                if request.method not in request.routing:
+                    raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+                request.kwargs.update(params)
+                handler = request.routing[request.method]
                 await handler(request, response, **params)
         except Exception as error:
             await self.on_error(request, response, error)
@@ -270,7 +275,7 @@ class Roll:
     def factory(self):
         return self.Protocol(self)
 
-    def route(self, path: str, methods: list=None, **extras):
+    def route(self, path: str, methods: list=None, **extras: dict):
         if methods is None:
             methods = ['GET']
 
@@ -281,14 +286,6 @@ class Roll:
             return func
 
         return wrapper
-
-    async def dispatch(self, request: Request):
-        payload, params = self.routes.match(request.path)
-        await self.hook('dispatch', request, payload)
-        if request.method not in payload:
-            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-        request.kwargs.update(params)
-        return params, payload[request.method]
 
     def listen(self, name: str):
         def wrapper(func):

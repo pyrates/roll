@@ -52,10 +52,10 @@ def options(app):
 
 def content_negociation(app):
 
-    @app.listen('dispatch')
-    async def reject_unacceptable_requests(request, payload):
+    @app.listen('request')
+    async def reject_unacceptable_requests(request, response):
         accept = request.headers.get('Accept', '*/*')
-        if get_best_match(accept, payload['accepts']) is None:
+        if get_best_match(accept, request.routing['accepts']) is None:
             raise HttpError(HTTPStatus.NOT_ACCEPTABLE)
 
 

@@ -20,6 +20,7 @@ A changelog:
   ([#12](https://github.com/pyrates/roll/pull/12))
 * Added `content_negociation` extension to reject unacceptable client requests
   based on the `Accept` header
+  ([#21](https://github.com/pyrates/roll/pull/21))
 * **Breaking changes**:
     * `options` extension is no more applied by default
       ([#16](https://github.com/pyrates/roll/pull/16))

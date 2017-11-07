@@ -251,12 +251,3 @@ Fired in case of error, can be at each request.
 Use it to customize HTTP error formatting for instance.
 
 Receives `request`, `response` and `error` parameters.
-
-
-### dispatch
-
-Fired after the route matching at each request.
-Use it to customize routes restrictions for instance.
-
-Receives `request` and `payload` parameters. The latter being the result
-of the routes matching (dict).
