@@ -150,10 +150,11 @@ class Protocol(asyncio.Protocol):
     Query = Query
     Request = Request
     Response = Response
+    RequestParser = HttpRequestParser
 
     def __init__(self, app):
         self.app = app
-        self.parser = HttpRequestParser(self)
+        self.parser = self.RequestParser(self)
 
     def data_received(self, data: bytes):
         try:
@@ -203,7 +204,7 @@ class Protocol(asyncio.Protocol):
             self.response.body = self.response.body.encode()
         if 'Content-Length' not in self.response.headers:
             length = len(self.response.body)
-            self.response.headers['Content-Length'] = str(length)
+            self.response.headers['Content-Length'] = length
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n%b' % self.response.body
