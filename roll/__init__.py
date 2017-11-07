@@ -102,8 +102,8 @@ class Request:
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
-    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers', 'route')
+    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'body',
+                 'headers', 'route', 'kwargs')
 
     def __init__(self):
         self.kwargs = {}
@@ -249,7 +249,6 @@ class Roll:
             if not await self.hook('request', request, response):
                 if request.method not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-                request.kwargs.update(request.route.vars)
                 handler = request.route.payload[request.method]
                 await handler(request, response, **request.route.vars)
         except Exception as error:

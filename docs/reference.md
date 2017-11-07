@@ -26,8 +26,12 @@ The `status` can be either a `http.HTTPStatus` instance or an integer.
 
 ### Request
 
-A container for the result of the parsing on each request made by
-`httptools.HttpRequestParser`.
+A container for the result of the parsing on each request.
+The default parsing is made by `httptools.HttpRequestParser`.
+
+You can use the empty `kwargs` dict to attach whatever you want,
+especially useful for extensions.
+
 
 #### Properties
 
@@ -38,6 +42,7 @@ A container for the result of the parsing on each request made by
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
 - **headers** (`dict`): HTTP headers
+- **route** (`Route`): a namedtuple storing results from URL matching
 - **kwargs** (`dict`): store here any extra data needed in the Request lifetime
 
 
