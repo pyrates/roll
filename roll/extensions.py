@@ -1,11 +1,10 @@
 import asyncio
 import logging
 import mimetypes
+import sys
 from http import HTTPStatus
 from pathlib import Path
 from traceback import print_exc
-
-from mimetype_match import get_best_match
 
 from . import HttpError
 
@@ -51,6 +50,12 @@ def options(app):
 
 
 def content_negociation(app):
+
+    try:
+        from mimetype_match import get_best_match
+    except ImportError:
+        sys.exit('Please install mimetype-match>=1.0.4 to be able to use the '
+                 'content_negociation extension.')
 
     @app.listen('request')
     async def reject_unacceptable_requests(request, response):

@@ -247,7 +247,8 @@ class Roll:
         try:
             request.route = Route(*self.routes.match(request.path))
             if not await self.hook('request', request, response):
-                if request.method not in request.route.payload:
+                # Uppercased in order to only consider HTTP verbs.
+                if request.method.upper() not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
                 handler = request.route.payload[request.method]
                 await handler(request, response, **request.route.vars)
@@ -280,9 +281,9 @@ class Roll:
             methods = ['GET']
 
         def wrapper(func):
-            handlers = {method: func for method in methods}
-            handlers.update(extras)
-            self.routes.add(path, **handlers)
+            payload = {method: func for method in methods}
+            payload.update(extras)
+            self.routes.add(path, **payload)
             return func
 
         return wrapper

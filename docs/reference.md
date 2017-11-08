@@ -42,7 +42,7 @@ especially useful for extensions.
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
 - **headers** (`dict`): HTTP headers
-- **route** (`Route`): a namedtuple storing results from URL matching
+- **route** (`Route`): a [Route instance](#Route) storing results from URL matching
 - **kwargs** (`dict`): store here any extra data needed in the Request lifetime
 
 
@@ -110,6 +110,15 @@ parser. Default routes use [autoroutes](https://github.com/pyrates/autoroutes),
 please refers to that documentation for available patterns.
 
 
+### Route
+
+A namedtuple to collect matched route data with attributes:
+
+* **payload** (`dict`): the data received by the `@app.route` decorator,
+  contains all handlers plus optionnal custom data.
+* **vars** (`dict`): URL placeholders resolved for the current route.
+
+
 ## Extensions
 
 Please read
@@ -168,6 +177,11 @@ response.
 #### Parameters
 
 - **app**: Roll app to register the extension against
+
+
+#### Requirements
+
+- mimetype-match>=1.0.4
 
 
 ### traceback
