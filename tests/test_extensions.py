@@ -218,6 +218,18 @@ async def test_get_reject_content_negociation(client, app):
     assert resp.status == HTTPStatus.NOT_ACCEPTABLE
 
 
+async def test_get_reject_content_negociation_if_no_accept_header(client, app):
+
+    extensions.content_negociation(app)
+
+    @app.route('/test', accepts=['*/*'])
+    async def get(req, resp):
+        resp.body = 'rejected'
+
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.NOT_ACCEPTABLE
+
+
 async def test_get_accept_star_content_negociation(client, app):
 
     extensions.content_negociation(app)
