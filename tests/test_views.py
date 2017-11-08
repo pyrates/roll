@@ -13,7 +13,7 @@ async def test_simple_get_request(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.OK
-    assert resp.body == 'test response'
+    assert resp.body == b'test response'
 
 
 async def test_simple_non_200_response(client, app):
@@ -53,9 +53,9 @@ async def test_post_json(client, app):
     async def get(req, resp):
         resp.body = req.body
 
-    resp = await client.post('/test', body={"key": "value"})
+    resp = await client.post('/test', body={'key': 'value'})
     assert resp.status == HTTPStatus.OK
-    assert resp.body == '{"key": "value"}'
+    assert resp.body == b'{"key": "value"}'
 
 
 async def test_post_urlencoded(client, app):
@@ -65,9 +65,9 @@ async def test_post_urlencoded(client, app):
         resp.body = req.body
 
     client.content_type = 'application/x-www-form-urlencoded'
-    resp = await client.post('/test', body={"key": "value"})
+    resp = await client.post('/test', body={'key': 'value'})
     assert resp.status == HTTPStatus.OK
-    assert resp.body == 'key=value'
+    assert resp.body == b'key=value'
 
 
 async def test_can_define_twice_a_route_with_different_payloads(client, app):

@@ -9,6 +9,7 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
+from collections import namedtuple
 from http import HTTPStatus
 from typing import TypeVar
 from urllib.parse import parse_qs, unquote
@@ -99,10 +100,10 @@ class Query(dict):
 class Request:
     """A container for the result of the parsing on each request.
 
-    The parsing is made by `httptools.HttpRequestParser`.
+    The default parsing is made by `httptools.HttpRequestParser`.
     """
-    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'kwargs',
-                 'body', 'headers')
+    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'body',
+                 'headers', 'route', 'kwargs')
 
     def __init__(self):
         self.kwargs = {}
@@ -199,7 +200,7 @@ class Protocol(asyncio.Protocol):
         payload = b'HTTP/1.1 %a %b\r\n' % (
             self.response.status.value, self.response.status.phrase.encode())
         if not isinstance(self.response.body, bytes):
-            self.response.body = self.response.body.encode()
+            self.response.body = str(self.response.body).encode()
         if 'Content-Length' not in self.response.headers:
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
@@ -219,6 +220,9 @@ class Routes(BaseRoutes):
         if not payload:
             raise HttpError(HTTPStatus.NOT_FOUND, url)
         return payload, params
+
+
+Route = namedtuple('Route', ['payload', 'vars'])
 
 
 class Roll:
@@ -241,9 +245,13 @@ class Roll:
 
     async def __call__(self, request: Request, response: Response):
         try:
+            request.route = Route(*self.routes.match(request.path))
             if not await self.hook('request', request, response):
-                params, handler = self.dispatch(request)
-                await handler(request, response, **params)
+                # Uppercased in order to only consider HTTP verbs.
+                if request.method.upper() not in request.route.payload:
+                    raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+                handler = request.route.payload[request.method]
+                await handler(request, response, **request.route.vars)
         except Exception as error:
             await self.on_error(request, response, error)
         try:
@@ -268,22 +276,17 @@ class Roll:
     def factory(self):
         return self.Protocol(self)
 
-    def route(self, path: str, methods: list=None):
+    def route(self, path: str, methods: list=None, **extras: dict):
         if methods is None:
             methods = ['GET']
 
         def wrapper(func):
-            self.routes.add(path, **{m: func for m in methods})
+            payload = {method: func for method in methods}
+            payload.update(extras)
+            self.routes.add(path, **payload)
             return func
 
         return wrapper
-
-    def dispatch(self, request: Request):
-        handlers, params = self.routes.match(request.path)
-        if request.method not in handlers:
-            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-        request.kwargs.update(params)
-        return params, handlers[request.method]
 
     def listen(self, name: str):
         def wrapper(func):

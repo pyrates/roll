@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import mimetypes
+import sys
 from http import HTTPStatus
 from pathlib import Path
 from traceback import print_exc
@@ -46,6 +47,22 @@ def options(app):
     async def handle_options(request, response):
         # Shortcut the request handling for OPTIONS requests.
         return request.method == 'OPTIONS'
+
+
+def content_negociation(app):
+
+    try:
+        from mimetype_match import get_best_match
+    except ImportError:
+        sys.exit('Please install mimetype-match>=1.0.4 to be able to use the '
+                 'content_negociation extension.')
+
+    @app.listen('request')
+    async def reject_unacceptable_requests(request, response):
+        accept = request.headers.get('Accept')
+        accepts = request.route.payload['accepts']
+        if accept is None or get_best_match(accept, accepts) is None:
+            raise HttpError(HTTPStatus.NOT_ACCEPTABLE)
 
 
 def traceback(app):
@@ -108,8 +125,8 @@ def static(app, prefix='/static/', root=Path()):
         content_type, encoding = mimetypes.guess_type(str(abspath))
         with abspath.open('rb') as source:
             response.body = source.read()
-            response.headers['Content-Type'] = (content_type
-                                                or 'application/octet-stream')
+            response.headers['Content-Type'] = (content_type or
+                                                'application/octet-stream')
 
     @app.listen('startup')
     async def register_route():

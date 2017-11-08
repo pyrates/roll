@@ -4,6 +4,15 @@ from urllib.parse import urlencode
 import pytest
 
 
+class Transport:
+
+    def write(self, data):
+        ...
+
+    def close(self):
+        ...
+
+
 class Client:
 
     # Default content type for request body encoding, change it to your own
@@ -36,12 +45,15 @@ class Client:
             headers['Content-Type'] = content_type
         body, headers = self.encode_body(body, headers)
         protocol = self.app.factory()
+        protocol.connection_made(Transport())
         protocol.on_message_begin()
         protocol.on_url(path.encode())
         protocol.request.body = body
         protocol.request.method = method
         protocol.request.headers = headers
-        return await self.app(protocol.request, protocol.response)
+        await self.app(protocol.request, protocol.response)
+        protocol.write()
+        return protocol.response
 
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)

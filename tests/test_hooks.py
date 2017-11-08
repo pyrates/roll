@@ -13,7 +13,7 @@ async def test_request_hook_can_alter_response(client, app):
     @app.listen('request')
     async def listener(request, response):
         response.status = 400
-        response.body = 'another response'
+        response.body = b'another response'
         return True  # Shortcut the response process.
 
     @app.route('/test')
@@ -22,7 +22,7 @@ async def test_request_hook_can_alter_response(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == 'another response'
+    assert resp.body == b'another response'
 
 
 async def test_response_hook_can_alter_response(client, app):
@@ -39,7 +39,7 @@ async def test_response_hook_can_alter_response(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == 'another response'
+    assert resp.body == b'another response'
 
 
 async def test_error_with_json_format(client, app):
@@ -55,7 +55,7 @@ async def test_error_with_json_format(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    error = json.loads(resp.body)
+    error = json.loads(resp.body.decode())
     assert error == {"status": 500, "message": "JSON error"}
 
 

@@ -26,8 +26,12 @@ The `status` can be either a `http.HTTPStatus` instance or an integer.
 
 ### Request
 
-A container for the result of the parsing on each request made by
-`httptools.HttpRequestParser`.
+A container for the result of the parsing on each request.
+The default parsing is made by `httptools.HttpRequestParser`.
+
+You can use the empty `kwargs` dict to attach whatever you want,
+especially useful for extensions.
+
 
 #### Properties
 
@@ -38,6 +42,7 @@ A container for the result of the parsing on each request made by
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
 - **headers** (`dict`): HTTP headers
+- **route** (`Route`): a [Route instance](#Route) storing results from URL matching
 - **kwargs** (`dict`): store here any extra data needed in the Request lifetime
 
 
@@ -105,6 +110,15 @@ parser. Default routes use [autoroutes](https://github.com/pyrates/autoroutes),
 please refers to that documentation for available patterns.
 
 
+### Route
+
+A namedtuple to collect matched route data with attributes:
+
+* **payload** (`dict`): the data received by the `@app.route` decorator,
+  contains all handlers plus optionnal custom data.
+* **vars** (`dict`): URL placeholders resolved for the current route.
+
+
 ## Extensions
 
 Please read
@@ -152,9 +166,23 @@ Combine it with the `cors` extension to handle the preflight request.
 - **app**: Roll app to register the extension against
 
 
+### content_negociation
+
+Deal with content negociation declared during routes definition.
+Will return a `406 Not Acceptable` response in case of mismatch between
+the `Accept` header from the client and the `accepts` parameter set in
+routes. Useful to reject requests which are not expecting the available
+response.
+
 #### Parameters
 
 - **app**: Roll app to register the extension against
+
+
+#### Requirements
+
+- mimetype-match>=1.0.4
+
 
 ### traceback
 
@@ -164,6 +192,7 @@ Print the traceback on the server side if any. Handy for debugging.
 
 - **app**: Roll app to register the extension against
 
+
 ### igniter
 
 Display a BIG message when running the server.
@@ -172,6 +201,7 @@ Quite useless, hence so essential!
 #### Parameters
 
 - **app**: Roll app to register the extension against
+
 
 ### static
 

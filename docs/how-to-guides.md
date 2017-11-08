@@ -46,6 +46,27 @@ always a bonus. The `response` object is modified in place.
 Make sure to check these out!*
 
 
+## How to deal with content negociation
+
+The [`content_negociation` extension](reference.md#content_negociation)
+is made for this purpose, you can use it that way:
+
+```python
+extensions.content_negociation(app)
+
+@app.route('/test', accepts=['text/html', 'application/json'])
+async def get(req, resp):
+    if req.headers['Accept'] == 'text/html':
+        resp.headers['Content-Type'] = 'text/html'
+        resp.body = '<h1>accepted</h1>'
+    elif req.headers['Accept'] == 'application/json':
+        resp.json = {'status': 'accepted'}
+```
+
+Requests with `Accept` header not matching `text/html` or
+`application/json` will be honored with a `406 Not Acceptable` response.
+
+
 ## How to return an HTTP error
 
 There are many reasons to return an HTTP error, with Roll you have to

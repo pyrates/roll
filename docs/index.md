@@ -56,6 +56,7 @@ A how-to guide:
 
 * [How to install Roll](how-to-guides.md#how-to-install-roll)
 * [How to create an extension](how-to-guides.md#how-to-create-an-extension)
+* [How to deal with content negociation](how-to-guides.md#how-to-deal-with-content-negociation)
 * [How to return an HTTP error](how-to-guides.md#how-to-return-an-http-error)
 * [How to return JSON content](how-to-guides.md#how-to-return-json-content)
 * [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
