@@ -53,7 +53,8 @@ class Client:
         self.protocol.on_url(path.encode())
         self.protocol.request.body = body
         self.protocol.request.method = method
-        self.protocol.request.headers = headers
+        for key, value in headers.items():
+            self.protocol.on_header(key.encode(), value.encode())
         await self.app(self.protocol.request, self.protocol.response)
         self.protocol.write()
         return self.protocol.response

@@ -30,7 +30,28 @@ async def test_request_parse_simple_get_response(protocol):
         b'\r\n')
     assert protocol.request.method == 'GET'
     assert protocol.request.path == '/feeds'
-    assert protocol.request.headers['Accept'] == '*/*'
+    assert protocol.request.headers['ACCEPT'] == '*/*'
+
+
+async def test_request_headers_are_uppercased(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Accept: */*\r\n'
+        b'Accept-Language: en-US,en;q=0.5\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Referer: http://localhost:7777/\r\n'
+        b'DNT: 1\r\n'
+        b'Connection: keep-alive\r\n'
+        b'\r\n')
+    assert protocol.request.headers['ACCEPT-LANGUAGE'] == 'en-US,en;q=0.5'
+    assert protocol.request.headers['ACCEPT'] == '*/*'
+    assert protocol.request.headers.get('HOST') == 'localhost:1707'
+    assert 'DNT' in protocol.request.headers
+    assert protocol.request.headers.get('accept') is None
 
 
 async def test_request_path_is_unquoted(protocol):

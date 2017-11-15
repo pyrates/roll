@@ -120,7 +120,7 @@ class Request(dict):
     @property
     def cookies(self):
         if self._cookies is None:
-            self._cookies = parse(self.headers.get('Cookie', ''))
+            self._cookies = parse(self.headers.get('COOKIE', ''))
         return self._cookies
 
 
@@ -189,7 +189,7 @@ class Protocol(asyncio.Protocol):
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
     def on_header(self, name: bytes, value: bytes):
-        self.request.headers[name.decode()] = value.decode()
+        self.request.headers[name.decode().upper()] = value.decode()
 
     def on_body(self, body: bytes):
         self.request.body += body

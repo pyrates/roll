@@ -44,7 +44,7 @@ especially useful for extensions.
 - **query** (`Query`): Query instance with parsed query string
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
-- **headers** (`dict`): HTTP headers
+- **headers** (`dict`): HTTP headers normalized in upper case
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **route** (`Route`): a [Route instance](#Route) storing results from URL matching
 

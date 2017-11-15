@@ -38,7 +38,7 @@ else:
 
 VERSION = (0, 6, 0)
 
-__author__ = 'Yohan Boniface'
+__author__ = 'Pyrates'
 __contact__ = "yohan.boniface@data.gouv.fr"
 __homepage__ = "https://github.com/pyrates/roll"
 __version__ = ".".join(map(str, VERSION))
