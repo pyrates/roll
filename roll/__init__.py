@@ -205,7 +205,12 @@ class Protocol(asyncio.Protocol):
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
         for key, value in self.response.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+            # https://tools.ietf.org/html/rfc7230#page-23
+            if key == 'Set-Cookie' and isinstance(value, list):
+                for v in value:
+                    payload += b'%b: %b\r\n' % (key.encode(), str(v).encode())
+            else:
+                payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n%b' % self.response.body
         self.writer.write(payload)
         if not self.parser.should_keep_alive():

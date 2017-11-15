@@ -5,7 +5,7 @@ python:
 install:
 - python setup.py develop
 - pip install -r requirements-dev.txt
-script: py.test
+script: py.test -vv
 branches:
   only:
     - master

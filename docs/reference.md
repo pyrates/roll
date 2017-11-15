@@ -61,6 +61,14 @@ response.status = 204
 response.status = http.HTTPStatus.OK
 ```
 - **headers** (`dict`): case sensitive HTTP headers
+
+*`Set-Cookie` exception*: if you want to set multiple `Set-Cookie` headers,
+use a list as value (see [rfc7230](https://tools.ietf.org/html/rfc7230#page-23))*:
+
+```python
+response.headers['Set-Cookie'] = ['cookie1=value', 'cookie2=value']
+```
+
 - **body** (`bytes`): raw Response body; if `str` body is set, Roll will convert
   to `bytes` on the fly
 
