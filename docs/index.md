@@ -19,9 +19,6 @@ performances and aesthetic in mind.
 * a lot of extensions (share yours!)
 
 
-The documentation structure is based on that
-[excellent article from Divio](https://www.divio.com/en/blog/documentation/).
-
 Please [provide us any feedback](https://github.com/pyrates/roll/issues/new)
 as an early reader! If you are curious about the code, it is hosted
 [on Github](https://github.com/pyrates/roll/blob/master/roll/__init__.py)
@@ -30,29 +27,14 @@ and you should be able to read it within the next half-hour.
 
 ## [Tutorials](tutorials.md)
 
-A tutorial:
-
-* is learning-oriented
-* allows the newcomer to get started
-* is a lesson
-
-*Analogy: teaching a small child how to cook*
-
 * [Your first Roll application](tutorials.md#your-first-roll-application)
+  **☜ TL;DR: this is where you find basic code API!**
 * [Your first Roll test](tutorials.md#your-first-roll-test)
 * [Using extensions](tutorials.md#using-extensions)
 * [Using events](tutorials.md#using-events)
 
 
 ## [How-to guides](how-to-guides.md)
-
-A how-to guide:
-
-* is goal-oriented
-* shows how to solve a specific problem
-* is a series of steps
-
-*Analogy: a recipe in a cookery book*
 
 * [How to install Roll](how-to-guides.md#how-to-install-roll)
 * [How to create an extension](how-to-guides.md#how-to-create-an-extension)
@@ -68,26 +50,10 @@ A how-to guide:
 
 ## [Discussions](discussions.md)
 
-A discussion:
-
-* is understanding-oriented
-* explains
-* provides background and context
-
-*Analogy: an article on culinary social history*
-
 * [Why Roll?](discussions.md#why-roll)
 
 
 ## [Reference](reference.md)
-
-A reference guide:
-
-* is information-oriented
-* describes the machinery
-* is accurate and complete
-
-*Analogy: a reference encyclopaedia article*
 
 * [Core objects](reference.md#core-objects)
 * [Extensions](reference.md#extensions)
@@ -96,10 +62,7 @@ A reference guide:
 
 ## [Changelog](changelog.md)
 
-A changelog:
+* [Changelog](changelog.md)
 
-* is breaking-change-oriented
-* links to related issues
-* is concise
-
-*Analogy: git blame :p*
+*The documentation structure is based on that
+[excellent article from Divio](https://www.divio.com/en/blog/documentation/).*

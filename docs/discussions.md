@@ -23,3 +23,6 @@ and decided to add some benchmarks and then iterate to better understand
 bottlenecks and strategies to tackle these. It was fun and not
 ridiculous at the end so we gave some love to the documentation and
 here we are.
+
+[A kind of presentation of Roll](https://larlet.fr/david/blog/2017/async-python-frameworks/)
+has been done in November, 2017 at PyConCA.
