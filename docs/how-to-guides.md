@@ -13,12 +13,34 @@ A how-to guide:
 
 Roll requires Python 3.5+ to be installed.
 
-It is recommended to install it within
-[a pipenv or virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
+It is recommended to install Roll using
+[pipenv](https://docs.pipenv.org/):
 
-You can install Roll through [pip](https://pip.pypa.io/en/stable/):
+    pipenv install roll
 
-    pip install roll
+
+## How to develop Roll
+
+It is recommended to develop Roll using
+[pipenv](https://docs.pipenv.org/):
+
+    pipenv install '-e .' --dev --three
+
+Then either activate the virtualenv:
+
+    pipenv shell
+    py.test
+
+Or directly run a command via pipenv:
+
+    pipenv run py.test
+
+Create a dedicated branch, hack hack hack, pull-request as usual.
+
+To (re)generate requirements files with hashes:
+
+    pipenv lock --requirements > requirements.txt
+    pipenv lock --requirements --dev > requirements-dev.txt
 
 
 ## How to create an extension

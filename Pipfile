@@ -1,0 +1,26 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[dev-packages]
+
+"0npbf8ux" = {path = ".", editable = true}
+mimetype-match = "==1.0.4"
+mkdocs = "==0.16.3"
+pytest = "==3.1.2"
+pytest-asyncio = "==0.6.0"
+
+
+[packages]
+
+autoroutes = "==0.2.0"
+httptools = "==0.0.9"
+uvloop = "==0.8.1"
+
+
+[requires]
+
+python_version = "3.6"

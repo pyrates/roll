@@ -3,9 +3,9 @@ python:
 - '3.5'
 - '3.6'
 install:
-- python setup.py develop
-- pip install -r requirements-dev.txt
-script: py.test -vv
+- pip install pipenv
+- pipenv install --dev
+script: pipenv run py.test -vv
 branches:
   only:
     - master

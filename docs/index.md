@@ -37,6 +37,7 @@ and you should be able to read it within the next half-hour.
 ## [How-to guides](how-to-guides.md)
 
 * [How to install Roll](how-to-guides.md#how-to-install-roll)
+* [How to develop Roll](how-to-guides.md#how-to-develop-roll)
 * [How to create an extension](how-to-guides.md#how-to-create-an-extension)
 * [How to deal with content negociation](how-to-guides.md#how-to-deal-with-content-negociation)
 * [How to return an HTTP error](how-to-guides.md#how-to-return-an-http-error)
