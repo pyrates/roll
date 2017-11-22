@@ -201,7 +201,13 @@ class Protocol(asyncio.Protocol):
             self.response.status.value, self.response.status.phrase.encode())
         if not isinstance(self.response.body, bytes):
             self.response.body = str(self.response.body).encode()
-        if 'Content-Length' not in self.response.headers:
+        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
+        if ('Content-Length' not in self.response.headers and
+                self.response.status not in (HTTPStatus.NO_CONTENT,
+                                             HTTPStatus.NOT_MODIFIED) and
+                not str(self.response.status.value).startswith('1') and  # 1XX.
+                hasattr(self, 'request') and
+                self.request.method not in ('CONNECT', 'HEAD')):
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
         for key, value in self.response.headers.items():

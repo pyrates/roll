@@ -8,6 +8,11 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## In progress
+
+* Only set the Content-Length header when necessary
+  ([#31](https://github.com/pyrates/roll/pull/31))
+
 ## 0.6.0 — 2017-11-22
 
 * Changed `Roll.hook` signature to also accept kwargs
