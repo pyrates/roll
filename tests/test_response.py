@@ -1,3 +1,4 @@
+from datetime import datetime
 from http import HTTPStatus
 
 import pytest
@@ -89,32 +90,136 @@ async def test_write_connect_no_content_type(client, app):
     assert client.protocol.writer.data == b'HTTP/1.1 200 OK\r\n\r\n'
 
 
-async def test_write_set_cookie(client, app):
+async def test_write_cookies(client, app):
 
     @app.route('/test')
     async def get(req, resp):
         resp.status = HTTPStatus.OK
         resp.body = 'body'
-        resp.headers['Set-Cookie'] = 'name=value'
+        resp.cookies.set(name='name', value='value')
 
     await client.get('/test')
     data = client.protocol.writer.data
     assert b'\r\nSet-Cookie: name=value\r\n' in data
-    assert b'\r\nContent-Length: 4\r\n' in data
-    assert b'\r\n\r\nbody' in data
 
 
-async def test_write_multiple_set_cookie(client, app):
+async def test_write_multiple_cookies(client, app):
 
     @app.route('/test')
     async def get(req, resp):
         resp.status = HTTPStatus.OK
         resp.body = 'body'
-        resp.headers['Set-Cookie'] = ['name=value', 'other=value2']
+        resp.cookies.set('name', 'value')
+        resp.cookies.set('other', 'value2')
 
     await client.get('/test')
     data = client.protocol.writer.data
     assert b'\r\nSet-Cookie: name=value\r\n' in data
     assert b'\r\nSet-Cookie: other=value2\r\n' in data
-    assert b'\r\nContent-Length: 4\r\n' in data
-    assert b'\r\n\r\nbody' in data
+
+
+async def test_write_cookies_with_path(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', path='/foo')
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert b'\r\nSet-Cookie: name=value; Path=/foo\r\n' in data
+
+
+async def test_write_cookies_with_expires(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value',
+                         expires=datetime(2027, 9, 21, 11, 22))
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert (b'\r\nSet-Cookie: name=value; '
+            b'Expires=Tue, 21 Sep 2027 11:22:00 GMT\r\n') in data
+
+
+async def test_write_cookies_with_max_age(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', max_age=600)
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert (b'\r\nSet-Cookie: name=value; Max-Age=600\r\n') in data
+
+
+async def test_write_cookies_with_domain(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', domain='www.example.com')
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert (b'\r\nSet-Cookie: name=value; Domain=www.example.com\r\n') in data
+
+
+async def test_write_cookies_with_http_only(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', httponly=True)
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert (b'\r\nSet-Cookie: name=value; HttpOnly\r\n') in data
+
+
+async def test_write_cookies_with_secure(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', secure=True)
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert (b'\r\nSet-Cookie: name=value; Secure\r\n') in data
+
+
+async def test_write_cookies_with_multiple_attributes(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', secure=True, max_age=300)
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert (b'\r\nSet-Cookie: name=value; Max-Age=300; Secure\r\n') in data
+
+
+async def test_delete_cookies(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set(name='name', value='value')
+        del resp.cookies['name']
+
+    await client.get('/test')
+    data = client.protocol.writer.data
+    assert b'\r\nSet-Cookie: name=value\r\n' not in data

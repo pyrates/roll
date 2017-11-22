@@ -17,6 +17,7 @@ A changelog:
       ([#30](https://github.com/pyrates/roll/pull/30))
 * Only set the body and Content-Length header when necessary
   ([#31](https://github.com/pyrates/roll/pull/31))
+* Added `cookies` support ([#28](https://github.com/pyrates/roll/pull/28))
 
 
 ## 0.6.0 — 2017-11-22

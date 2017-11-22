@@ -5,7 +5,7 @@ function run_ab() {
 }
 
 function run_wrk() {
-  wrk -t20 -c100 -d20s http://127.0.0.1:8000/$URLPATH
+  wrk -t20 -c100 -d20s -H "Cookie: test=bench" http://127.0.0.1:8000/$URLPATH
 }
 
 function run () {
@@ -13,7 +13,7 @@ function run () {
   cd $NAME && . ./run.sh &
   sleep 1
   PID=$!
-  http "http://127.0.0.1:8000/$URLPATH"
+  http "http://127.0.0.1:8000/$URLPATH" Cookie:'test=bench'
   time run_$TOOL | tee $NAME/$TOOL.log
   kill $PID
   wait $PID

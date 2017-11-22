@@ -15,7 +15,9 @@ app = Sanic(log_config=None)
 
 @app.route('/hello/<parameter>')
 async def hello(request, parameter):
-    return json({'message': f'Hello {parameter}'})
+    response = json({'message': f'Hello {parameter}'})
+    # response.cookies['bench'] = request.cookies.get('test')
+    return response
 
 
 if __name__ == '__main__':

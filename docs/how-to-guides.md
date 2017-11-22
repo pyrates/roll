@@ -326,3 +326,26 @@ async def hello(request, response):
     pass
 
 ```
+
+
+## How to deal with cookies
+
+### Request cookies
+
+If the request has any `Cookie` header, you can retrieve it with the
+`request.cookies` attribute, using the cookie `name` as key:
+
+```python
+value = request.cookies['name'].value
+```
+
+
+### Response cookies
+
+You can add cookies to response using the `response.cookies` attribute:
+
+```python
+response.cookies.set(name='name', value='value', path='/foo')
+```
+
+See the [reference](reference.md#cookies) for all the available `set` kwargs.

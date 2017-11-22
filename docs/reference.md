@@ -45,7 +45,8 @@ especially useful for extensions.
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
 - **headers** (`dict`): HTTP headers
-- **route** (`Route`): a [Route instance](#Route) storing results from URL matching
+- **route** (`Route`): a [Route instance](#route) storing results from URL matching
+- **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **kwargs** (`dict`): store here any extra data needed in the Request lifetime
 
 
@@ -64,12 +65,10 @@ response.status = 204
 response.status = http.HTTPStatus.OK
 ```
 - **headers** (`dict`): case sensitive HTTP headers
-
-*`Set-Cookie` exception*: if you want to set multiple `Set-Cookie` headers,
-use a list as value (see [rfc7230](https://tools.ietf.org/html/rfc7230#page-23))*:
+- **cookies** (`Cookies`): a [Cookies instance](#cookies)
 
 ```python
-response.headers['Set-Cookie'] = ['cookie1=value', 'cookie2=value']
+response.cookies.set(name='cookie', value='value', path='/some/path')
 ```
 
 - **body** (`bytes`): raw Response body; if `str` body is set, Roll will convert
@@ -105,6 +104,20 @@ Handy parsing of GET HTTP parameters.
   `int`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 - **float(key: str, default=...)**: same as `get` but try to cast the value as
   `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
+
+
+### Cookies
+
+A Cookies management class, built on top of
+[cookies](http://cookies.readthedocs.io/).
+
+#### Methods
+
+- **set(name, value, max_age=None, expires=None, secure=False, httponly=False,
+  path=None, domain=None)**: set a new cookie
+
+See [How to deal with cookies](how-to-guides.md#how-to-deal-with-cookies) for
+examples.
 
 
 ### Protocol

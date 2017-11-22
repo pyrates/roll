@@ -15,6 +15,7 @@ from typing import TypeVar
 from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes as BaseRoutes
+from cookies import Cookies as BaseCookies, Cookie
 from httptools import HttpParserError, HttpRequestParser, parse_url
 
 try:
@@ -97,29 +98,46 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
+class Cookies(BaseCookies):
+
+    def set(self, *args, **kwargs):
+        self.add(Cookie(*args, **kwargs))
+
+
 class Request:
     """A container for the result of the parsing on each request.
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'body',
-                 'headers', 'route', 'kwargs')
+                 'headers', 'route', '_cookies', 'kwargs')
 
     def __init__(self):
         self.kwargs = {}
         self.headers = {}
         self.body = b''
+        self._cookies = None
+
+    @property
+    def cookies(self):
+        if self._cookies is None:
+            self._cookies = Cookies()
+            cookie = self.headers.get('Cookie')
+            if cookie:
+                self._cookies.parse_request(cookie)
+        return self._cookies
 
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = ('_status', 'headers', 'body')
+    __slots__ = ('_status', 'headers', 'body', '_cookies')
 
     def __init__(self):
         self._status = None
         self.body = b''
         self.status = HTTPStatus.OK
         self.headers = {}
+        self._cookies = None
 
     @property
     def status(self):
@@ -136,6 +154,12 @@ class Response:
         self.body = json.dumps(value)
 
     json = property(None, json)
+
+    @property
+    def cookies(self):
+        if self._cookies is None:
+            self._cookies = Cookies()
+        return self._cookies
 
 
 class Protocol(asyncio.Protocol):
@@ -205,13 +229,12 @@ class Protocol(asyncio.Protocol):
         if 'Content-Length' not in self.response.headers and not bodyless:
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
-        for key, value in self.response.headers.items():
+        if self.response._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
-            if key == 'Set-Cookie' and isinstance(value, list):
-                for v in value:
-                    payload += b'%b: %b\r\n' % (key.encode(), str(v).encode())
-            else:
-                payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+            for cookie in self.response.cookies.render_response():
+                payload += b'%b: %b\r\n' % (b'Set-Cookie', cookie.encode())
+        for key, value in self.response.headers.items():
+            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n'
         if self.response.body and not bodyless:
             payload += self.response.body

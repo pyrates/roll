@@ -14,3 +14,4 @@ app = Roll()
 @app.route('/hello/{parameter}')
 async def hello(request, response, parameter):
     response.json = {'message': f'Hello {parameter}'}
+    # response.cookies.set(name='bench', value=request.cookies['test'].value)
