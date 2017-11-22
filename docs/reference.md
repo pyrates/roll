@@ -14,8 +14,11 @@ A reference guide:
 
 Roll provides an asyncio protocol.
 
-You can subclass it to set your own `Protocol` or `Routes` class.
+You can subclass it to set your own [Protocol](#protocol), [Route](#route),
+[Query](#query), [Request](#request) and/or [Response](#response) class(es).
 
+See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
+guide.
 
 ### HttpError
 
@@ -106,9 +109,7 @@ Handy parsing of GET HTTP parameters.
 
 ### Protocol
 
-You can subclass it to set your own `Query`, `Request` or `Response`
-classes. See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
-guide.
+Responsible of parsing the request and writing the response.
 
 
 ### Routes

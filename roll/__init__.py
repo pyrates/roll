@@ -139,16 +139,9 @@ class Response:
 
 
 class Protocol(asyncio.Protocol):
-    """Responsible of parsing the request and writing the response.
-
-    You can subclass it to set your own `Query`, `Request` or `Response`
-    classes.
-    """
+    """Responsible of parsing the request and writing the response."""
 
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
-    Query = Query
-    Request = Request
-    Response = Response
     RequestParser = HttpRequestParser
 
     def __init__(self, app):
@@ -161,7 +154,7 @@ class Protocol(asyncio.Protocol):
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.response = Response()
+            self.response = self.app.Response()
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
@@ -183,11 +176,11 @@ class Protocol(asyncio.Protocol):
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
         parsed_qs = parse_qs(self.request.query_string, keep_blank_values=True)
-        self.request.query = self.Query(parsed_qs)
+        self.request.query = self.app.Query(parsed_qs)
 
     def on_message_begin(self):
-        self.request = self.Request()
-        self.response = self.Response()
+        self.request = self.app.Request()
+        self.response = self.app.Response()
 
     def on_message_complete(self):
         self.request.method = self.parser.get_method().decode().upper()
@@ -233,10 +226,14 @@ Route = namedtuple('Route', ['payload', 'vars'])
 class Roll:
     """Deal with routes dispatching and events listening.
 
-    You can subclass it to set your own `Protocol` or `Routes` class.
+    You can subclass it to set your own `Protocol`, `Routes`, `Query`,
+    `Request` and/or `Response` class(es).
     """
     Protocol = Protocol
     Routes = Routes
+    Query = Query
+    Request = Request
+    Response = Response
 
     def __init__(self):
         self.routes = self.Routes()

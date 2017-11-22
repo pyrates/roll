@@ -8,6 +8,15 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## In progress
+
+* **Breaking changes**:
+    * `Query`, `Request` and `Response` are not anymore attached to the
+      `Protocol` class. They are now declared at the `Roll` class level.
+      It allows easier subclassing and customization of these parts.
+      ([#30](https://github.com/pyrates/roll/pull/30))
+
+
 ## 0.6.0 — 2017-11-22
 
 * Changed `Roll.hook` signature to also accept kwargs

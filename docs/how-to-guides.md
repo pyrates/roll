@@ -148,11 +148,11 @@ Especially useful for APIs.
 
 ## How to subclass Roll itself
 
-Let’s say you want your own [Query](reference.md#core-objects) parser
+Let’s say you want your own [Query](reference.md#query) parser
 to deal with GET parameters that should be converted as `datetime.date`
 objects.
 
-What you can do is subclass both the Roll class and the Protocol one
+What you can do is subclass the [Roll](reference.md#roll) class
 to set your custom Query class:
 
 ```python
@@ -171,12 +171,8 @@ class MyQuery(Query):
                     int(self.get('day')))
 
 
-class MyProtocol(Roll.Protocol):
-    Query = MyQuery
-
-
 class MyRoll(Roll):
-    Protocol = MyProtocol
+    Query = MyQuery
 
 
 app = MyRoll()
