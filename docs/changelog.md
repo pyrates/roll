@@ -8,7 +8,7 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## dev version
+## 0.6.0 — 2017-11-22
 
 * Changed `Roll.hook` signature to also accept kwargs
   ([#5](https://github.com/pyrates/roll/pull/5))
