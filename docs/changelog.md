@@ -15,10 +15,17 @@ A changelog:
       `Protocol` class. They are now declared at the `Roll` class level.
       It allows easier subclassing and customization of these parts.
       ([#30](https://github.com/pyrates/roll/pull/30))
+* Only set the body and Content-Length header when necessary
+  ([#31](https://github.com/pyrates/roll/pull/31))
 
 
 ## 0.6.0 — 2017-11-22
 
+* **Breaking changes**:
+    * `options` extension is no more applied by default
+      ([#16](https://github.com/pyrates/roll/pull/16))
+    * deprecated `req` pytest fixture is now removed
+      ([#9](https://github.com/pyrates/roll/pull/9))
 * Changed `Roll.hook` signature to also accept kwargs
   ([#5](https://github.com/pyrates/roll/pull/5))
 * `json` shorcut sets `utf-8` charset in `Content-Type` header
@@ -32,31 +39,26 @@ A changelog:
   ([#21](https://github.com/pyrates/roll/pull/21))
 * Allow to set multiple `Set-Cookie` headers
   ([#23](https://github.com/pyrates/roll/pull/23))
-* **Breaking changes**:
-    * `options` extension is no more applied by default
-      ([#16](https://github.com/pyrates/roll/pull/16))
-    * deprecated `req` pytest fixture is now removed
-      ([#9](https://github.com/pyrates/roll/pull/9))
 
 ## 0.5.0 — 2017-09-21
 
-* Add documentation.
-* Move project to Github.
 * **Breaking change**:
   order of parameters in events is always `request`, `response` and
   optionnaly `error` if any, in that particular order.
+* Add documentation.
+* Move project to Github.
 
 ## 0.4.0 — 2017-09-21
 
-* Switch routes from kua to autoroutes for performances.
 * **Breaking change**:
   routes placeholder syntax changed from `:parameter` to `{parameter}`
+* Switch routes from kua to autoroutes for performances.
 
 ## 0.3.0 — 2017-09-21
 
-* Improve benchmarks and overall performances.
 * **Breaking change**:
   `cors` extension parameter is no longer `value` but `origin`
+* Improve benchmarks and overall performances.
 
 ## 0.2.0 — 2017-08-25
 

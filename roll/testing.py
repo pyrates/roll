@@ -79,6 +79,9 @@ class Client:
     async def options(self, path, **kwargs):
         return await self.request(path, method='OPTIONS', **kwargs)
 
+    async def connect(self, path, **kwargs):
+        return await self.request(path, method='CONNECT', **kwargs)
+
 
 @pytest.fixture
 def client(app, event_loop):
