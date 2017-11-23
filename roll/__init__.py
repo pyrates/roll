@@ -146,6 +146,10 @@ class Protocol(asyncio.Protocol):
     """
 
     __slots__ = ('app', 'req', 'parser', 'resp', 'writer')
+    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
+    _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
+                          HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
+                          HTTPStatus.NOT_MODIFIED)
     Query = Query
     Request = Request
     Response = Response
@@ -202,12 +206,10 @@ class Protocol(asyncio.Protocol):
         if not isinstance(self.response.body, bytes):
             self.response.body = str(self.response.body).encode()
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        if ('Content-Length' not in self.response.headers and
-                self.response.status not in (HTTPStatus.NO_CONTENT,
-                                             HTTPStatus.NOT_MODIFIED) and
-                not str(self.response.status.value).startswith('1') and  # 1XX.
-                hasattr(self, 'request') and
-                self.request.method not in ('CONNECT', 'HEAD')):
+        bodyless = (self.response.status in self._BODYLESS_STATUSES or
+                    (hasattr(self, 'request') and
+                     self.request.method in self._BODYLESS_METHODS))
+        if 'Content-Length' not in self.response.headers and not bodyless:
             length = len(self.response.body)
             self.response.headers['Content-Length'] = length
         for key, value in self.response.headers.items():
@@ -217,7 +219,8 @@ class Protocol(asyncio.Protocol):
                     payload += b'%b: %b\r\n' % (key.encode(), str(v).encode())
             else:
                 payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n%b' % self.response.body
+        if self.response.body and not bodyless:
+            payload += b'\r\n%b' % self.response.body
         self.writer.write(payload)
         if not self.parser.should_keep_alive():
             self.writer.close()
