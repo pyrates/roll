@@ -48,6 +48,7 @@ and you should be able to read it within the next half-hour.
 * [How to use a livereload development server](how-to-guides.md#how-to-use-a-livereload-development-server)
 * [How to serve HTML templates](how-to-guides.md#how-to-serve-html-templates)
 * [How to protect a view with a decorator](how-to-guides.md#how-to-protect-a-view-with-a-decorator)
+* [How to deal with cookies](how-to-guides.md#how-to-deal-with-cookies)
 
 
 ## [Discussions](discussions.md)

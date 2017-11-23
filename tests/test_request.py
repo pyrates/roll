@@ -247,7 +247,7 @@ async def test_request_parse_cookies(protocol):
         b'Origin: http://localhost:7777\r\n'
         b'Cookie: key=value\r\n'
         b'\r\n')
-    assert protocol.request.cookies['key'].value == 'value'
+    assert protocol.request.cookies['key'] == 'value'
 
 
 async def test_request_parse_multiple_cookies(protocol):
@@ -259,8 +259,8 @@ async def test_request_parse_multiple_cookies(protocol):
         b'Origin: http://localhost:7777\r\n'
         b'Cookie: key=value; other=new_value\r\n'
         b'\r\n')
-    assert protocol.request.cookies['key'].value == 'value'
-    assert protocol.request.cookies['other'].value == 'new_value'
+    assert protocol.request.cookies['key'] == 'value'
+    assert protocol.request.cookies['other'] == 'new_value'
 
 
 async def test_request_cookies_get(protocol):
@@ -273,7 +273,7 @@ async def test_request_cookies_get(protocol):
         b'Cookie: key=value\r\n'
         b'\r\n')
     cookie = protocol.request.cookies.get('key')
-    cookie.value == 'value'
+    cookie == 'value'
 
 
 async def test_request_cookies_get_unknown_key(protocol):

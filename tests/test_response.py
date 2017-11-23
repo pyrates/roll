@@ -100,7 +100,7 @@ async def test_write_cookies(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert b'\r\nSet-Cookie: name=value\r\n' in data
+    assert b'\r\nSet-Cookie: name=value; Path=/\r\n' in data
 
 
 async def test_write_multiple_cookies(client, app):
@@ -114,8 +114,8 @@ async def test_write_multiple_cookies(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert b'\r\nSet-Cookie: name=value\r\n' in data
-    assert b'\r\nSet-Cookie: other=value2\r\n' in data
+    assert b'\r\nSet-Cookie: name=value; Path=/\r\n' in data
+    assert b'\r\nSet-Cookie: other=value2; Path=/\r\n' in data
 
 
 async def test_write_cookies_with_path(client, app):
@@ -143,7 +143,7 @@ async def test_write_cookies_with_expires(client, app):
     await client.get('/test')
     data = client.protocol.writer.data
     assert (b'\r\nSet-Cookie: name=value; '
-            b'Expires=Tue, 21 Sep 2027 11:22:00 GMT\r\n') in data
+            b'Expires=Tue, 21 Sep 2027 11:22:00 GMT; Path=/\r\n') in data
 
 
 async def test_write_cookies_with_max_age(client, app):
@@ -156,7 +156,7 @@ async def test_write_cookies_with_max_age(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert (b'\r\nSet-Cookie: name=value; Max-Age=600\r\n') in data
+    assert (b'\r\nSet-Cookie: name=value; Max-Age=600; Path=/\r\n') in data
 
 
 async def test_write_cookies_with_domain(client, app):
@@ -169,7 +169,8 @@ async def test_write_cookies_with_domain(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert (b'\r\nSet-Cookie: name=value; Domain=www.example.com\r\n') in data
+    assert (b'\r\nSet-Cookie: name=value; Domain=www.example.com; '
+            b'Path=/\r\n') in data
 
 
 async def test_write_cookies_with_http_only(client, app):
@@ -182,7 +183,7 @@ async def test_write_cookies_with_http_only(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert (b'\r\nSet-Cookie: name=value; HttpOnly\r\n') in data
+    assert (b'\r\nSet-Cookie: name=value; Path=/; HttpOnly\r\n') in data
 
 
 async def test_write_cookies_with_secure(client, app):
@@ -195,7 +196,7 @@ async def test_write_cookies_with_secure(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert (b'\r\nSet-Cookie: name=value; Secure\r\n') in data
+    assert (b'\r\nSet-Cookie: name=value; Path=/; Secure\r\n') in data
 
 
 async def test_write_cookies_with_multiple_attributes(client, app):
@@ -208,7 +209,8 @@ async def test_write_cookies_with_multiple_attributes(client, app):
 
     await client.get('/test')
     data = client.protocol.writer.data
-    assert (b'\r\nSet-Cookie: name=value; Max-Age=300; Secure\r\n') in data
+    assert (b'\r\nSet-Cookie: name=value; Max-Age=300; Path=/; '
+            b'Secure\r\n') in data
 
 
 async def test_delete_cookies(client, app):
@@ -220,6 +222,7 @@ async def test_delete_cookies(client, app):
         resp.cookies.set(name='name', value='value')
         del resp.cookies['name']
 
-    await client.get('/test')
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.OK
     data = client.protocol.writer.data
     assert b'\r\nSet-Cookie: name=value\r\n' not in data

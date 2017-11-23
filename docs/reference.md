@@ -109,7 +109,7 @@ Handy parsing of GET HTTP parameters.
 ### Cookies
 
 A Cookies management class, built on top of
-[cookies](http://cookies.readthedocs.io/).
+[biscuits](https://github.com/pyrates/biscuits).
 
 #### Methods
 

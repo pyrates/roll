@@ -336,7 +336,7 @@ If the request has any `Cookie` header, you can retrieve it with the
 `request.cookies` attribute, using the cookie `name` as key:
 
 ```python
-value = request.cookies['name'].value
+value = request.cookies['name']
 ```
 
 

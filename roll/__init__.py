@@ -15,7 +15,7 @@ from typing import TypeVar
 from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes as BaseRoutes
-from cookies import Cookies as BaseCookies, Cookie
+from biscuits import Cookie, parse
 from httptools import HttpParserError, HttpRequestParser, parse_url
 
 try:
@@ -98,10 +98,10 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
-class Cookies(BaseCookies):
+class Cookies(dict):
 
-    def set(self, *args, **kwargs):
-        self.add(Cookie(*args, **kwargs))
+    def set(self, name, *args, **kwargs):
+        self[name] = Cookie(name, *args, **kwargs)
 
 
 class Request:
@@ -121,10 +121,7 @@ class Request:
     @property
     def cookies(self):
         if self._cookies is None:
-            self._cookies = Cookies()
-            cookie = self.headers.get('Cookie')
-            if cookie:
-                self._cookies.parse_request(cookie)
+            self._cookies = parse(self.headers.get('Cookie', ''))
         return self._cookies
 
 
@@ -231,8 +228,8 @@ class Protocol(asyncio.Protocol):
             self.response.headers['Content-Length'] = length
         if self.response._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
-            for cookie in self.response.cookies.render_response():
-                payload += b'%b: %b\r\n' % (b'Set-Cookie', cookie.encode())
+            for cookie in self.response.cookies.values():
+                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n'
