@@ -63,7 +63,7 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     keywords='async asyncio http server',
-    packages=find_packages(exclude=['tests', 'example']),
+    packages=find_packages(exclude=['tests', 'examples']),
     install_requires=install_requires,
     extras_require={'test': ['pytest'], 'docs': 'mkdocs'},
     include_package_data=True,

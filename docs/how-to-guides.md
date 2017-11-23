@@ -268,12 +268,23 @@ First, install [hupper](https://pypi.python.org/pypi/hupper).
 
 Then turn your Roll service into an importable module. Basically, a folder with
 `__init__.py` and `__main__.py` files and put your `simple_server` call within
-the `__main__.py` file (see the `example` folder for… an example!).
+the `__main__.py` file (see the `examples/basic` folder for… an example!).
 
-Once you did that, you can run the server using `hupper -m example`. Each and
-every time you modify a python file, the server will reload and take into
-account your modifications accordingly.
+Once you did that, you can run the server using `hupper -m examples.basic`.
+Each and every time you modify a python file, the server will reload and
+take into account your modifications accordingly.
 
 One of the pros of using hupper is that you can even set an `ipdb` call within
 your code and it will work seamlessly (as opposed to using solutions like
 [entr](http://www.entrproject.org/)).
+
+
+## How to serve HTML templates
+
+There is an example in the `examples/html` folder using
+[Jinja2](http://jinja.pocoo.org/) to render and return HTML views.
+
+To run it, go to the `examples` folder and run `python -m html`.
+Now reach `http://127.0.0.1:3579/hello/world` with your browser.
+
+To run associated tests: `py.test html/tests.py`.
