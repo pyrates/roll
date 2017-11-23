@@ -219,8 +219,9 @@ class Protocol(asyncio.Protocol):
                     payload += b'%b: %b\r\n' % (key.encode(), str(v).encode())
             else:
                 payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+        payload += b'\r\n'
         if self.response.body and not bodyless:
-            payload += b'\r\n%b' % self.response.body
+            payload += self.response.body
         self.writer.write(payload)
         if not self.parser.should_keep_alive():
             self.writer.close()

@@ -24,7 +24,7 @@ async def test_can_set_status_from_httpstatus(client, app):
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.ACCEPTED
     assert client.protocol.writer.data == \
-        b'HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\n'
+        b'HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\n\r\n'
 
 
 async def test_write(client, app):
@@ -46,7 +46,7 @@ async def test_write_get_204_no_content_type(client, app):
         resp.status = HTTPStatus.NO_CONTENT
 
     await client.get('/test')
-    assert client.protocol.writer.data == b'HTTP/1.1 204 No Content\r\n'
+    assert client.protocol.writer.data == b'HTTP/1.1 204 No Content\r\n\r\n'
 
 
 async def test_write_get_304_no_content_type(client, app):
@@ -56,7 +56,7 @@ async def test_write_get_304_no_content_type(client, app):
         resp.status = HTTPStatus.NOT_MODIFIED
 
     await client.get('/test')
-    assert client.protocol.writer.data == b'HTTP/1.1 304 Not Modified\r\n'
+    assert client.protocol.writer.data == b'HTTP/1.1 304 Not Modified\r\n\r\n'
 
 
 async def test_write_get_1XX_no_content_type(client, app):
@@ -66,7 +66,7 @@ async def test_write_get_1XX_no_content_type(client, app):
         resp.status = HTTPStatus.CONTINUE
 
     await client.get('/test')
-    assert client.protocol.writer.data == b'HTTP/1.1 100 Continue\r\n'
+    assert client.protocol.writer.data == b'HTTP/1.1 100 Continue\r\n\r\n'
 
 
 async def test_write_head_no_content_type(client, app):
@@ -76,7 +76,7 @@ async def test_write_head_no_content_type(client, app):
         resp.status = HTTPStatus.OK
 
     await client.head('/test')
-    assert client.protocol.writer.data == b'HTTP/1.1 200 OK\r\n'
+    assert client.protocol.writer.data == b'HTTP/1.1 200 OK\r\n\r\n'
 
 
 async def test_write_connect_no_content_type(client, app):
@@ -86,7 +86,7 @@ async def test_write_connect_no_content_type(client, app):
         resp.status = HTTPStatus.OK
 
     await client.connect('/test')
-    assert client.protocol.writer.data == b'HTTP/1.1 200 OK\r\n'
+    assert client.protocol.writer.data == b'HTTP/1.1 200 OK\r\n\r\n'
 
 
 async def test_write_set_cookie(client, app):
