@@ -47,6 +47,7 @@ and you should be able to read it within the next half-hour.
 * [How to send custom events](how-to-guides.md#how-to-send-custom-events)
 * [How to use a livereload development server](how-to-guides.md#how-to-use-a-livereload-development-server)
 * [How to serve HTML templates](how-to-guides.md#how-to-serve-html-templates)
+* [How to protect a view with a decorator](how-to-guides.md#how-to-protect-a-view-with-a-decorator)
 
 
 ## [Discussions](discussions.md)

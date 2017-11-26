@@ -288,3 +288,41 @@ To run it, go to the `examples` folder and run `python -m html`.
 Now reach `http://127.0.0.1:3579/hello/world` with your browser.
 
 To run associated tests: `py.test html/tests.py`.
+
+
+## How to protect a view with a decorator
+
+Here is a small example of a `WWW-Authenticate` protection using a decorator. Of
+course, the decorator pattern can be used to any kind of more advanced
+authentication process.
+
+
+```python
+from base64 import b64decode
+
+from roll import Roll
+
+
+def auth_required(func):
+
+    async def wrapper(request, response, *args, **kwargs):
+        auth = request.headers.get('Authorization', '')
+        # This is really naive, never do that at home!
+        if b64decode(auth[6:]) != b'user:pwd':
+            response.status = HTTPStatus.UNAUTHORIZED
+            response.headers['WWW-Authenticate'] = 'Basic'
+        else:
+            await func(request, response, *args, **kwargs)
+
+    return wrapper
+
+
+app = Roll()
+
+
+@app.route('/hello/')
+@auth_required
+async def hello(request, response):
+    pass
+
+```
