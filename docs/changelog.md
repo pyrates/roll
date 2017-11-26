@@ -15,6 +15,9 @@ A changelog:
       `Protocol` class. They are now declared at the `Roll` class level.
       It allows easier subclassing and customization of these parts.
       ([#30](https://github.com/pyrates/roll/pull/30))
+    * Removed Request.kwargs in favor of inheriting from dict, to store user
+      data in a separate space
+      ([#33](https://github.com/pyrates/roll/pull/33))
 * Only set the body and Content-Length header when necessary
   ([#31](https://github.com/pyrates/roll/pull/31))
 * Added `cookies` support ([#28](https://github.com/pyrates/roll/pull/28))
