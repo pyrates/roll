@@ -8,7 +8,7 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## In progress
+## 0.7.0 - 2017-11-27
 
 * **Breaking changes**:
     * `Query`, `Request` and `Response` are not anymore attached to the
