@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 import pytest
-from roll import Protocol, HttpError
+from roll import Protocol, HttpError, Request
 from roll.testing import Transport
 
 pytestmark = pytest.mark.asyncio
@@ -300,3 +300,10 @@ async def test_request_get_unknown_cookie_key_raises_keyerror(protocol):
         b'\r\n')
     with pytest.raises(KeyError):
         protocol.request.cookies['foo']
+
+
+async def test_can_store_arbitrary_keys_on_request():
+    request = Request()
+    request['custom'] = 'value'
+    assert 'custom' in request
+    assert request['custom'] == 'value'

@@ -45,9 +45,18 @@ especially useful for extensions.
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
 - **headers** (`dict`): HTTP headers
-- **route** (`Route`): a [Route instance](#route) storing results from URL matching
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
-- **kwargs** (`dict`): store here any extra data needed in the Request lifetime
+- **route** (`Route`): a [Route instance](#Route) storing results from URL matching
+
+#### Custom properties
+
+While `Request` cannot accept arbitrary attributes, it's a `dict` like object,
+which keys are never used by Roll itself, they are dedicated to external use,
+for example for session data.
+
+See
+[How to store custom data in the request](how-to-guides.md#how-to-store-custom-data-in-the-request)
+for an example of use.
 
 
 ### Response

@@ -104,16 +104,15 @@ class Cookies(dict):
         self[name] = Cookie(name, *args, **kwargs)
 
 
-class Request:
+class Request(dict):
     """A container for the result of the parsing on each request.
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'body',
-                 'headers', 'route', '_cookies', 'kwargs')
+                 'headers', 'route', '_cookies')
 
     def __init__(self):
-        self.kwargs = {}
         self.headers = {}
         self.body = b''
         self._cookies = None

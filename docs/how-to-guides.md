@@ -324,7 +324,16 @@ app = Roll()
 @auth_required
 async def hello(request, response):
     pass
+```
 
+
+## How to store custom data in the request
+
+You can use `Request` as a `dict` like object for your own use, `Roll` itself
+never touches it.
+
+```python
+request['user'] = get_current_user()
 ```
 
 
