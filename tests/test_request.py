@@ -236,3 +236,67 @@ async def test_query_float_should_return_default_if_key_not_present(protocol):
     protocol.on_message_begin()
     protocol.on_url(b'/?key=one')
     assert protocol.request.query.float('other', default=2.234) == 2.234
+
+
+async def test_request_parse_cookies(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Cookie: key=value\r\n'
+        b'\r\n')
+    assert protocol.request.cookies['key'] == 'value'
+
+
+async def test_request_parse_multiple_cookies(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Cookie: key=value; other=new_value\r\n'
+        b'\r\n')
+    assert protocol.request.cookies['key'] == 'value'
+    assert protocol.request.cookies['other'] == 'new_value'
+
+
+async def test_request_cookies_get(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Cookie: key=value\r\n'
+        b'\r\n')
+    cookie = protocol.request.cookies.get('key')
+    cookie == 'value'
+
+
+async def test_request_cookies_get_unknown_key(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Cookie: key=value\r\n'
+        b'\r\n')
+    cookie = protocol.request.cookies.get('foo')
+    assert cookie is None
+
+
+async def test_request_get_unknown_cookie_key_raises_keyerror(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Cookie: key=value\r\n'
+        b'\r\n')
+    with pytest.raises(KeyError):
+        protocol.request.cookies['foo']
