@@ -18,6 +18,9 @@ A changelog:
     * Removed Request.kwargs in favor of inheriting from dict, to store user
       data in a separate space
       ([#33](https://github.com/pyrates/roll/pull/33))
+    * Request headers are now normalized in upper case, to work around
+      inconsistent casing in clients
+      ([#24](https://github.com/pyrates/roll/pull/24))
 * Only set the body and Content-Length header when necessary
   ([#31](https://github.com/pyrates/roll/pull/31))
 * Added `cookies` support ([#28](https://github.com/pyrates/roll/pull/28))

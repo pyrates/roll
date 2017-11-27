@@ -56,10 +56,10 @@ extensions.content_negociation(app)
 
 @app.route('/test', accepts=['text/html', 'application/json'])
 async def get(req, resp):
-    if req.headers['Accept'] == 'text/html':
+    if req.headers['ACCEPT'] == 'text/html':
         resp.headers['Content-Type'] = 'text/html'
         resp.body = '<h1>accepted</h1>'
-    elif req.headers['Accept'] == 'application/json':
+    elif req.headers['ACCEPT'] == 'application/json':
         resp.json = {'status': 'accepted'}
 ```
 
@@ -306,7 +306,7 @@ from roll import Roll
 def auth_required(func):
 
     async def wrapper(request, response, *args, **kwargs):
-        auth = request.headers.get('Authorization', '')
+        auth = request.headers.get('AUTHORIZATION', '')
         # This is really naive, never do that at home!
         if b64decode(auth[6:]) != b'user:pwd':
             response.status = HTTPStatus.UNAUTHORIZED
