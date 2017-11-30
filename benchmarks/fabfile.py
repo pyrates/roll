@@ -37,16 +37,17 @@ def put_dir(ctx, local, remote):
 
 
 @task
-def bench(ctx, tools='', names='', workers=''):
+def bench(ctx, endpoint='minimal', frameworks='roll', workers='1'):
     as_bench(ctx, '/bin/bash -c ". /srv/bench/venv/bin/activate && '
                   'cd /srv/bench/src/benchmarks && ./bench.sh '
-                  f'\"{tools}\" \"{names}\" \"{workers}\""')
+                  f'--endpoint \"{endpoint}\" --frameworks \"{frameworks}\" '
+                  f'--workers \"{workers}\""')
 
 
 @task
 def system(ctx):
     ctx.run('sudo apt update')
-    ctx.run('sudo apt install python3.6 python3.6-dev wrk apache2-utils '
+    ctx.run('sudo apt install python3.6 python3.6-dev wrk '
             'python-virtualenv build-essential httpie --yes')
     ctx.run('sudo useradd -N bench -m -d /srv/bench/ || exit 0')
     ctx.run('sudo chsh -s /bin/bash bench')

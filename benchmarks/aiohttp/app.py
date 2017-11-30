@@ -1,15 +1,15 @@
 from aiohttp import web
 
-try:
-    import ujson as json
-except ImportError:
-    import json as json
+
+async def minimal(request):
+    return web.json_response({'message': 'Hello, World!'})
 
 
-async def hello(request):
+async def parameter(request):
     parameter = request.match_info.get('parameter', '')
-    return web.Response(body=json.dumps({'message': f'Hello {parameter}'}))
+    return web.json_response({'message': parameter})
 
 
 app = web.Application()
-app.router.add_get('/hello/{parameter}', hello)
+app.router.add_get('/hello/minimal', minimal)
+app.router.add_get('/hello/with/{parameter}', parameter)

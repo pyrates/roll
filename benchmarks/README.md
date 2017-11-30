@@ -3,10 +3,11 @@
 Create a venv, install requirements.txt dependencies, and then run:
 
     ./bench.sh
-    ./bench.sh wrk  # To run only wrk suite
-    ./bench.sh wrk "roll sanic"  # To run only roll and sanic with wrk.
-    ./bench.sh wrk "roll sanic" 2  # To run only roll and sanic with wrk and 2
-                                   # processes.
+    ./bench.sh --frameworks "roll sanic"  # To run only roll and sanic.
+    ./bench.sh --frameworks "roll sanic" --endpoint full  # To run only roll and
+                                                          # sanic with "full" endpoint.
+    ./bench.sh --frameworks "roll sanic" --workers 2  # To run only roll and sanic
+                                                      # with 2 processes.
 
 
 ## Running remotely

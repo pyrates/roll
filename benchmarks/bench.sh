@@ -1,59 +1,68 @@
 #!/usr/bin/env bash
 
-function run_ab() {
-  ab -c 50 -n 1000 http://127.0.0.1:8000/$URLPATH
+while [[ "$#" > 1 ]]; do case $1 in
+    --frameworks) FRAMEWORKS="$2";;
+    --endpoint) ENDPOINT="$2";;
+    --workers) WORKERS="$2";;
+    *) break;;
+  esac; shift; shift
+done
+
+WORKERS=${WORKERS:-1}
+ENDPOINT=${ENDPOINT:-minimal}
+FRAMEWORKS=${FRAMEWORKS:-sanic roll}
+
+
+function run_minimal() {
+  URL="http://127.0.0.1:8000/hello/minimal"
+  http $URL
+  time wrk -t20 -c100 -d10s $URL | tee $NAME/wrk.log
 }
 
-function run_wrk() {
-  wrk -t20 -c100 -d20s -H "Cookie: test=bench" http://127.0.0.1:8000/$URLPATH
+function run_parameter() {
+  URL="http://127.0.0.1:8000/hello/with/foobar"
+  http $URL
+  time wrk -t20 -c100 -d10s $URL | tee $NAME/wrk.log
 }
+
+function run_cookie() {
+  URL="http://127.0.0.1:8000/hello/cookie"
+  http $URL Cookie:"test=bench"
+  time wrk -t20 -c100 -d10s -H "Cookie: test=bench" $URL | tee $NAME/wrk.log
+}
+
+function run_query() {
+  URL="http://127.0.0.1:8000/hello/query?query=foobar"
+  http $URL
+  time wrk -t20 -c100 -d10s $URL | tee $NAME/wrk.log
+}
+
+function run_full() {
+  URL="http://127.0.0.1:8000/hello/full/with/foo/and/bar?query=foobar"
+  http $URL Cookie:"test=bench"
+  time wrk -t20 -c100 -d10s -H "Cookie: test=bench" $URL | tee $NAME/wrk.log
+}
+
 
 function run () {
-  echo "Running bench with $TOOL for $NAME"
+  echo "Running bench for $NAME on $ENDPOINT endpoint with $WORKERS worker(s)"
   cd $NAME && . ./run.sh &
   sleep 1
   PID=$!
-  http "http://127.0.0.1:8000/$URLPATH" Cookie:'test=bench'
-  time run_$TOOL | tee $NAME/$TOOL.log
+  run_$ENDPOINT
   kill $PID
   wait $PID
 }
 
-if test -z "$1"
-then
-  TOOLS="ab wrk"
-else
-  TOOLS=$1
-fi
-
-if test -z "$2"
-then
-  NAMES="aiohttp falcon roll sanic"
-else
-  NAMES=$2
-fi
 LEN=${#NAMES[@]}
-
-if test -z "$3"
-then
-  WORKERS=1
-else
-  WORKERS=$3
-fi
-
-
-URLPATH=hello/bench
-for TOOL in $TOOLS
+COUNTER=0
+for NAME in $FRAMEWORKS
 do
-  COUNTER=0
-  for NAME in $NAMES
-  do
-    echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-    run $TOOL $NAME hello/bench
-    let COUNTER++
-    if (($COUNTER < $LEN))
-      then sleep 20
-    fi
-    echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-  done
+  echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  run
+  let COUNTER++
+  if (($COUNTER < $LEN))
+    then sleep 20
+  fi
+  echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 done
