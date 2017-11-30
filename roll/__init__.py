@@ -109,13 +109,15 @@ class Request(dict):
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
-    __slots__ = ('url', 'path', 'query_string', 'query', 'method', 'body',
-                 'headers', 'route', '_cookies')
+    __slots__ = ('app', 'url', 'path', 'query_string', '_query', 'method',
+                 'body', 'headers', 'route', '_cookies')
 
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
         self.headers = {}
         self.body = b''
         self._cookies = None
+        self._query = None
 
     @property
     def cookies(self):
@@ -123,12 +125,20 @@ class Request(dict):
             self._cookies = parse(self.headers.get('COOKIE', ''))
         return self._cookies
 
+    @property
+    def query(self):
+        if self._query is None:
+            parsed_qs = parse_qs(self.query_string, keep_blank_values=True)
+            self._query = self.app.Query(parsed_qs)
+        return self._query
+
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = ('_status', 'headers', 'body', '_cookies')
+    __slots__ = ('app', '_status', 'headers', 'body', '_cookies')
 
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
         self._status = None
         self.body = b''
         self.status = HTTPStatus.OK
@@ -178,7 +188,7 @@ class Protocol(asyncio.Protocol):
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.response = self.app.Response()
+            self.response = self.app.Response(self.app)
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
@@ -199,12 +209,10 @@ class Protocol(asyncio.Protocol):
         parsed = parse_url(url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
-        parsed_qs = parse_qs(self.request.query_string, keep_blank_values=True)
-        self.request.query = self.app.Query(parsed_qs)
 
     def on_message_begin(self):
-        self.request = self.app.Request()
-        self.response = self.app.Response()
+        self.request = self.app.Request(self.app)
+        self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
         self.request.method = self.parser.get_method().decode().upper()
