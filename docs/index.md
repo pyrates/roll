@@ -7,7 +7,9 @@ performances and aesthetic in mind.
 ## Contains
 
 * async everywhere
-* basic routing through [autoroutes](https://github.com/pyrates/autoroutes)
+* routing through [autoroutes](https://github.com/pyrates/autoroutes)
+* cookies handling through [biscuits](https://github.com/pyrates/biscuits)
+* multipart parsing through [multifruits](https://github.com/pyrates/multifruits)
 * extensible system through events
 * decent HTTP errors
 * easy to test

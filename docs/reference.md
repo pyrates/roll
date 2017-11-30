@@ -15,7 +15,8 @@ A reference guide:
 Roll provides an asyncio protocol.
 
 You can subclass it to set your own [Protocol](#protocol), [Route](#route),
-[Query](#query), [Request](#request) and/or [Response](#response) class(es).
+[Query](#query), [Form](#form), [Files](#files), [Request](#request),
+[Response](#response) and/or [Cookies](#cookies) class(es).
 
 See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
 guide.
@@ -94,6 +95,29 @@ response.json = {'some': 'dict'}
 # Works also with a `list`:
 response.json = [{'some': 'dict'}, {'another': 'one'}]
 ```
+
+### Multipart
+
+Responsible of the parsing of `request.body`.
+
+#### Methods
+
+- **parse(content_type: str)**: returns a tuple
+  ([Form](#form) instance, [Files](#files) instance) filled with data
+  from `feed_data`
+- **feed_data(data: bytes)**: incrementally fills [Form](#form) and
+  [Files](#files) objects with bytes from the body
+
+
+### Form
+
+Allow to access casted POST parameters from `request.body`.
+
+
+### Files
+
+Allow to access POSTed files from `request.body`.
+
 
 ### Query
 

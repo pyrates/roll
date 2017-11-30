@@ -11,12 +11,14 @@ a test failing): https://github.com/pyrates/roll/issues/new
 import asyncio
 from collections import namedtuple
 from http import HTTPStatus
+from io import BytesIO
 from typing import TypeVar
 from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes as BaseRoutes
 from biscuits import Cookie, parse
 from httptools import HttpParserError, HttpRequestParser, parse_url
+from multifruits import Parser, extract_filename, parse_content_disposition
 
 try:
     # In case you use json heavily, we recommend installing
@@ -45,16 +47,11 @@ class HttpError(Exception):
         self.message = message or self.status.phrase
 
 
-class Query(dict):
-    """Allow to access casted GET parameters from `request.query`.
+class Multidict(dict):
+    """Data structure to deal with several values for the same key.
 
-    E.g.:
-        `request.query.int('weight', 0)` will return an integer or zero.
+    Useful for query string parameters or form-like POSTed ones.
     """
-
-    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
-    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
-    NONE_STRINGS = ('n', 'none', 'null')
 
     def get(self, key: str, default=...):
         return self.list(key, [default])[0]
@@ -67,6 +64,18 @@ class Query(dict):
                 raise HttpError(HTTPStatus.BAD_REQUEST,
                                 "Missing '{}' key".format(key))
             return default
+
+
+class Query(Multidict):
+    """Allow to access casted GET parameters from `request.query`.
+
+    E.g.:
+        `request.query.int('weight', 0)` will return an integer or zero.
+    """
+
+    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
+    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
+    NONE_STRINGS = ('n', 'none', 'null')
 
     def bool(self, key: str, default=...):
         value = self.get(key, default)
@@ -98,7 +107,81 @@ class Query(dict):
                             "Key '{}' must be castable to float".format(key))
 
 
+class Form(Query):
+    """Allow to access casted POST parameters from `request.body`."""
+
+
+class Files(Multidict):
+    """Allow to access POSTed files from `request.body`."""
+
+
+class Multipart:
+    """Responsible of the parsing of `request.body`."""
+
+    __slots__ = ('app', 'form', 'files', '_parser', '_current',
+                 '_current_headers', '_current_params')
+
+    def __init__(self, app):
+        self.app = app
+
+    def parse(self, content_type: str):
+        boundary = content_type.split('=', 1)[1].encode()
+        self._parser = Parser(self, boundary)
+        self.form = self.app.Form()
+        self.files = self.app.Files()
+        return self.form, self.files
+
+    def feed_data(self, data: bytes):
+        self._parser.feed_data(data)
+
+    def on_body_begin(self):
+        pass
+
+    def on_part_begin(self):
+        self._current_headers = {}
+
+    def on_header(self, field: bytes, value: bytes):
+        self._current_headers[field] = value
+
+    def on_headers_complete(self):
+        disposition_type, params = parse_content_disposition(
+            self._current_headers.get(b'Content-Disposition'))
+        if not disposition_type:
+            return
+        self._current_params = params
+        if b'Content-Type' in self._current_headers:
+            self._current = BytesIO()
+            self._current.filename = extract_filename(params)
+            self._current.content_type = self._current_headers[b'Content-Type']
+            self._current.params = params
+        else:
+            self._current = ''
+
+    def on_data(self, data: bytes):
+        if b'Content-Type' in self._current_headers:
+            self._current.write(data)
+        else:
+            self._current += data.decode()
+
+    def on_part_complete(self):
+        name = self._current_params.get(b'name', b'').decode()
+        if b'Content-Type' in self._current_headers:
+            if name not in self.files:
+                self.files[name] = []
+            self._current.seek(0)
+            self.files[name].append(self._current)
+        else:
+            if name not in self.form:
+                self.form[name] = []
+            self.form[name].append(self._current)
+        self._current = None
+
+    def on_body_complete(self):
+        pass
+
+
 class Cookies(dict):
+    """A Cookies management class, built on top of biscuits."""
 
     def set(self, name, *args, **kwargs):
         self[name] = Cookie(name, *args, **kwargs)
@@ -110,7 +193,7 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('app', 'url', 'path', 'query_string', '_query', 'method',
-                 'body', 'headers', 'route', '_cookies')
+                 'body', 'headers', 'route', '_cookies', '_form', '_files')
 
     def __init__(self, app):
         self.app = app
@@ -118,6 +201,8 @@ class Request(dict):
         self.body = b''
         self._cookies = None
         self._query = None
+        self._form = None
+        self._files = None
 
     @property
     def cookies(self):
@@ -131,6 +216,30 @@ class Request(dict):
             parsed_qs = parse_qs(self.query_string, keep_blank_values=True)
             self._query = self.app.Query(parsed_qs)
         return self._query
+
+    def _parse_multipart(self):
+        if 'multipart/form-data' in self.content_type:
+            parser = Multipart(self.app)
+            self._form, self._files = parser.parse(self.content_type)
+            parser.feed_data(self.body)
+
+    @property
+    def form(self):
+        # TODO deal with url-encoded and json.
+        if self._form is None:
+            self._parse_multipart()
+        return self._form
+
+    @property
+    def files(self):
+        # TODO deal with url-encoded and json.
+        if self._files is None:
+            self._parse_multipart()
+        return self._files
+
+    @property
+    def content_type(self):
+        return self.headers.get('CONTENT-TYPE', '')
 
 
 class Response:
@@ -164,7 +273,7 @@ class Response:
     @property
     def cookies(self):
         if self._cookies is None:
-            self._cookies = Cookies()
+            self._cookies = self.app.Cookies()
         return self._cookies
 
 
@@ -201,7 +310,12 @@ class Protocol(asyncio.Protocol):
     def on_header(self, name: bytes, value: bytes):
         self.request.headers[name.decode().upper()] = value.decode()
 
+    # def on_headers_complete(self):
+    #     if 'multipart/form-data' in self.request.headers:
+    #         self.request.form =
+
     def on_body(self, body: bytes):
+        # FIXME do not put all body in RAM blindly.
         self.request.body += body
 
     def on_url(self, url: bytes):
@@ -263,14 +377,17 @@ Route = namedtuple('Route', ['payload', 'vars'])
 class Roll:
     """Deal with routes dispatching and events listening.
 
-    You can subclass it to set your own `Protocol`, `Routes`, `Query`,
-    `Request` and/or `Response` class(es).
+    You can subclass it to set your own `Protocol`, `Routes`, `Query`, `Form`,
+    `Files`, `Request`, `Response` and/or `Cookies` class(es).
     """
     Protocol = Protocol
     Routes = Routes
     Query = Query
+    Form = Form
+    Files = Files
     Request = Request
     Response = Response
+    Cookies = Cookies
 
     def __init__(self):
         self.routes = self.Routes()

@@ -328,3 +328,28 @@ async def test_can_store_arbitrary_keys_on_request():
     request['custom'] = 'value'
     assert 'custom' in request
     assert request['custom'] == 'value'
+
+
+async def test_parse_multipart(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 180\r\n'
+        b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
+        b'\r\n'
+        b'--foofoo\r\n'
+        b'Content-Disposition: form-data; name=baz; filename="baz.png"\r\n'
+        b'Content-Type: image/png\r\n'
+        b'\r\n'
+        b'abcdef\r\n'
+        b'--foofoo\r\n'
+        b'Content-Disposition: form-data; name="text1"\r\n'
+        b'\r\n'
+        b'abc\r\n--foofoo--')
+    assert protocol.request.form.get('text1') == 'abc'
+    assert protocol.request.files.get('baz').filename == b'baz.png'
+    assert protocol.request.files.get('baz').content_type == b'image/png'
+    assert protocol.request.files.get('baz').read() == b'abcdef'
