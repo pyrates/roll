@@ -110,7 +110,7 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = ('app', 'url', 'path', 'query_string', '_query', 'method',
-                 'body', 'headers', 'route', '_cookies')
+                 'body', 'headers', 'route', '_cookies', 'handler')
 
     def __init__(self, app):
         self.app = app
@@ -168,6 +168,15 @@ class Response:
         return self._cookies
 
 
+def check_headers(validator):
+
+    def wrapper(func):
+        func._check_headers = validator
+        return func
+
+    return wrapper
+
+
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
@@ -185,13 +194,20 @@ class Protocol(asyncio.Protocol):
     def data_received(self, data: bytes):
         try:
             self.parser.feed_data(data)
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.response = self.app.Response(self.app)
-            self.response.status = HTTPStatus.BAD_REQUEST
-            self.response.body = b'Unparsable request'
-            self.write()
+        except HttpParserError as error:
+            print(error)
+            print(error.__context__)
+            if isinstance(error.__context__, HttpError):
+                task = self.app.loop.create_task(
+                    self.app.on_error(self.request, self.response, error.__context__))
+                task.add_done_callback(self.write)
+            else:
+                # If the parsing failed before on_message_begin, we don't have a
+                # response.
+                self.response = self.app.Response(self.app)
+                self.response.status = HTTPStatus.BAD_REQUEST
+                self.response.body = b'Unparsable request'
+                self.write()
 
     def connection_made(self, transport):
         self.writer = transport
@@ -202,20 +218,38 @@ class Protocol(asyncio.Protocol):
         self.request.headers[name.decode().upper()] = value.decode()
 
     def on_body(self, body: bytes):
+        print('on_body', body)
         self.request.body += body
 
     def on_url(self, url: bytes):
+        self.request.method = self.parser.get_method().decode().upper()
         self.request.url = url
         parsed = parse_url(url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
+        self.request.route = Route(*self.app.routes.match(self.request.path))
+        # Uppercased in order to only consider HTTP verbs.
+        if self.request.method.upper() not in self.request.route.payload:
+            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+        self.request.handler = self.request.route.payload[self.request.method]
+
+    def on_headers_complete(self):
+        if self.request.handler._check_headers:
+            async def handle_exception():
+                try:
+                    await self.request.handler._check_headers(self.request, self.response)
+                except HttpError as error:
+                    await self.app.on_error(self.request, self.response, error)
+                    self.write()
+                    # return True  # Stop request parsing?
+
+            self.app.loop.create_task(handle_exception())
 
     def on_message_begin(self):
         self.request = self.app.Request(self.app)
         self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
-        self.request.method = self.parser.get_method().decode().upper()
         task = self.app.loop.create_task(self.app(self.request, self.response))
         task.add_done_callback(self.write)
 
