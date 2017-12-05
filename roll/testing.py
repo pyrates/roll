@@ -49,12 +49,9 @@ class Client:
         body, headers = self.encode_body(body, headers)
         self.protocol = self.app.factory()
         self.protocol.connection_made(Transport())
-        self.protocol.on_message_begin()
-        self.protocol.on_url(path.encode())
-        self.protocol.request.body = body
-        self.protocol.request.method = method
-        for key, value in headers.items():
-            self.protocol.on_header(key.encode(), value.encode())
+        if isinstance(body, str):
+            body = body.encode()
+        self.protocol.on_request(method, path.encode(), headers, body)
         await self.app(self.protocol.request, self.protocol.response)
         self.protocol.write()
         return self.protocol.response

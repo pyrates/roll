@@ -1,4 +1,5 @@
 autoroutes==0.2.0
 biscuits==0.1.1
 httptools==0.0.9
+pycohttpparser==1.1.0
 uvloop==0.9.1

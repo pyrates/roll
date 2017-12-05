@@ -16,7 +16,9 @@ from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes as BaseRoutes
 from biscuits import Cookie, parse
-from httptools import HttpParserError, HttpRequestParser, parse_url
+from httptools import parse_url
+from pycohttpparser.api import Parser as HTTPParser
+from pycohttpparser.api import ParseError
 
 try:
     # In case you use json heavily, we recommend installing
@@ -176,37 +178,52 @@ class Protocol(asyncio.Protocol):
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
                           HTTPStatus.NOT_MODIFIED)
-    RequestParser = HttpRequestParser
+    RequestParser = HTTPParser
 
     def __init__(self, app):
         self.app = app
-        self.parser = self.RequestParser(self)
+        self.parser = self.RequestParser()
 
     def data_received(self, data: bytes):
         try:
-            self.parser.feed_data(data)
-        except HttpParserError:
+            parsed_data = self.parser.parse_request(memoryview(data))
+            # self.parser.feed_data(data)
+        except ParseError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
             self.response = self.app.Response(self.app)
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
+        else:
+            headers = {}
+            for name, value in parsed_data.headers:
+                headers[name.tobytes().decode()] = value.tobytes().decode()
+            self.on_request(
+                parsed_data.method.tobytes().decode(),
+                parsed_data.path.tobytes(),
+                headers,
+                data[parsed_data.consumed:])
+            self.on_message_complete()
 
-    def connection_made(self, transport):
-        self.writer = transport
+    def on_request(self, method, url, headers, data=b''):
+        self.on_message_begin()
+        self.request.method = method.upper()
+        self.on_headers(headers)
+        self.on_body(data)
+        self.on_url(url)
 
-    # All on_xxx methods are in use by httptools parser.
-    # See https://github.com/MagicStack/httptools#apis
-    def on_header(self, name: bytes, value: bytes):
-        self.request.headers[name.decode().upper()] = value.decode()
+    def on_headers(self, headers: dict):
+        for name, value in headers.items():
+            self.request.headers[name.upper()] = value
 
     def on_body(self, body: bytes):
-        self.request.body += body
+        if body:
+            self.request.body += body
 
     def on_url(self, url: bytes):
         self.request.url = url
-        parsed = parse_url(url)
+        parsed = parse_url(self.request.url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
 
@@ -215,9 +232,11 @@ class Protocol(asyncio.Protocol):
         self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
-        self.request.method = self.parser.get_method().decode().upper()
         task = self.app.loop.create_task(self.app(self.request, self.response))
         task.add_done_callback(self.write)
+
+    def connection_made(self, transport):
+        self.writer = transport
 
     # May or may not have "future" as arg.
     def write(self, *args):
@@ -243,8 +262,8 @@ class Protocol(asyncio.Protocol):
         if self.response.body and not bodyless:
             payload += self.response.body
         self.writer.write(payload)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
+        # if not self.parser.should_keep_alive():
+        #     self.writer.close()
 
 
 class Routes(BaseRoutes):
