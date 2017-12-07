@@ -17,8 +17,8 @@ from urllib.parse import parse_qs, unquote
 from autoroutes import Routes as BaseRoutes
 from biscuits import Cookie, parse
 from httptools import parse_url
-from pycohttpparser.api import Parser as HTTPParser
-from pycohttpparser.api import ParseError
+from picohttpparser.parser import Parser as HTTPParser
+from picohttpparser.parser import ParseError
 
 try:
     # In case you use json heavily, we recommend installing
@@ -186,7 +186,7 @@ class Protocol(asyncio.Protocol):
 
     def data_received(self, data: bytes):
         try:
-            parsed_data = self.parser.parse_request(memoryview(data))
+            self.parser.feed_data(data)
             # self.parser.feed_data(data)
         except ParseError:
             # If the parsing failed before on_message_begin, we don't have a
@@ -196,14 +196,11 @@ class Protocol(asyncio.Protocol):
             self.response.body = b'Unparsable request'
             self.write()
         else:
-            headers = {}
-            for name, value in parsed_data.headers:
-                headers[name.tobytes().decode()] = value.tobytes().decode()
             self.on_request(
-                parsed_data.method.tobytes().decode(),
-                parsed_data.path.tobytes(),
-                headers,
-                data[parsed_data.consumed:])
+                self.parser.method,
+                self.parser.path,
+                self.parser.headers,
+                data[self.parser.status:])
             self.on_message_complete()
 
     def on_request(self, method, url, headers, data=b''):
