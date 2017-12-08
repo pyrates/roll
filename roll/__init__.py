@@ -127,8 +127,7 @@ class Multipart:
         self.app = app
 
     def parse(self, content_type: str):
-        boundary = content_type.split('=', 1)[1].encode()
-        self._parser = Parser(self, boundary)
+        self._parser = Parser(self, content_type.encode())
         self.form = self.app.Form()
         self.files = self.app.Files()
         return self.form, self.files
