@@ -1,9 +1,8 @@
 "Roll is a pico framework with performances and aesthetic in mind."
-import sys
 from codecs import open  # To use a consistent encoding
 from os import path
 
-from setuptools import Extension, find_packages, setup
+from setuptools import Extension, setup
 
 here = path.abspath(path.dirname(__file__))
 
@@ -19,22 +18,15 @@ def is_pkg(line):
 with open('requirements.txt', encoding='utf-8') as reqs:
     install_requires = [l for l in reqs.read().split('\n') if is_pkg(l)]
 
-try:
-    from Cython.Distutils import build_ext
-    CYTHON = True
-except ImportError:
-    sys.stdout.write('\nNOTE: Cython not installed. Roll will '
-                     'still roll fine, but may roll a bit slower.\n\n')
-    CYTHON = False
-    cmdclass = {}
-    ext_modules = []
-else:
-    ext_modules = [
-        Extension('roll', ['roll/__init__.py']),
-        Extension('roll.extensions', ['roll/extensions.py']),
-        Extension('roll.worker', ['roll/worker.py']),
-    ]
-    cmdclass = {'build_ext': build_ext}
+ext_modules = [
+    Extension(
+        'roll.core',
+        ['roll/core.c',
+         'vendor/picohttpparser/picohttpparser.c'],
+        extra_compile_args=['-O3'],
+        include_dirs=['./vendor/picohttpparser'],
+    )
+]
 
 VERSION = (0, 7, 0)
 
@@ -63,7 +55,8 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     keywords='async asyncio http server',
-    packages=find_packages(exclude=['tests', 'examples']),
+    packages=['roll'],
+    provides=['roll', 'roll.worker'],
     install_requires=install_requires,
     extras_require={'test': ['pytest'], 'docs': 'mkdocs'},
     include_package_data=True,
@@ -71,5 +64,4 @@ setup(
     entry_points={
         'pytest11': ['roll=roll.testing'],
     },
-    cmdclass=cmdclass,
 )

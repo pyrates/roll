@@ -15,11 +15,11 @@ class Protocol(asyncio.Protocol):
         self.writer = transport
 
     def data_received(self, data: bytes):
-        self.writer.write(b'HTTP/1.1 200 OK\r\n')
-        self.writer.write(b'Content-Length: 21\r\n')
-        self.writer.write(b'Content-Type: application/json\r\n')
-        self.writer.write(b'\r\n')
-        self.writer.write(b'{"message":"Hello, World!"}')
+        self.writer.write(b'HTTP/1.1 200 OK\r\n'
+                          b'Content-Length: 27\r\n'
+                          b'Content-Type: application/json\r\n'
+                          b'\r\n'
+                          b'{"message":"Hello, World!"}')
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ import logging
 
 import uvloop
 
-from roll import Roll
+from roll.core import Roll
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 logging.getLogger('asyncio').setLevel(logging.CRITICAL)
