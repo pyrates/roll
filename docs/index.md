@@ -46,7 +46,6 @@ and you should be able to read it within the next half-hour.
 * [How to serve HTML templates](how-to-guides.md#how-to-serve-html-templates)
 * [How to return JSON content](how-to-guides.md#how-to-return-json-content)
 * [How to use a livereload development server](how-to-guides.md#how-to-use-a-livereload-development-server)
-* [How to run Roll’s tests](how-to-guides.md#how-to-run-rolls-tests)
 
 ### Advanced
 
@@ -58,6 +57,11 @@ and you should be able to read it within the next half-hour.
 * [How to send custom events](how-to-guides.md#how-to-send-custom-events)
 * [How to protect a view with a decorator](how-to-guides.md#how-to-protect-a-view-with-a-decorator)
 * [How to store custom data in the request](how-to-guides.md#how-to-store-custom-data-in-the-request)
+
+### Testing
+
+* [How to run Roll’s tests](how-to-guides.md#how-to-run-rolls-tests)
+* [How to test forms](how-to-guides.md#how-to-test-forms)
 
 
 ## Discussions
