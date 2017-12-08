@@ -220,16 +220,21 @@ class Request(dict):
         return self._query
 
     def _parse_multipart(self):
-        if 'multipart/form-data' in self.content_type:
-            parser = Multipart(self.app)
-            self._form, self._files = parser.parse(self.content_type)
-            parser.feed_data(self.body)
+        parser = Multipart(self.app)
+        self._form, self._files = parser.parse(self.content_type)
+        parser.feed_data(self.body)
+
+    def _parse_urlencoded(self):
+        parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True)
+        self._form = self.app.Form(parsed_qs)
 
     @property
     def form(self):
-        # TODO deal with url-encoded.
         if self._form is None:
-            self._parse_multipart()
+            if 'multipart/form-data' in self.content_type:
+                self._parse_multipart()
+            elif 'application/x-www-form-urlencoded' in self.content_type:
+                self._parse_urlencoded()
         return self._form
 
     @property

@@ -400,6 +400,33 @@ async def test_post_multipart(client, app, params):
     assert resp.body == b'filecontent'
 
 
+async def test_post_urlencoded(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.form.get('foo') == 'bar'
+        resp.body = b'done'
+
+    client.content_type = 'application/x-www-form-urlencoded'
+    resp = await client.post('/test', data={'foo': 'bar'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
+async def test_post_urlencoded_list(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.form.get('foo') == 'bar'
+        assert req.form.list('foo') == ['bar', 'baz']
+        resp.body = b'done'
+
+    client.content_type = 'application/x-www-form-urlencoded'
+    resp = await client.post('/test', data=[('foo', 'bar'), ('foo', 'baz')])
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
 async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])
