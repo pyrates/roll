@@ -118,7 +118,7 @@ class Files(Multidict):
 
 
 class Multipart:
-    """Responsible of the parsing of `request.body`."""
+    """Responsible of the parsing of mulitpart encoded `request.body`."""
 
     __slots__ = ('app', 'form', 'files', '_parser', '_current',
                  '_current_headers', '_current_params')

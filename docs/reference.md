@@ -103,7 +103,7 @@ response.json = [{'some': 'dict'}, {'another': 'one'}]
 
 ### Multipart
 
-Responsible of the parsing of `request.body`.
+Responsible of the parsing of mulitpart encoded `request.body`.
 
 #### Methods
 
@@ -114,19 +114,10 @@ Responsible of the parsing of `request.body`.
   [Files](#files) objects with bytes from the body
 
 
-### Form
+### Multidict
 
-Allow to access casted POST parameters from `request.body`.
-
-
-### Files
-
-Allow to access POSTed files from `request.body`.
-
-
-### Query
-
-Handy parsing of GET HTTP parameters.
+Data structure to deal with several values for the same key.
+Useful for query string parameters or form-like POSTed ones.
 
 #### Methods
 
@@ -136,12 +127,33 @@ Handy parsing of GET HTTP parameters.
 - **list(key: str, default=...)**: returns the values for the given `key` as `list`,
   raises an `HttpError(BAD_REQUEST)` if the `key` is missing and no `default` is
   given
+
+
+### Query
+
+Handy parsing of GET HTTP parameters.
+Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
+
+#### Methods
+
 - **bool(key: str, default=...)**: same as `get` but try to cast the value as
   `boolean`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 - **int(key: str, default=...)**: same as `get` but try to cast the value as
   `int`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 - **float(key: str, default=...)**: same as `get` but try to cast the value as
   `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
+
+
+### Form
+
+Allow to access casted POST parameters from `request.body`.
+Inherits from [Query](#query) with all the `get`/`list` + casting goodies.
+
+
+### Files
+
+Allow to access POSTed files from `request.body`.
+Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
 
 
 ### Cookies
