@@ -45,6 +45,11 @@ especially useful for extensions.
 - **query** (`Query`): Query instance with parsed query string
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
+- **form** (`Form`): a [Form instance](#form) with multipart or url-encoded
+  key/values parsed
+- **files** (`Files`): a [Files instance](#files) with multipart files parsed
+- **json** (`dict` or `list`): body parsed as JSON
+- **content_type** (`str`): shortcut to the `Content-Type` header
 - **headers** (`dict`): HTTP headers normalized in upper case
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **route** (`Route`): a [Route instance](#Route) storing results from URL matching

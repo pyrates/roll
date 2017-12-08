@@ -15,7 +15,7 @@ A changelog:
       allows lazy parsing of the query while keeping the `Query` class reference
       on `Roll` application.
       ([#35](https://github.com/pyrates/roll/pull/35))
-* Added support for multipart parsing through multifruits
+* Added support for request body parsing through multifruits
   ([#35](https://github.com/pyrates/roll/pull/35))
 
 

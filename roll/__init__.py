@@ -24,8 +24,10 @@ try:
     # In case you use json heavily, we recommend installing
     # https://pypi.python.org/pypi/ujson for better performances.
     import ujson as json
+    JSONDecodeError = ValueError
 except ImportError:
     import json as json
+    from json.decoder import JSONDecodeError
 
 
 HttpCode = TypeVar('HttpCode', HTTPStatus, int)
@@ -225,17 +227,23 @@ class Request(dict):
 
     @property
     def form(self):
-        # TODO deal with url-encoded and json.
+        # TODO deal with url-encoded.
         if self._form is None:
             self._parse_multipart()
         return self._form
 
     @property
     def files(self):
-        # TODO deal with url-encoded and json.
         if self._files is None:
             self._parse_multipart()
         return self._files
+
+    @property
+    def json(self):
+        try:
+            return json.loads(self.body.decode())
+        except (UnicodeDecodeError, JSONDecodeError):
+            return {}
 
     @property
     def content_type(self):
@@ -309,10 +317,6 @@ class Protocol(asyncio.Protocol):
     # See https://github.com/MagicStack/httptools#apis
     def on_header(self, name: bytes, value: bytes):
         self.request.headers[name.decode().upper()] = value.decode()
-
-    # def on_headers_complete(self):
-    #     if 'multipart/form-data' in self.request.headers:
-    #         self.request.form =
 
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.

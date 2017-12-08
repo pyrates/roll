@@ -398,3 +398,27 @@ async def test_post_multipart(client, app, params):
     resp = await client.post('/test', files={'afile': params})
     assert resp.status == HTTPStatus.OK
     assert resp.body == b'filecontent'
+
+
+async def test_post_json(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.json == {'foo': 'bar'}
+        resp.body = b'done'
+
+    resp = await client.post('/test', data={'foo': 'bar'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
+async def test_post_unparsable_json(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.json == {}
+        resp.body = b'done'
+
+    resp = await client.post('/test', data='{"foo')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
