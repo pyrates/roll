@@ -15,7 +15,7 @@ Make sure you [installed Roll first](how-to-guides.md#how-to-install-roll).
 
 The tinyest application you can make is this one:
 
-```python
+```python3
 from roll import Roll
 from roll.extensions import simple_server
 
@@ -67,7 +67,7 @@ First install `pytest` and `pytest-asyncio`.
 
 Then create a `tests.py` file and copy-paste:
 
-```python
+```python3
 from http import HTTPStatus
 
 import pytest
@@ -95,7 +95,44 @@ you gave during the previous part of the tutorial.
 Once it’s done, you can launch `py.test tests.py`.
 
 *Note: in case the `client` fixture is not found, you probably did not
-install `Roll` correctly.*
+[install `Roll`](how-to-guides.md#how-to-install-roll) correctly.*
+
+
+## Your first Roll form
+
+Imagine a basic login view which is waiting for a username and password:
+
+```python3
+from roll import Roll
+from roll.extensions import simple_server
+
+app = Roll()
+
+
+@app.route('/login', methods=['POST'])
+async def login(request, response):
+    username = request.form.get('username')
+    password = request.form.get('password')
+    response.body = f'Username: `{username}` password: `{password}`.'
+
+
+if __name__ == '__main__':
+    simple_server(app)
+```
+
+Now if we post our username/password information using HTTPie:
+
+```
+$ http --form POST :3579/hello/form username=David password=123456
+HTTP/1.1 200 OK
+Content-Length: 37
+
+Username: `David` password: `123456`.
+```
+
+Obviously we do not want to return that kind of information but you get
+the point! You also have access to optional `.files`, check out the
+dedicated [reference section](reference.md#request) to learn more.
 
 
 ## Using extensions
@@ -104,7 +141,7 @@ There are a couple of extensions available to “enrich” your application.
 
 These extensions have to be applied to your Roll app, for instance:
 
-```python
+```python3
 from roll import Roll
 from roll.extensions import logger, simple_server
 
@@ -154,7 +191,7 @@ behaviour of Roll at runtime.
 Let’s say you want to display a custom message when you launch your
 server:
 
-```python
+```python3
 from roll import Roll
 from roll.extensions import simple_server
 
