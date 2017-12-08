@@ -107,9 +107,9 @@ Responsible of the parsing of mulitpart encoded `request.body`.
 
 #### Methods
 
-- **parse(content_type: str)**: returns a tuple
+- **initialize(content_type: str)**: returns a tuple
   ([Form](#form) instance, [Files](#files) instance) filled with data
-  from `feed_data`
+  from subsequent calls to `feed_data`
 - **feed_data(data: bytes)**: incrementally fills [Form](#form) and
   [Files](#files) objects with bytes from the body
 

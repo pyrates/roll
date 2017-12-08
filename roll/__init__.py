@@ -126,7 +126,7 @@ class Multipart:
     def __init__(self, app):
         self.app = app
 
-    def parse(self, content_type: str):
+    def initialize(self, content_type: str):
         self._parser = Parser(self, content_type.encode())
         self.form = self.app.Form()
         self.files = self.app.Files()
@@ -220,7 +220,7 @@ class Request(dict):
 
     def _parse_multipart(self):
         parser = Multipart(self.app)
-        self._form, self._files = parser.parse(self.content_type)
+        self._form, self._files = parser.initialize(self.content_type)
         parser.feed_data(self.body)
 
     def _parse_urlencoded(self):
