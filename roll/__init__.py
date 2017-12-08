@@ -135,9 +135,6 @@ class Multipart:
     def feed_data(self, data: bytes):
         self._parser.feed_data(data)
 
-    def on_body_begin(self):
-        pass
-
     def on_part_begin(self):
         self._current_headers = {}
 
@@ -176,9 +173,6 @@ class Multipart:
                 self.form[name] = []
             self.form[name].append(self._current)
         self._current = None
-
-    def on_body_complete(self):
-        pass
 
 
 class Cookies(dict):
