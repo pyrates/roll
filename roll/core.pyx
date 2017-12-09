@@ -150,9 +150,14 @@ cdef class Request(dict):
     def __init__(self, app):
         self.app = app
         self.headers = {}
+        self.reset()
+
+    def reset(self):
+        self.headers.clear()
         self.body = b''
         self._cookies = None
         self._query = None
+        self.clear()
 
     @property
     def cookies(self):
@@ -167,16 +172,14 @@ cdef class Request(dict):
             self._query = self.app.Query(parsed_qs)
         return self._query
 
-    cdef get_headers(self):
-        headers = {}
+    cdef read_headers(self):
         for header in self._headers:
             if header.name_len:
-                headers[header.name[:header.name_len].decode().upper()] = \
+                self.headers[header.name[:header.name_len].decode().upper()] = \
                     header.value[:header.value_len].decode()
-        return headers
 
     cdef get_method(self):
-        return self._method[:self.method_len].decode()
+        return self._method[:self.method_len].decode().upper()
 
     cdef get_path(self):
         return self._path[:self.path_len]
@@ -186,8 +189,6 @@ cdef class Request(dict):
             data, len(data), &self._method, &self.method_len, &self._path,
             &self.path_len, &self.minor_version, self._headers,
             <size_t*>&self.num_headers, 0)
-        # if self.status == -1:
-        #     raise ValueError('Unable to parse request')
         return self.status
 
 
@@ -204,10 +205,14 @@ cdef class Response:
 
     def __init__(self, app):
         self.app = app
+        self.headers = {}
+        self.reset()
+
+    def reset(self):
         self._status = None
         self.body = b''
         self.status = HTTPStatus.OK
-        self.headers = {}
+        self.headers.clear()
         self._cookies = None
 
     @property
@@ -250,23 +255,22 @@ cdef class Protocol:
 
     def __init__(self, app):
         self.app = app
+        self.request = self.app.Request(self.app)
+        self.response = self.app.Response(self.app)
 
     def data_received(self, data: bytes):
-        self.request = self.app.Request(self.app)
+        self.request.reset()
+        self.response.reset()
         status = self.request.feed_data(data)
         if status == -1:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.response = self.app.Response(self.app)
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
         else:
-            self.on_request(
-                self.request.get_method(),
-                self.request.get_path(),
-                self.request.get_headers(),
-                data[self.request.status:])
+            self.request.method = self.request.get_method()
+            self.request.read_headers()
+            self.request.body += data[self.request.status:]
+            self.on_url(self.request.get_path())
             # self.writer.write(b'HTTP/1.1 200 OK\r\n'
             #                   b'Content-Length: 27\r\n'
             #                   b'Content-Type: application/json\r\n'
@@ -275,31 +279,11 @@ cdef class Protocol:
             # return
             self.on_message_complete()
 
-    def on_request(self, method, url, headers, data=b''):
-        self.on_message_begin()
-        self.request.method = method
-        # self.on_headers(headers)
-        self.request.body += data
-        # self.on_body(data)
-        self.on_url(url)
-
-    # def on_headers(self, headers: dict):
-    #     for name, value in headers.items():
-    #         self.request.headers[name.upper()] = value
-
-    # def on_body(self, body: bytes):
-    #     if body:
-    #         self.request.body += body
-
     def on_url(self, url: bytes):
         self.request.url = url
         parsed = parse_url(self.request.url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
-
-    def on_message_begin(self):
-        # self.request = self.app.Request(self.app)
-        self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
         task = self.app.loop.create_task(self.app(self.request, self.response))
