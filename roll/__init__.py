@@ -228,12 +228,17 @@ class Request(dict):
                 self._parse_multipart()
             elif 'application/x-www-form-urlencoded' in self.content_type:
                 self._parse_urlencoded()
+            else:
+                self._form = self.app.Form()
         return self._form
 
     @property
     def files(self):
         if self._files is None:
-            self._parse_multipart()
+            if 'multipart/form-data' in self.content_type:
+                self._parse_multipart()
+            else:
+                self._files = self.app.Files()
         return self._files
 
     @property
@@ -241,7 +246,7 @@ class Request(dict):
         try:
             return json.loads(self.body.decode())
         except (UnicodeDecodeError, JSONDecodeError):
-            return {}
+            return None
 
     @property
     def content_type(self):
