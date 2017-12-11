@@ -16,7 +16,7 @@ A changelog:
       on `Roll` application.
       ([#35](https://github.com/pyrates/roll/pull/35))
 * Added support for request body parsing through multifruits
-  ([#35](https://github.com/pyrates/roll/pull/35))
+  ([#38](https://github.com/pyrates/roll/pull/38))
 
 
 ## 0.7.0 - 2017-11-27

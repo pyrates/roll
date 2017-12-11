@@ -54,6 +54,9 @@ especially useful for extensions.
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **route** (`Route`): a [Route instance](#Route) storing results from URL matching
 
+In case of errors during the parsing of `form`, `files` or `json`,
+an [HttpError](#httperror) is raised with a `400` (Bad request) status code.
+
 #### Custom properties
 
 While `Request` cannot accept arbitrary attributes, it's a `dict` like object,
@@ -103,7 +106,7 @@ response.json = [{'some': 'dict'}, {'another': 'one'}]
 
 ### Multipart
 
-Responsible of the parsing of mulitpart encoded `request.body`.
+Responsible of the parsing of multipart encoded `request.body`.
 
 #### Methods
 

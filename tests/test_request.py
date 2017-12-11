@@ -382,6 +382,38 @@ async def test_parse_multipart_filename_star(protocol):
     assert protocol.request.files.get('baz').read() == b'abcdef'
 
 
+async def test_parse_unparsable_multipart(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 180\r\n'
+        b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
+        b'\r\n'
+        b'--foofoo--foofoo--')
+    with pytest.raises(HttpError) as e:
+        assert protocol.request.form
+    assert e.value.message == 'Unparsable multipart body'
+
+
+async def test_parse_unparsable_urlencoded(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 180\r\n'
+        b'Content-Type: application/x-www-form-urlencoded\r\n'
+        b'\r\n'
+        b'foo')
+    with pytest.raises(HttpError) as e:
+        assert protocol.request.form
+    assert e.value.message == 'Unparsable urlencoded body'
+
+
 @pytest.mark.parametrize('params', [
     ('filecontent', 'afile.txt'),
     (b'filecontent', 'afile.txt'),
@@ -443,9 +475,8 @@ async def test_post_unparsable_json(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert req.json == {}
-        resp.body = b'done'
+        assert req.json
 
     resp = await client.post('/test', data='{"foo')
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'done'
+    assert resp.status == HTTPStatus.BAD_REQUEST
+    assert resp.body == b'Unparsable JSON body'

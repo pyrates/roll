@@ -118,7 +118,7 @@ class Files(Multidict):
 
 
 class Multipart:
-    """Responsible of the parsing of mulitpart encoded `request.body`."""
+    """Responsible of the parsing of multipart encoded `request.body`."""
 
     __slots__ = ('app', 'form', 'files', '_parser', '_current',
                  '_current_headers', '_current_params')
@@ -215,10 +215,19 @@ class Request(dict):
     def _parse_multipart(self):
         parser = Multipart(self.app)
         self._form, self._files = parser.initialize(self.content_type)
-        parser.feed_data(self.body)
+        try:
+            parser.feed_data(self.body)
+        except ValueError:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            'Unparsable multipart body')
 
     def _parse_urlencoded(self):
-        parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True)
+        try:
+            parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True,
+                                 strict_parsing=True)
+        except ValueError:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            'Unparsable urlencoded body')
         self._form = self.app.Form(parsed_qs)
 
     @property
@@ -246,7 +255,7 @@ class Request(dict):
         try:
             return json.loads(self.body.decode())
         except (UnicodeDecodeError, JSONDecodeError):
-            return None
+            raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
 
     @property
     def content_type(self):
