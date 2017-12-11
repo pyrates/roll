@@ -50,7 +50,7 @@ async def test_invalid_method(client, app):
 async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def get(req, resp):
+    async def post(req, resp):
         resp.body = req.body
 
     resp = await client.post('/test', body={'key': 'value'})
@@ -61,7 +61,7 @@ async def test_post_json(client, app):
 async def test_post_urlencoded(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def get(req, resp):
+    async def post(req, resp):
         resp.body = req.body
 
     client.content_type = 'application/x-www-form-urlencoded'

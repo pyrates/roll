@@ -1,7 +1,8 @@
 from http import HTTPStatus
 
+from io import BytesIO
 import pytest
-from roll import Protocol, HttpError, Request
+from roll import HttpError, Protocol, Request
 from roll.testing import Transport
 
 pytestmark = pytest.mark.asyncio
@@ -328,3 +329,154 @@ async def test_can_store_arbitrary_keys_on_request():
     request['custom'] = 'value'
     assert 'custom' in request
     assert request['custom'] == 'value'
+
+
+async def test_parse_multipart(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 180\r\n'
+        b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
+        b'\r\n'
+        b'--foofoo\r\n'
+        b'Content-Disposition: form-data; name=baz; filename="baz.png"\r\n'
+        b'Content-Type: image/png\r\n'
+        b'\r\n'
+        b'abcdef\r\n'
+        b'--foofoo\r\n'
+        b'Content-Disposition: form-data; name="text1"\r\n'
+        b'\r\n'
+        b'abc\r\n--foofoo--')
+    assert protocol.request.form.get('text1') == 'abc'
+    assert protocol.request.files.get('baz').filename == 'baz.png'
+    assert protocol.request.files.get('baz').content_type == b'image/png'
+    assert protocol.request.files.get('baz').read() == b'abcdef'
+
+
+async def test_parse_multipart_filename_star(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 195\r\n'
+        b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
+        b'\r\n'
+        b'--foofoo\r\n'
+        b'Content-Disposition: form-data; name=baz; '
+        b'filename*="iso-8859-1\'\'baz-\xe9.png"\r\n'
+        b'Content-Type: image/png\r\n'
+        b'\r\n'
+        b'abcdef\r\n'
+        b'--foofoo\r\n'
+        b'Content-Disposition: form-data; name="text1"\r\n'
+        b'\r\n'
+        b'abc\r\n--foofoo--')
+    assert protocol.request.form.get('text1') == 'abc'
+    assert protocol.request.files.get('baz').filename == 'baz-é.png'
+    assert protocol.request.files.get('baz').content_type == b'image/png'
+    assert protocol.request.files.get('baz').read() == b'abcdef'
+
+
+async def test_parse_unparsable_multipart(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 180\r\n'
+        b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
+        b'\r\n'
+        b'--foofoo--foofoo--')
+    with pytest.raises(HttpError) as e:
+        assert protocol.request.form
+    assert e.value.message == 'Unparsable multipart body'
+
+
+async def test_parse_unparsable_urlencoded(protocol):
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Content-Length: 180\r\n'
+        b'Content-Type: application/x-www-form-urlencoded\r\n'
+        b'\r\n'
+        b'foo')
+    with pytest.raises(HttpError) as e:
+        assert protocol.request.form
+    assert e.value.message == 'Unparsable urlencoded body'
+
+
+@pytest.mark.parametrize('params', [
+    ('filecontent', 'afile.txt'),
+    (b'filecontent', 'afile.txt'),
+    (BytesIO(b'filecontent'), 'afile.txt'),
+])
+async def test_post_multipart(client, app, params):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.files.get('afile').filename == 'afile.txt'
+        resp.body = req.files.get('afile').read()
+
+    client.content_type = 'multipart/form-data'
+    resp = await client.post('/test', files={'afile': params})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'filecontent'
+
+
+async def test_post_urlencoded(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.form.get('foo') == 'bar'
+        resp.body = b'done'
+
+    client.content_type = 'application/x-www-form-urlencoded'
+    resp = await client.post('/test', data={'foo': 'bar'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
+async def test_post_urlencoded_list(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.form.get('foo') == 'bar'
+        assert req.form.list('foo') == ['bar', 'baz']
+        resp.body = b'done'
+
+    client.content_type = 'application/x-www-form-urlencoded'
+    resp = await client.post('/test', data=[('foo', 'bar'), ('foo', 'baz')])
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
+async def test_post_json(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.json == {'foo': 'bar'}
+        resp.body = b'done'
+
+    resp = await client.post('/test', data={'foo': 'bar'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
+async def test_post_unparsable_json(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.json
+
+    resp = await client.post('/test', data='{"foo')
+    assert resp.status == HTTPStatus.BAD_REQUEST
+    assert resp.body == b'Unparsable JSON body'

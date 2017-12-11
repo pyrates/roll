@@ -15,7 +15,8 @@ A reference guide:
 Roll provides an asyncio protocol.
 
 You can subclass it to set your own [Protocol](#protocol), [Route](#route),
-[Query](#query), [Request](#request) and/or [Response](#response) class(es).
+[Query](#query), [Form](#form), [Files](#files), [Request](#request),
+[Response](#response) and/or [Cookies](#cookies) class(es).
 
 See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
 guide.
@@ -44,9 +45,17 @@ especially useful for extensions.
 - **query** (`Query`): Query instance with parsed query string
 - **method** (`str`): HTTP verb
 - **body** (`bytes`): raw body as received by Roll
+- **form** (`Form`): a [Form instance](#form) with multipart or url-encoded
+  key/values parsed
+- **files** (`Files`): a [Files instance](#files) with multipart files parsed
+- **json** (`dict` or `list`): body parsed as JSON
+- **content_type** (`str`): shortcut to the `Content-Type` header
 - **headers** (`dict`): HTTP headers normalized in upper case
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **route** (`Route`): a [Route instance](#Route) storing results from URL matching
+
+In case of errors during the parsing of `form`, `files` or `json`,
+an [HttpError](#httperror) is raised with a `400` (Bad request) status code.
 
 #### Custom properties
 
@@ -95,9 +104,23 @@ response.json = {'some': 'dict'}
 response.json = [{'some': 'dict'}, {'another': 'one'}]
 ```
 
-### Query
+### Multipart
 
-Handy parsing of GET HTTP parameters.
+Responsible of the parsing of multipart encoded `request.body`.
+
+#### Methods
+
+- **initialize(content_type: str)**: returns a tuple
+  ([Form](#form) instance, [Files](#files) instance) filled with data
+  from subsequent calls to `feed_data`
+- **feed_data(data: bytes)**: incrementally fills [Form](#form) and
+  [Files](#files) objects with bytes from the body
+
+
+### Multidict
+
+Data structure to deal with several values for the same key.
+Useful for query string parameters or form-like POSTed ones.
 
 #### Methods
 
@@ -107,12 +130,33 @@ Handy parsing of GET HTTP parameters.
 - **list(key: str, default=...)**: returns the values for the given `key` as `list`,
   raises an `HttpError(BAD_REQUEST)` if the `key` is missing and no `default` is
   given
+
+
+### Query
+
+Handy parsing of GET HTTP parameters.
+Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
+
+#### Methods
+
 - **bool(key: str, default=...)**: same as `get` but try to cast the value as
   `boolean`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 - **int(key: str, default=...)**: same as `get` but try to cast the value as
   `int`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 - **float(key: str, default=...)**: same as `get` but try to cast the value as
   `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
+
+
+### Form
+
+Allow to access casted POST parameters from `request.body`.
+Inherits from [Query](#query) with all the `get`/`list` + casting goodies.
+
+
+### Files
+
+Allow to access POSTed files from `request.body`.
+Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
 
 
 ### Cookies
