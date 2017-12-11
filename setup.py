@@ -36,7 +36,7 @@ else:
     ]
     cmdclass = {'build_ext': build_ext}
 
-VERSION = (0, 7, 0)
+VERSION = (0, 8, 0)
 
 __author__ = 'Pyrates'
 __contact__ = "yohan.boniface@data.gouv.fr"

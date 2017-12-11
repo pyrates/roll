@@ -8,7 +8,7 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## In progress
+## 0.8.0 - 2017-12-11
 
 * **Breaking changes**:
     * `Request` and `Response` classes now take `app` as init parameter. It
