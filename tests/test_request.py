@@ -110,6 +110,36 @@ async def test_request_parse_POST_body(protocol):
     assert protocol.request.body == b'{"link": "https://example.org"}'
 
 
+async def test_request_content_type_shortcut(protocol):
+    protocol.data_received(
+        b'POST /feed HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: HTTPie/0.9.8\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Accept: application/json, */*\r\n'
+        b'Connection: keep-alive\r\n'
+        b'Content-Type: application/json\r\n'
+        b'Content-Length: 31\r\n'
+        b'\r\n'
+        b'{"link": "https://example.org"}')
+    assert protocol.request.content_type == 'application/json'
+
+
+async def test_request_host_shortcut(protocol):
+    protocol.data_received(
+        b'POST /feed HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: HTTPie/0.9.8\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Accept: application/json, */*\r\n'
+        b'Connection: keep-alive\r\n'
+        b'Content-Type: application/json\r\n'
+        b'Content-Length: 31\r\n'
+        b'\r\n'
+        b'{"link": "https://example.org"}')
+    assert protocol.request.host == 'localhost:1707'
+
+
 async def test_invalid_request(protocol):
     protocol.data_received(
         b'INVALID HTTP/1.22\r\n')

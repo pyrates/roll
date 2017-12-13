@@ -261,6 +261,10 @@ class Request(dict):
     def content_type(self):
         return self.headers.get('CONTENT-TYPE', '')
 
+    @property
+    def host(self):
+        return self.headers.get('HOST', '')
+
 
 class Response:
     """A container for `status`, `headers` and `body`."""
