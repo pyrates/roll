@@ -50,6 +50,7 @@ especially useful for extensions.
 - **files** (`Files`): a [Files instance](#files) with multipart files parsed
 - **json** (`dict` or `list`): body parsed as JSON
 - **content_type** (`str`): shortcut to the `Content-Type` header
+- **host** (`str`): shortcut to the `Host` header
 - **headers** (`dict`): HTTP headers normalized in upper case
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **route** (`Route`): a [Route instance](#Route) storing results from URL matching

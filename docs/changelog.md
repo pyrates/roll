@@ -8,6 +8,11 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## In progress
+
+* Added `request.host` shortcut ([#43](https://github.com/pyrates/roll/pull/43))
+
+
 ## 0.8.0 - 2017-12-11
 
 * **Breaking changes**:
