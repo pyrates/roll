@@ -67,3 +67,17 @@ async def test_third_parties_can_call_hook_their_way(client, app):
 
     assert await app.hook('custom', myarg='kwarg') == 'kwarg'
     assert await app.hook('custom', 'arg') == 'arg'
+
+
+async def test_request_hook_is_called_even_if_path_is_not_found(client, app):
+
+    @app.listen('request')
+    async def listener(request, response):
+        if not request.route.payload:
+            response.status = 400
+            response.body = b'Really this is a bad request'
+            return True  # Shortcuts the response process.
+
+    resp = await client.get('/not-found')
+    assert resp.status == HTTPStatus.BAD_REQUEST
+    assert resp.body == b'Really this is a bad request'

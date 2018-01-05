@@ -10,6 +10,12 @@ A changelog:
 
 ## In progress
 
+* **Breaking changes**:
+    * `Request.route` is now always set, but `Request.route.payload` is `None`
+      when path is not found. This allows to catch a not found request in the
+      `request` hook. Note: if the `request` hook does not return a response,
+      a 404 is still automatically raised.
+      ([#45](https://github.com/pyrates/roll/pull/45))
 * Added `request.host` shortcut ([#43](https://github.com/pyrates/roll/pull/43))
 
 

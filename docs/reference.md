@@ -191,7 +191,8 @@ please refers to that documentation for available patterns.
 A namedtuple to collect matched route data with attributes:
 
 * **payload** (`dict`): the data received by the `@app.route` decorator,
-  contains all handlers plus optionnal custom data.
+  contains all handlers plus optionnal custom data. Value is `None` when request
+  path is not found.
 * **vars** (`dict`): URL placeholders resolved for the current route.
 
 
