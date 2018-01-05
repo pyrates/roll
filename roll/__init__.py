@@ -15,7 +15,7 @@ from io import BytesIO
 from typing import TypeVar
 from urllib.parse import parse_qs, unquote
 
-from autoroutes import Routes as BaseRoutes
+from autoroutes import Routes
 from biscuits import Cookie, parse
 from httptools import HttpParserError, HttpRequestParser, parse_url
 from multifruits import Parser, extract_filename, parse_content_disposition
@@ -381,16 +381,6 @@ class Protocol(asyncio.Protocol):
             self.writer.close()
 
 
-class Routes(BaseRoutes):
-    """Customized to raise our own `HttpError` in case of 404."""
-
-    def match(self, url: str):
-        payload, params = super().match(url)
-        if not payload:
-            raise HttpError(HTTPStatus.NOT_FOUND, url)
-        return payload, params
-
-
 Route = namedtuple('Route', ['payload', 'vars'])
 
 
@@ -423,6 +413,8 @@ class Roll:
         try:
             request.route = Route(*self.routes.match(request.path))
             if not await self.hook('request', request, response):
+                if not request.route.payload:
+                    raise HttpError(HTTPStatus.NOT_FOUND, request.path)
                 # Uppercased in order to only consider HTTP verbs.
                 if request.method.upper() not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
