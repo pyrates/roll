@@ -402,7 +402,7 @@ class WSRoll(Roll):
 
     def __init__(self):
         super(WSRoll, self).__init__()
-        self.websockets = set()
+        self.websockets = set()  # set of 2 items tuple, (task, websocket)
 
     def route(self, path: str, websocket: bool=False,
               subprotocols: list=None, methods: list=None, **extras: dict):
@@ -421,7 +421,7 @@ class WSRoll(Roll):
                 protocol = request.transport.get_protocol()
                 ws = await protocol.websocket_handshake(request, subprotocols)
                 fut = ensure_future(func(request, ws, **params))
-                self.websockets.add(fut)
+                self.websockets.add((fut, ws))
                 try:
                     await fut
                 except (CancelledError, ConnectionClosed):
@@ -429,12 +429,11 @@ class WSRoll(Roll):
                     print(f'Socket @ {path} went sour !')
                 except:
                     # Something very wrong happened.
-                    # Probably serverside.
-                    import pdb
-                    pdb.set_trace()
+                    # Probably serverside. Do something ?
+                    pass
                 finally:
                     # Gracefully close the websockets, please.
-                    self.websockets.remove(fut)
+                    self.websockets.remove((fut, ws))
                     await ws.close()
 
             payload = {'GET':  websocket_handler}
