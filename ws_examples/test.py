@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import uuid
 import uvloop
 import asyncio
 from roll import WSRoll
@@ -33,12 +34,12 @@ async def hello(request, response):
 
 @app.route('/feed', websocket=True)
 async def feed(request, ws, **params):
-    while True:
-        data = 'hello!'
-        print('Sending: ' + data)
-        await ws.send(data)
-        data = await ws.recv()
-        print('Received: ' + data)
+    wsid = str(uuid.uuid4())
+    await ws.send(f'Welcome {wsid} !')
+    async for message in ws:
+        for (task, socket) in request.app.websockets:
+            if socket != ws:
+                await socket.send('{}: {}'.format(wsid, message))
 
 
 if __name__ == '__main__':
