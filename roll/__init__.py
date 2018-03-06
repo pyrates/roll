@@ -187,11 +187,14 @@ class Request(dict):
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
-    __slots__ = ('app', 'url', 'path', 'query_string', '_query', 'method',
-                 'body', 'headers', 'route', '_cookies', '_form', '_files')
+    __slots__ = (
+        'app', 'transport', 'url', 'path', 'query_string', '_query',
+        'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
+    )
 
-    def __init__(self, app):
+    def __init__(self, app, transport):
         self.app = app
+        self.transport = transport
         self.headers = {}
         self.body = b''
         self._cookies = None
@@ -322,7 +325,6 @@ class Roll:
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = {}
-        self._protocol = None
 
     async def startup(self):
         await self.hook('startup')
@@ -363,9 +365,7 @@ class Roll:
             response.body = str(e)
 
     def factory(self):
-        if self._protocol is None:
-            self._protocol = self.Protocol(self)
-        return self._protocol
+        return self.Protocol(self)
 
     def route(self, path: str, methods: list=None, **extras: dict):
         if methods is None:
@@ -414,17 +414,24 @@ class WSRoll(Roll):
             raise RuntimeError('Websockets can only handshake on GET.')
             
         extras['is_websocket'] = websocket
+        if subprotocols:
+            subprotocols = frozenset(subprotocols)  # Set in stone.
         def ws_wrapper(func):
             async def websocket_handler(request, response, **params):
-                protocol = request.app._protocol
+                protocol = request.transport.get_protocol()
                 ws = await protocol.websocket_handshake(request, subprotocols)
                 fut = ensure_future(func(request, ws, **params))
                 self.websockets.add(fut)
                 try:
                     await fut
                 except (CancelledError, ConnectionClosed):
-                    # Something went wrong, please do something !
+                    # Something went wrong on the websocket !
                     print(f'Socket @ {path} went sour !')
+                except:
+                    # Something very wrong happened.
+                    # Probably serverside.
+                    import pdb
+                    pdb.set_trace()
                 finally:
                     # Gracefully close the websockets, please.
                     self.websockets.remove(fut)

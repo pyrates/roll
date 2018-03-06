@@ -23,19 +23,19 @@ class Protocol(asyncio.Protocol):
         self.app = app
         self.parser = self.RequestParser(self)
 
+    def connection_made(self, transport):
+        self.writer = transport
+        
     def data_received(self, data: bytes):
         try:
             self.parser.feed_data(data)
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.response = self.app.Response(self.app)
+            self.response = self.app.Response(self.app, self.writer)
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
-
-    def connection_made(self, transport):
-        self.writer = transport
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -52,8 +52,11 @@ class Protocol(asyncio.Protocol):
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
 
+    def on_headers_complete(self):
+        self.request.transport = self.writer
+
     def on_message_begin(self):
-        self.request = self.app.Request(self.app)
+        self.request = self.app.Request(self.app, self.writer)
         self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
@@ -129,7 +132,7 @@ class WSProtocol(Protocol):
         else:
             super().write(*args)
 
-    async def websocket_handshake(self, request, subprotocols=None):
+    async def websocket_handshake(self, request, subprotocols: set=None):
         """Websocket handshake, handled by `websockets`
         """
         headers = []
@@ -138,7 +141,7 @@ class WSProtocol(Protocol):
             return request.headers.get(k.upper(), '')
 
         def set_header(k, v):
-            headers.append((k.upper(), v))
+            headers.append((k, v))
 
         try:
             key = handshake.check_request(get_header)
@@ -147,12 +150,11 @@ class WSProtocol(Protocol):
             raise RuntimeError('Invalid websocket request')
 
         subprotocol = None
-        if subprotocols and 'Sec-Websocket-Protocol' in request.headers:
+        ws_protocol = get_header('Sec-Websocket-Protocol')
+        if subprotocols and ws_protocol:
             # select a subprotocol
-            client_subprotocols = [
-                p.strip() for p in
-                get_header('Sec-Websocket-Protocol').split(',')]
-
+            client_subprotocols = tuple(
+                (p.strip() for p in ws_protocol.split(',')))
             for p in client_subprotocols:
                 if p in subprotocols:
                     subprotocol = p
