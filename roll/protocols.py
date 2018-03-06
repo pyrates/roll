@@ -52,9 +52,6 @@ class Protocol(asyncio.Protocol):
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
 
-    def on_headers_complete(self):
-        self.request.transport = self.writer
-
     def on_message_begin(self):
         self.request = self.app.Request(self.app, self.writer)
         self.response = self.app.Response(self.app)
