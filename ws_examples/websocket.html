@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat</title>
+    </head>
+    <body>
+        <input id="message" type="text" />
+        <button onclick="sendMe()">Send</button>
+	<ul id="board">
+	</ul>
+        <script>	  
+	  function addMessage(text) {
+	        board = document.getElementById('board');
+                message = document.createElement('li'),
+                content = document.createTextNode(text);
+                message.appendChild(content);
+                board.appendChild(message);
+	  }
+	  var ws = new WebSocket('ws://localhost:3579/feed');
+          ws.onmessage = function (event) {
+                addMessage('Received <= ' + event.data);
+          };
+          function sendMe() {
+                let myinput = document.getElementById('message');
+                let message = myinput.value; 
+                ws.send(message);
+	        addMessage('Sent => ' + message)
+	        myinput.value = '';
+          }
+        </script>
+    </body>
+</html>

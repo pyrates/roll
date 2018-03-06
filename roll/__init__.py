@@ -8,17 +8,17 @@ If you do not understand why something is not working as expected,
 please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
-import asyncio
+from asyncio import ensure_future, CancelledError
 from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
-from urllib.parse import parse_qs, unquote
-
+from urllib.parse import parse_qs
 from autoroutes import Routes
 from biscuits import Cookie, parse
-from httptools import HttpParserError, HttpRequestParser, parse_url
 from multifruits import Parser, extract_filename, parse_content_disposition
+from .protocols import Protocol, WSProtocol, ConnectionClosed
+
 
 try:
     # In case you use json heavily, we recommend installing
@@ -300,87 +300,7 @@ class Response:
             self._cookies = self.app.Cookies()
         return self._cookies
 
-
-class Protocol(asyncio.Protocol):
-    """Responsible of parsing the request and writing the response."""
-
-    __slots__ = ('app', 'request', 'parser', 'response', 'writer')
-    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
-    _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
-                          HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
-                          HTTPStatus.NOT_MODIFIED)
-    RequestParser = HttpRequestParser
-
-    def __init__(self, app):
-        self.app = app
-        self.parser = self.RequestParser(self)
-
-    def data_received(self, data: bytes):
-        try:
-            self.parser.feed_data(data)
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.response = self.app.Response(self.app)
-            self.response.status = HTTPStatus.BAD_REQUEST
-            self.response.body = b'Unparsable request'
-            self.write()
-
-    def connection_made(self, transport):
-        self.writer = transport
-
-    # All on_xxx methods are in use by httptools parser.
-    # See https://github.com/MagicStack/httptools#apis
-    def on_header(self, name: bytes, value: bytes):
-        self.request.headers[name.decode().upper()] = value.decode()
-
-    def on_body(self, body: bytes):
-        # FIXME do not put all body in RAM blindly.
-        self.request.body += body
-
-    def on_url(self, url: bytes):
-        self.request.url = url
-        parsed = parse_url(url)
-        self.request.path = unquote(parsed.path.decode())
-        self.request.query_string = (parsed.query or b'').decode()
-
-    def on_message_begin(self):
-        self.request = self.app.Request(self.app)
-        self.response = self.app.Response(self.app)
-
-    def on_message_complete(self):
-        self.request.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.request, self.response))
-        task.add_done_callback(self.write)
-
-    # May or may not have "future" as arg.
-    def write(self, *args):
-        # Appends bytes for performances.
-        payload = b'HTTP/1.1 %a %b\r\n' % (
-            self.response.status.value, self.response.status.phrase.encode())
-        if not isinstance(self.response.body, bytes):
-            self.response.body = str(self.response.body).encode()
-        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        bodyless = (self.response.status in self._BODYLESS_STATUSES or
-                    (hasattr(self, 'request') and
-                     self.request.method in self._BODYLESS_METHODS))
-        if 'Content-Length' not in self.response.headers and not bodyless:
-            length = len(self.response.body)
-            self.response.headers['Content-Length'] = length
-        if self.response._cookies:
-            # https://tools.ietf.org/html/rfc7230#page-23
-            for cookie in self.response.cookies.values():
-                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
-        for key, value in self.response.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n'
-        if self.response.body and not bodyless:
-            payload += self.response.body
-        self.writer.write(payload)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
-
-
+            
 Route = namedtuple('Route', ['payload', 'vars'])
 
 
@@ -402,6 +322,7 @@ class Roll:
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = {}
+        self._protocol = None
 
     async def startup(self):
         await self.hook('startup')
@@ -442,7 +363,9 @@ class Roll:
             response.body = str(e)
 
     def factory(self):
-        return self.Protocol(self)
+        if self._protocol is None:
+            self._protocol = self.Protocol(self)
+        return self._protocol
 
     def route(self, path: str, methods: list=None, **extras: dict):
         if methods is None:
@@ -471,3 +394,46 @@ class Roll:
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
             pass
+
+
+class WSRoll(Roll):
+
+    Protocol = WSProtocol
+
+    def __init__(self):
+        super(WSRoll, self).__init__()
+        self.websockets = set()
+
+    def route(self, path: str, websocket: bool=False,
+              subprotocols: list=None, methods: list=None, **extras: dict):
+
+        if not websocket:
+            return super(WSRoll, self).route(path, methods=methods, **extras)
+
+        if methods and methods != ['GET']:
+            raise RuntimeError('Websockets can only handshake on GET.')
+            
+        extras['is_websocket'] = websocket
+        def ws_wrapper(func):
+            async def websocket_handler(request, response, **params):
+                protocol = request.app._protocol
+                ws = await protocol.websocket_handshake(request, subprotocols)
+                fut = ensure_future(func(request, ws, **params))
+                self.websockets.add(fut)
+                try:
+                    await fut
+                except (CancelledError, ConnectionClosed):
+                    # Something went wrong, please do something !
+                    print(f'Socket @ {path} went sour !')
+                finally:
+                    # Gracefully close the websockets, please.
+                    self.websockets.remove(fut)
+                    await ws.close()
+
+            payload = {'GET':  websocket_handler}
+            payload.update(extras)
+            self.routes.add(path, **payload)
+
+        return ws_wrapper
+        
+
