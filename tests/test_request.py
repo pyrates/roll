@@ -9,9 +9,9 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def protocol(app, event_loop):
+def protocol(app):
     protocol = Protocol(app)
-    protocol.connection_made(Transport(protocol, event_loop))
+    protocol.connection_made(Transport())
     return protocol
 
 
