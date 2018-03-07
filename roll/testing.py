@@ -1,11 +1,11 @@
 import json
 import asyncio
 import mimetypes
+import pytest
+
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
-
-import pytest
 
 
 def encode_multipart(data, charset='utf-8'):
@@ -59,39 +59,16 @@ def encode_multipart(data, charset='utf-8'):
     return body.read(), content_type
 
 
-class Transport(asyncio.transports._FlowControlMixin):
+class Transport:
 
-    def __init__(self, protocol, loop=None):
-        super().__init__(loop=loop)
-        self.protocol = protocol
+    def __init__(self):
         self.data = b''
-        self._closed = False
 
-    def get_protocol(self):
-        return self.protocol
-
-    def is_closing(self):
-        return self._closed
-    
     def write(self, data):
-        if not self._closed:
-            self.data += data
+        self.data += data
 
     def close(self):
-        if self._closed:
-            return
-        self._closed = True
-        self.protocol.connection_lost(None)
-
-    def get_write_buffer_size(self):
-        return 32
-
-    def abort(self):
-        self.close()
-        self.protocol.abort()
-
-    def can_write_eof(self):
-        return False
+        ...
 
 
 class Client:
@@ -155,7 +132,7 @@ class Client:
         if isinstance(body, str):
             body = body.encode()
         self.protocol = self.app.factory()
-        self.protocol.connection_made(Transport(self.protocol, loop=self.loop))
+        self.protocol.connection_made(Transport())
         self.protocol.on_message_begin()
         self.protocol.on_url(path.encode())
         self.protocol.request.body = body
@@ -196,7 +173,7 @@ class Client:
     async def connect(self, path, **kwargs):
         return await self.request(path, method='CONNECT', **kwargs)
 
-
+    
 @pytest.fixture
 def client(app, event_loop):
     app.loop = event_loop
@@ -205,9 +182,45 @@ def client(app, event_loop):
     app.loop.run_until_complete(app.shutdown())
 
 
-@pytest.fixture
-def wsclient(wsapp, event_loop):
+### LIVE TESTING FOR WEBSOCKETS ###
+from aiohttp import ClientSession, TCPConnector
+from aiohttp.test_utils import unused_port
+
+
+class LiveClient:
+
+    def __init__(self, app, loop):
+        self.app = app
+        self.loop = loop
+        self.url = None
+
+    def start(self):
+        port = unused_port()
+        self.app.loop.run_until_complete(self.app.startup())
+        self.server = self.app.loop.run_until_complete(
+            self.loop.create_server(self.app.factory, '127.0.0.1', port))
+        self.url = 'http://127.0.0.1:{port}'.format(port=port)
+
+    def stop(self):
+        self.server.close()
+        self.app.loop.run_until_complete(self.server.wait_closed())
+        self.app.loop.run_until_complete(self.app.shutdown())
+
+    async def query(self, method, uri, cookies=None, *args, **kwargs):
+        url = self.url + uri
+        conn = TCPConnector(loop=self.loop, verify_ssl=False)
+        async with ClientSession(
+                cookies=cookies, connector=conn, loop=self.loop) as session:
+            getter = getattr(session, method.lower())
+            async with getter(url, *args, **kwargs) as response:
+                body = await response.read()
+                return body, response
+
+
+@pytest.fixture()
+def liveclient(wsapp, event_loop):
     wsapp.loop = event_loop
-    wsapp.loop.run_until_complete(wsapp.startup())
-    yield Client(wsapp, event_loop)
-    wsapp.loop.run_until_complete(wsapp.shutdown())
+    client = LiveClient(wsapp, loop=event_loop)
+    client.start()
+    yield client
+    client.stop()

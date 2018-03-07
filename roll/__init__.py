@@ -8,7 +8,7 @@ If you do not understand why something is not working as expected,
 please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
-from asyncio import ensure_future, CancelledError
+from asyncio import ensure_future, CancelledError, gather
 from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
@@ -411,7 +411,7 @@ class WSRoll(Roll):
             return super(WSRoll, self).route(path, methods=methods, **extras)
 
         if methods and methods != ['GET']:
-            raise RuntimeError('Websockets can only handshake on GET.')
+            raise RuntimeError('Websockets can only handshake on GET')
 
         extras['is_websocket'] = websocket
         if subprotocols:
@@ -435,11 +435,10 @@ class WSRoll(Roll):
                     # Gracefully close the websockets, please.
                     self.websockets.remove((fut, ws))
                     await ws.close()
+                    await fut.cancel()
 
             payload = {'GET':  websocket_handler}
             payload.update(extras)
             self.routes.add(path, **payload)
 
         return ws_wrapper
-        
-
