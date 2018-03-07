@@ -32,7 +32,7 @@ class Protocol(asyncio.Protocol):
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.response = self.app.Response(self.app, self.writer)
+            self.response = self.app.Response(self.app)
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
@@ -53,7 +53,7 @@ class Protocol(asyncio.Protocol):
         self.request.query_string = (parsed.query or b'').decode()
 
     def on_message_begin(self):
-        self.request = self.app.Request(self.app, self.writer)
+        self.request = self.app.Request(self.app)
         self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
@@ -129,6 +129,10 @@ class WSProtocol(Protocol):
         else:
             super().write(*args)
 
+    def on_message_begin(self):
+        self.request = self.app.Request(self.app, self.writer)
+        self.response = self.app.Response(self.app)
+            
     async def websocket_handshake(self, request, subprotocols: set=None):
         """Websocket handshake, handled by `websockets`
         """

@@ -192,7 +192,7 @@ class Request(dict):
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
     )
 
-    def __init__(self, app, transport):
+    def __init__(self, app, transport=None):
         self.app = app
         self.transport = transport
         self.headers = {}
@@ -412,7 +412,7 @@ class WSRoll(Roll):
 
         if methods and methods != ['GET']:
             raise RuntimeError('Websockets can only handshake on GET.')
-            
+
         extras['is_websocket'] = websocket
         if subprotocols:
             subprotocols = frozenset(subprotocols)  # Set in stone.
