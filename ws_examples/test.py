@@ -3,7 +3,7 @@
 import uuid
 import uvloop
 import asyncio
-from roll import WSRoll
+from roll import Roll, WSRoll
 from roll import Response
 from roll.extensions import logger, simple_server, traceback
 
@@ -18,20 +18,29 @@ class HTMLResponse(Response):
         self.body = body
 
 
+class Basic(Roll):
+    Response = HTMLResponse
+        
+
 class Application(WSRoll):
     Response = HTMLResponse
 
 
+base = Basic()
 app = Application()
 logger(app)
 traceback(app)
+logger(base)
+traceback(base)
 
 
+@base.route('/')
 @app.route('/')
 async def hello(request, response):
     response.html('Hello World !')
 
 
+@base.route('/feed')
 @app.route('/feed', websocket=True)
 async def feed(request, ws, **params):
     wsid = str(uuid.uuid4())

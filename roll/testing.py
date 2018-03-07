@@ -1,4 +1,5 @@
 import json
+import asyncio
 import mimetypes
 from io import BytesIO
 from urllib.parse import urlencode
@@ -58,16 +59,39 @@ def encode_multipart(data, charset='utf-8'):
     return body.read(), content_type
 
 
-class Transport:
+class Transport(asyncio.transports._FlowControlMixin):
 
-    def __init__(self):
+    def __init__(self, protocol, loop=None):
+        super().__init__(loop=loop)
+        self.protocol = protocol
         self.data = b''
+        self._closed = False
 
+    def get_protocol(self):
+        return self.protocol
+
+    def is_closing(self):
+        return self._closed
+    
     def write(self, data):
-        self.data += data
+        if not self._closed:
+            self.data += data
 
     def close(self):
-        ...
+        if self._closed:
+            return
+        self._closed = True
+        self.protocol.connection_lost(None)
+
+    def get_write_buffer_size(self):
+        return 32
+
+    def abort(self):
+        self.close()
+        self.protocol.abort()
+
+    def can_write_eof(self):
+        return False
 
 
 class Client:
@@ -76,8 +100,9 @@ class Client:
     # taste if needed.
     content_type = 'application/json; charset=utf-8'
 
-    def __init__(self, app):
+    def __init__(self, app, event_loop):
         self.app = app
+        self.loop = event_loop
 
     def handle_files(self, kwargs):
         kwargs.setdefault('headers', {})
@@ -130,7 +155,7 @@ class Client:
         if isinstance(body, str):
             body = body.encode()
         self.protocol = self.app.factory()
-        self.protocol.connection_made(Transport())
+        self.protocol.connection_made(Transport(self.protocol, loop=self.loop))
         self.protocol.on_message_begin()
         self.protocol.on_url(path.encode())
         self.protocol.request.body = body
@@ -176,5 +201,13 @@ class Client:
 def client(app, event_loop):
     app.loop = event_loop
     app.loop.run_until_complete(app.startup())
-    yield Client(app)
+    yield Client(app, event_loop)
     app.loop.run_until_complete(app.shutdown())
+
+
+@pytest.fixture
+def wsclient(wsapp, event_loop):
+    wsapp.loop = event_loop
+    wsapp.loop.run_until_complete(wsapp.startup())
+    yield Client(wsapp, event_loop)
+    wsapp.loop.run_until_complete(wsapp.shutdown())
