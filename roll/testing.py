@@ -193,13 +193,14 @@ class LiveClient:
         self.app = app
         self.loop = loop
         self.url = None
-
+ 
     def start(self):
         port = unused_port()
         self.app.loop.run_until_complete(self.app.startup())
         self.server = self.app.loop.run_until_complete(
             self.loop.create_server(self.app.factory, '127.0.0.1', port))
         self.url = 'http://127.0.0.1:{port}'.format(port=port)
+        self.wsl = 'ws://127.0.0.1:{port}'.format(port=port)
 
     def stop(self):
         self.server.close()
