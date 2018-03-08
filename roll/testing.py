@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 from uuid import uuid4
 
 
+
 def encode_multipart(data, charset='utf-8'):
     # Ported from Werkzeug testing.
     boundary = '---------------Boundary%s' % uuid4().hex
@@ -183,8 +184,16 @@ def client(app, event_loop):
 
 
 ### LIVE TESTING FOR WEBSOCKETS ###
-from aiohttp import ClientSession, TCPConnector
-from aiohttp.test_utils import unused_port
+import socket
+import requests
+from functools import partial
+
+
+def unused_port():
+    """Return a port that is unused on the current host."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
 
 
 class LiveClient:
@@ -193,6 +202,7 @@ class LiveClient:
         self.app = app
         self.loop = loop
         self.url = None
+        self.wsl = None
  
     def start(self):
         port = unused_port()
@@ -204,18 +214,18 @@ class LiveClient:
 
     def stop(self):
         self.server.close()
+        self.url = self.wsl = None
         self.app.loop.run_until_complete(self.server.wait_closed())
         self.app.loop.run_until_complete(self.app.shutdown())
-
-    async def query(self, method, uri, cookies=None, *args, **kwargs):
-        url = self.url + uri
-        conn = TCPConnector(loop=self.loop, verify_ssl=False)
-        async with ClientSession(
-                cookies=cookies, connector=conn, loop=self.loop) as session:
-            getter = getattr(session, method.lower())
-            async with getter(url, *args, **kwargs) as response:
-                body = await response.read()
-                return body, response
+        
+    async def query(self, method, uri, cookies: dict=None, headers: dict=None):
+        assert self.url is not None
+        if headers is None:
+            headers = {}
+        requester = partial(getattr(requests, method.lower()), 
+                            self.url + uri, headers=headers, cookies=cookies)
+        response = await self.loop.run_in_executor(None, requester)
+        return response
 
 
 @pytest.fixture()
