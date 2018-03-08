@@ -433,7 +433,8 @@ class WSRoll(Roll):
                     await fut
                 except (asyncio.CancelledError, ConnectionClosed):
                     # Something went wrong on the websocket !
-                    print(f'Socket @ {path} went sour !')
+                    # We should log something
+                    print('Socket @ {} went sour !'.format(path))
                 except:
                     # Should we break the pipe ?
                     # If so, we close the transport writer here.
