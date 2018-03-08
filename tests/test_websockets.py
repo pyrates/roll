@@ -36,7 +36,8 @@ async def test_websocket_communication(liveclient):
 
     @liveclient.app.route('/echo', websocket=True)
     async def echo(request, ws, **params):
-        async for message in ws:
+        while True:
+            message = await ws.recv()
             await ws.send(message)
 
     # Echo
@@ -59,7 +60,8 @@ async def test_websocket_broadcasting(liveclient):
 
     @liveclient.app.route('/broadcast', websocket=True)
     async def feed(request, ws, **params):
-        async for message in ws:
+        while True:
+            message = await ws.recv()
             await asyncio.wait([
                 socket.send(message) for (task, socket)
                 in request.app.websockets if socket != ws])
@@ -93,8 +95,9 @@ async def test_websocket_binary(liveclient):
 
     # Echo
     websocket = await websockets.connect(liveclient.wsl + '/bin')
-    async for bdata in websocket:
-        assert bdata == b'test'
+    bdata = await websocket.recv()
+    await asyncio.wait_for(websocket.close(), 1)
+    assert bdata == b'test'
 
 
 @pytest.mark.asyncio
