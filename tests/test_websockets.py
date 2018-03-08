@@ -14,13 +14,13 @@ async def test_websocket_route(liveclient):
         assert ws.subprotocol is None
         ev.set()
 
-    body, response = await liveclient.query('get', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
         'Sec-WebSocket-Version': '13'})
     assert ev.is_set()
-    assert response.status == 101
+    assert response.status_code == 101
 
     with pytest.raises(RuntimeError) as exc:
         @liveclient.app.route('/ws', websocket=True, methods=['POST'])
@@ -105,35 +105,35 @@ async def test_websocket_route_with_subprotocols(liveclient):
     async def handler(request, ws):
         results.append(ws.subprotocol)
 
-    body, response = await liveclient.query('get', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
         'Sec-WebSocket-Version': '13',
         'Sec-WebSocket-Protocol': 'bar'})
-    assert response.status == 101
+    assert response.status_code == 101
 
-    body, response = await liveclient.query('get', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
         'Sec-WebSocket-Version': '13',
         'Sec-WebSocket-Protocol': 'bar, foo'})
-    assert response.status == 101
+    assert response.status_code == 101
 
-    body, response = await liveclient.query('get', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
         'Sec-WebSocket-Version': '13',
         'Sec-WebSocket-Protocol': 'baz'})
-    assert response.status == 101
+    assert response.status_code == 101
 
-    body, response = await liveclient.query('get', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
         'Sec-WebSocket-Version': '13'})
-    assert response.status == 101
+    assert response.status_code == 101
 
     assert results == ['bar', 'bar', None, None]
