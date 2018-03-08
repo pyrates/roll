@@ -124,7 +124,6 @@ class WSProtocol(Protocol):
 
     def write(self, *args):
         if self.websocket is not None:
-            # websocket requests do not write a response
             self.writer.close()
         else:
             super().write(*args)
@@ -133,7 +132,7 @@ class WSProtocol(Protocol):
         self.request = self.app.Request(self.app, self.writer)
         self.response = self.app.Response(self.app)
             
-    async def websocket_handshake(self, request, subprotocols: set=None):
+    def websocket_handshake(self, request, subprotocols: set=None):
         """Websocket handshake, handled by `websockets`
         """
         headers = []

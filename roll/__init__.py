@@ -8,16 +8,17 @@ If you do not understand why something is not working as expected,
 please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
-from asyncio import ensure_future, CancelledError, gather
+import asyncio
+from autoroutes import Routes
+from biscuits import Cookie, parse
 from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
+from multifruits import Parser, extract_filename, parse_content_disposition
 from typing import TypeVar
 from urllib.parse import parse_qs
-from autoroutes import Routes
-from biscuits import Cookie, parse
-from multifruits import Parser, extract_filename, parse_content_disposition
 from .protocols import Protocol, WSProtocol, ConnectionClosed
+from traceback import print_exc
 
 
 try:
@@ -401,8 +402,13 @@ class WSRoll(Roll):
     Protocol = WSProtocol
 
     def __init__(self):
-        super(WSRoll, self).__init__()
+        super().__init__()
         self.websockets = set()  # set of 2 items tuple, (task, websocket)
+
+    async def on_error(self, request: Request, response: Response, error):
+        if request.route.payload['is_websocket'] is None:
+            return await super().on_error(request, response, error)
+        print_exc()
 
     def route(self, path: str, websocket: bool=False,
               subprotocols: list=None, methods: list=None, **extras: dict):
@@ -419,23 +425,25 @@ class WSRoll(Roll):
         def ws_wrapper(func):
             async def websocket_handler(request, response, **params):
                 protocol = request.transport.get_protocol()
-                ws = await protocol.websocket_handshake(request, subprotocols)
-                fut = ensure_future(func(request, ws, **params))
+                ws = protocol.websocket_handshake(request, subprotocols)
+                fut = asyncio.ensure_future(
+                    func(request, ws, **params), loop=self.loop)
                 self.websockets.add((fut, ws))
                 try:
                     await fut
-                except (CancelledError, ConnectionClosed):
+                except (asyncio.CancelledError, ConnectionClosed):
                     # Something went wrong on the websocket !
                     print(f'Socket @ {path} went sour !')
                 except:
-                    # Something very wrong happened.
-                    # Probably serverside. Do something ?
-                    pass
+                    # Should we break the pipe ?
+                    # If so, we close the transport writer here.
+                    raise
                 finally:
                     # Gracefully close the websockets, please.
-                    self.websockets.remove((fut, ws))
+                    fut.cancel()
+                    self.websockets.discard((fut, ws))
                     await ws.close()
-                    await fut.cancel()
+    
 
             payload = {'GET':  websocket_handler}
             payload.update(extras)
