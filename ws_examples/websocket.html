@@ -16,7 +16,7 @@
                 message.appendChild(content);
                 board.appendChild(message);
 	  }
-	  var ws = new WebSocket('ws://localhost:3579/chat);
+	  var ws = new WebSocket('ws://localhost:3579/chat');
           ws.onmessage = function (event) {
                 addMessage('Received <= ' + event.data);
           };
