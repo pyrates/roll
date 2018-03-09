@@ -96,8 +96,10 @@ async def test_websocket_binary(liveclient):
     # Echo
     websocket = await websockets.connect(liveclient.wsl + '/bin')
     bdata = await websocket.recv()
-    await asyncio.wait_for(websocket.close(), 1)
+    await websocket.close_connection_task
     assert bdata == b'test'
+    assert websocket.close_reason == ''
+    assert websocket.state == 3
 
 
 @pytest.mark.asyncio
