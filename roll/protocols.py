@@ -93,7 +93,7 @@ class WSProtocol(Protocol):
     """Websocket protocol.
     """
 
-    def __init__(self, *args, websocket_timeout=10,
+    def __init__(self, *args, websocket_timeout=5,
                  websocket_max_size=2 ** 20,  # 1 megabytes
                  websocket_max_queue=64,
                  websocket_read_limit=2 ** 16,
@@ -105,7 +105,7 @@ class WSProtocol(Protocol):
         self.websocket_max_queue = websocket_max_queue
         self.websocket_read_limit = websocket_read_limit
         self.websocket_write_limit = websocket_write_limit
-
+        
     def connection_lost(self, exc):
         if self.websocket is not None:
             self.websocket.connection_lost(exc)
@@ -113,8 +113,16 @@ class WSProtocol(Protocol):
 
     def data_received(self, data):
         if self.websocket is not None:
-            # pass the data to the websocket protocol
-            self.websocket.data_received(data)
+            # Received data. We refuse the data if the websocket is
+            # already closed. If the websocket is closing, this data
+            # might be part of the closing handshake (closing frame)
+            if self.websocket.state != 3:  # not closed
+                self.websocket.data_received(data)
+            else:
+                # The websocket is closed and we still get data for it
+                # This is an unexpected problem. Let's do nothing
+                # about it
+                pass
         else:
             try:
                 super().data_received(data)
@@ -123,10 +131,14 @@ class WSProtocol(Protocol):
                 pass
 
     def write(self, *args):
-        if self.websocket is not None:
-            self.writer.close()
-        else:
+        if self.websocket is None:
+            # We are in HTTP land
             super().write(*args)
+        else:
+            # We are in websocket land
+            # We are not supposed to write outside the websocket.
+            # Maybe log ?
+            self.writer.close()
 
     def on_message_begin(self):
         self.request = self.app.Request(self.app, self.writer)

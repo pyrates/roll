@@ -407,6 +407,8 @@ class WSRoll(Roll):
 
     async def on_error(self, request: Request, response: Response, error):
         if request.route.payload['is_websocket'] is None:
+            # This is not a websocket.
+            # Report the HTTP error as planned.
             return await super().on_error(request, response, error)
         print_exc()
 
@@ -431,20 +433,29 @@ class WSRoll(Roll):
                 self.websockets.add((fut, ws))
                 try:
                     await fut
-                except (asyncio.CancelledError, ConnectionClosed):
-                    # Something went wrong on the websocket !
-                    # We should log something
-                    print('Socket @ {} went sour !'.format(path))
-                except:
-                    # Should we break the pipe ?
-                    # If so, we close the transport writer here.
-                    raise
-                finally:
-                    # Gracefully close the websockets, please.
+                except ConnectionClosed:
+                    # The client closed the connection.
+                    # We cancel the future to be sure it's in order.
                     fut.cancel()
-                    self.websockets.discard((fut, ws))
+                    await ws.close(1002, 'Connection closed untimely.')
+                except asyncio.CancelledError:
+                    # The websocket task was cancelled
+                    # We need to warn the client.
+                    await ws.close(1001, 'Handler cancelled.')
+                except Exception as exc:
+                    # A more serious error happened.
+                    # The websocket handler was untimely terminated
+                    # by an unwarranted exception. Warn the client.
+                    await ws.close(1011, 'Handler died prematurely.')
+                    raise
+                else:
+                    # The handler finished gracefully.
+                    # We can close the socket in peace.
                     await ws.close()
-    
+                finally:
+                    # Whatever happened, the websocket fate has been
+                    # sealed. We remove it from our watch.
+                    self.websockets.discard((fut, ws))
 
             payload = {'GET':  websocket_handler}
             payload.update(extras)
