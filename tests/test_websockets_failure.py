@@ -8,7 +8,7 @@ import websockets
 @pytest.mark.asyncio
 async def test_websocket_failure(liveclient):
 
-    @liveclient.app.route('/failure', websocket=True)
+    @liveclient.app.websocket('/failure')
     async def failme(request, ws, **params):
         raise NotImplementedError('OUCH')
 
@@ -34,7 +34,7 @@ async def test_websocket_failure(liveclient):
 @pytest.mark.asyncio
 async def test_websocket_failure_intime(liveclient):
 
-    @liveclient.app.route('/failure', websocket=True)
+    @liveclient.app.websocket('/failure')
     async def failme(request, ws, **params):
         raise NotImplementedError('OUCH')
 
@@ -58,7 +58,7 @@ async def test_websocket_failure_intime(liveclient):
 @pytest.mark.asyncio
 async def test_websocket_failure_receive(liveclient):
 
-    @liveclient.app.route('/failure', websocket=True)
+    @liveclient.app.websocket('/failure')
     async def failme(request, ws, **params):
         raise NotImplementedError('OUCH')
 

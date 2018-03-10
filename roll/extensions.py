@@ -29,7 +29,7 @@ def logger(app, level=logging.DEBUG, handler=None):
     handler = handler or logging.StreamHandler()
 
     @app.listen('request')
-    async def log_request(request, response):
+    async def log_request(request):
         logger.info('%s %s', request.method, request.url.decode())
 
     @app.listen('startup')
@@ -44,7 +44,7 @@ def logger(app, level=logging.DEBUG, handler=None):
 def options(app):
 
     @app.listen('request')
-    async def handle_options(request, response):
+    async def handle_options(request):
         # Shortcut the request handling for OPTIONS requests.
         return request.method == 'OPTIONS'
 
@@ -58,7 +58,7 @@ def content_negociation(app):
                  'content_negociation extension.')
 
     @app.listen('request')
-    async def reject_unacceptable_requests(request, response):
+    async def reject_unacceptable_requests(request):
         accept = request.headers.get('ACCEPT')
         accepts = request.route.payload['accepts']
         if accept is None or get_best_match(accept, accepts) is None:

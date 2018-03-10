@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
+from collections import deque
 from http import HTTPStatus
 from urllib.parse import unquote
 from httptools import (
@@ -9,14 +10,75 @@ from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
 
 
+class Context:
+
+    __slots__ = ('app', 'writer', 'parser')
+
+    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
+    _BODYLESS_STATUSES = (
+        HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
+        HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
+        HTTPStatus.NOT_MODIFIED,
+    )
+    
+    def __init__(self, app, writer, parser):
+        self.app = app
+        self.writer = writer
+        self.parser = parser
+
+    def connection_lost(self, exc):
+        pass
+
+    def write(self, data):
+        self.writer.write(data)
+
+    def write_response(self, response):
+        # Appends bytes for performances.
+        payload = b'HTTP/1.1 %a %b\r\n' % (
+            response.status.value, response.status.phrase.encode())
+        if not isinstance(response.body, bytes):
+            response.body = str(response.body).encode()
+        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
+        bodyless = (response.status in self._BODYLESS_STATUSES or
+                    (hasattr(self, 'request') and
+                     self.request.method in self._BODYLESS_METHODS))
+        if 'Content-Length' not in response.headers and not bodyless:
+            length = len(response.body)
+            response.headers['Content-Length'] = length
+        if response._cookies:
+            # https://tools.ietf.org/html/rfc7230#page-23
+            for cookie in response.cookies.values():
+                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
+        for key, value in response.headers.items():
+            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+        payload += b'\r\n'
+        if response.body and not bodyless:
+            payload += response.body
+        self.writer.write(payload)
+        if not self.parser.should_keep_alive():
+            self.writer.close()
+
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserUpgrade:
+            # Upgrade request
+            pass
+        except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            raise
+            response = self.app.Response(self.app)
+            response.status = HTTPStatus.BAD_REQUEST
+            response.body = b'Unparsable request'
+            self.write_html(response)
+            
+
+
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'writer')
-    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
-    _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
-                          HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
-                          HTTPStatus.NOT_MODIFIED)
+    __slots__ = ('app', 'request', 'parser', 'writer')
     RequestParser = HttpRequestParser
 
     def __init__(self, app):
@@ -25,17 +87,18 @@ class Protocol(asyncio.Protocol):
 
     def connection_made(self, transport):
         self.writer = transport
-        
+        self.request = self.app.Request(self.app)
+        self.request.set_context(Context(self.app, self.writer, self.parser))
+
+    def connection_lost(self, exc):
+        self.request.context.connection_lost(exc)
+        super().connection_lost(exc)
+
     def data_received(self, data: bytes):
-        try:
-            self.parser.feed_data(data)
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.response = self.app.Response(self.app)
-            self.response.status = HTTPStatus.BAD_REQUEST
-            self.response.body = b'Unparsable request'
-            self.write()
+        self.request.context.data_received(data)
+
+    def write(self, data):
+        self.request.context.write(data)
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -47,148 +110,16 @@ class Protocol(asyncio.Protocol):
         self.request.body += body
 
     def on_url(self, url: bytes):
-        self.request.url = url
         parsed = parse_url(url)
+        self.request.url = url
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
+        self.request.method = self.parser.get_method().decode().upper()
 
     def on_message_begin(self):
-        self.request = self.app.Request(self.app)
-        self.response = self.app.Response(self.app)
+        pass
 
     def on_message_complete(self):
-        self.request.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.request, self.response))
-        task.add_done_callback(self.write)
-
-    # May or may not have "future" as arg.
-    def write(self, *args):
-        # Appends bytes for performances.
-        payload = b'HTTP/1.1 %a %b\r\n' % (
-            self.response.status.value, self.response.status.phrase.encode())
-        if not isinstance(self.response.body, bytes):
-            self.response.body = str(self.response.body).encode()
-        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        bodyless = (self.response.status in self._BODYLESS_STATUSES or
-                    (hasattr(self, 'request') and
-                     self.request.method in self._BODYLESS_METHODS))
-        if 'Content-Length' not in self.response.headers and not bodyless:
-            length = len(self.response.body)
-            self.response.headers['Content-Length'] = length
-        if self.response._cookies:
-            # https://tools.ietf.org/html/rfc7230#page-23
-            for cookie in self.response.cookies.values():
-                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
-        for key, value in self.response.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n'
-        if self.response.body and not bodyless:
-            payload += self.response.body
-        self.writer.write(payload)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
-
-
-class WSProtocol(Protocol):
-    """Websocket protocol.
-    """
-
-    def __init__(self, *args, websocket_timeout=5,
-                 websocket_max_size=2 ** 20,  # 1 megabytes
-                 websocket_max_queue=64,
-                 websocket_read_limit=2 ** 16,
-                 websocket_write_limit=2 ** 16, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.websocket = None
-        self.websocket_timeout = websocket_timeout
-        self.websocket_max_size = websocket_max_size
-        self.websocket_max_queue = websocket_max_queue
-        self.websocket_read_limit = websocket_read_limit
-        self.websocket_write_limit = websocket_write_limit
-        
-    def connection_lost(self, exc):
-        if self.websocket is not None:
-            self.websocket.connection_lost(exc)
-        super().connection_lost(exc)
-
-    def data_received(self, data):
-        if self.websocket is not None:
-            # Received data. We refuse the data if the websocket is
-            # already closed. If the websocket is closing, this data
-            # might be part of the closing handshake (closing frame)
-            if self.websocket.state != 3:  # not closed
-                self.websocket.data_received(data)
-            else:
-                # The websocket is closed and we still get data for it
-                # This is an unexpected problem. Let's do nothing
-                # about it
-                pass
-        else:
-            try:
-                super().data_received(data)
-            except HttpParserUpgrade:
-                # Upgrade request
-                pass
-
-    def write(self, *args):
-        if self.websocket is None:
-            # We are in HTTP land
-            super().write(*args)
-        else:
-            # We are in websocket land
-            # We are not supposed to write outside the websocket.
-            # Maybe log ?
-            self.writer.close()
-
-    def on_message_begin(self):
-        self.request = self.app.Request(self.app, self.writer)
-        self.response = self.app.Response(self.app)
-            
-    def websocket_handshake(self, request, subprotocols: set=None):
-        """Websocket handshake, handled by `websockets`
-        """
-        headers = []
-
-        def get_header(k):
-            return request.headers.get(k.upper(), '')
-
-        def set_header(k, v):
-            headers.append((k, v))
-
-        try:
-            key = handshake.check_request(get_header)
-            handshake.build_response(set_header, key)
-        except InvalidHandshake:
-            raise RuntimeError('Invalid websocket request')
-
-        subprotocol = None
-        ws_protocol = get_header('Sec-Websocket-Protocol')
-        if subprotocols and ws_protocol:
-            # select a subprotocol
-            client_subprotocols = tuple(
-                (p.strip() for p in ws_protocol.split(',')))
-            for p in client_subprotocols:
-                if p in subprotocols:
-                    subprotocol = p
-                    set_header('Sec-Websocket-Protocol', subprotocol)
-                    break
-
-        # write the 101 response back to the client
-        rv = b'HTTP/1.1 101 Switching Protocols\r\n'
-        for k, v in headers:
-            rv += k.encode('utf-8') + b': ' + v.encode('utf-8') + b'\r\n'
-        rv += b'\r\n'
-        self.writer.write(rv)
-
-        # hook up the websocket protocol
-        self.websocket = WebSocketCommonProtocol(
-            timeout=self.websocket_timeout,
-            max_size=self.websocket_max_size,
-            max_queue=self.websocket_max_queue,
-            read_limit=self.websocket_read_limit,
-            write_limit=self.websocket_write_limit
-        )
-        self.websocket.subprotocol = subprotocol
-        self.websocket.connection_made(self.writer)
-        self.websocket.connection_open()
-        return self.websocket
+        handler, params = self.app.lookup(self.request)
+        task = self.app.loop.create_task(
+            self.app.__call__(self.request, handler, params))

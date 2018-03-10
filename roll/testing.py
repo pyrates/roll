@@ -140,9 +140,10 @@ class Client:
         self.protocol.request.method = method
         for key, value in headers.items():
             self.protocol.on_header(key.encode(), value.encode())
-        await self.app(self.protocol.request, self.protocol.response)
-        self.protocol.write()
-        return self.protocol.response
+        handler, params = self.app.lookup(self.protocol.request)
+        response = await self.app(self.protocol.request, handler, params)
+        self.protocol.write(response)
+        return response
 
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)
@@ -229,9 +230,9 @@ class LiveClient:
 
 
 @pytest.fixture()
-def liveclient(wsapp, event_loop):
-    wsapp.loop = event_loop
-    client = LiveClient(wsapp, loop=event_loop)
+def liveclient(app, event_loop):
+    app.loop = event_loop
+    client = LiveClient(app, loop=event_loop)
     client.start()
     yield client
     client.stop()
