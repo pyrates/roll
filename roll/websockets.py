@@ -3,38 +3,19 @@
 import asyncio
 import types
 from functools import wraps
-from roll.protocols import Context
 from urllib.parse import unquote
 from httptools import HttpParserUpgrade
 from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
 
 
-class WebsocketContext(Context):
+class IncomingWebsocket:
 
-    websocket_timeout = 5
-    websocket_max_size = 2 ** 20  # 1 megabytes
-    websocket_max_queue = 16
-    websocket_read_limit = 2 ** 16
-    websocket_write_limit = 2 ** 16
-    
-    __slots__ = ('websocket',)
+    __slots__ = ('websocket', 'app')
 
-    def __init__(self, app, writer, parser):
-        super().__init__(app, writer, parser)
-
-    def create_websocket(self, subprotocol):
-        self.websocket = WebSocketCommonProtocol(
-            timeout=self.websocket_timeout,
-            max_size=self.websocket_max_size,
-            max_queue=self.websocket_max_queue,
-            read_limit=self.websocket_read_limit,
-            write_limit=self.websocket_write_limit
-        )
-        self.websocket.subprotocol = subprotocol
-        self.websocket.connection_made(self.writer)
-        self.websocket.connection_open()
-        return self.websocket
+    def __init__(self, app, websocket):
+        self.app = app
+        self.websocket = websocket
 
     def connection_lost(self, exc):
         self.websocket.connection_lost(exc)
@@ -51,8 +32,42 @@ class WebsocketContext(Context):
             # about it
             pass
 
+
+class OutgoingWebsocket:
+
+    websocket_timeout = 5
+    websocket_max_size = 2 ** 20  # 1 megabytes
+    websocket_max_queue = 16
+    websocket_read_limit = 2 ** 16
+    websocket_write_limit = 2 ** 16
+
+    __slots__ = ('websocket', 'app', 'writer')
+    
+    def __init__(self, writer, app):
+        self.app = app
+        self.writer = writer
+
+    def write(self, data):
+        self.writer.write(data)
+    
+    def create_websocket(self, subprotocol):
+        self.websocket = WebSocketCommonProtocol(
+            timeout=self.websocket_timeout,
+            max_size=self.websocket_max_size,
+            max_queue=self.websocket_max_queue,
+            read_limit=self.websocket_read_limit,
+            write_limit=self.websocket_write_limit
+        )
+        self.websocket.subprotocol = subprotocol
+        self.websocket.connection_made(self.writer)
+        self.websocket.connection_open()
+        return self.websocket
+    
     def write(self, *args):
         self.writer.close()
+
+    def writer_response(self, response):
+        raise NotImplementedError
 
 
 def websocket_handshake(request, subprotocols: set=None):
@@ -89,13 +104,14 @@ def websocket_handshake(request, subprotocols: set=None):
     for k, v in headers:
         rv += k.encode('utf-8') + b': ' + v.encode('utf-8') + b'\r\n'
     rv += b'\r\n'
-    request.context.write(rv)
+    request.protocol.write(rv)
 
     # hook up the websocket protocol and new context
-    ws_context = WebsocketContext(
-        request.app, request.context.writer, request.context.parser)
-    request.set_context(ws_context)
-    return ws_context.create_websocket(subprotocol)
+    protocol = request.protocol
+    protocol.outgoing = OutgoingWebsocket(protocol.writer, request.app)
+    websocket = protocol.outgoing.create_websocket(subprotocol)
+    protocol.incoming = IncomingWebsocket(request.app, websocket)
+    return websocket
 
 
 def websocket(app, path, subprotocols: list=None, **extras: dict):

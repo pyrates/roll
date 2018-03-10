@@ -10,9 +10,61 @@ from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
 
 
-class Context:
+class IncomingHTTP:
 
-    __slots__ = ('app', 'writer', 'parser')
+    __slots__ = ('app', 'parser', 'request')
+
+    RequestParser = HttpRequestParser
+
+    def __init__(self, app, request):
+        self.app = app
+        self.parser = self.RequestParser(self)
+        self.request = request
+        
+    # See https://github.com/MagicStack/httptools#apis
+    def on_header(self, name: bytes, value: bytes):
+        self.request.headers[name.decode().upper()] = value.decode()
+
+    def on_body(self, body: bytes):
+        # FIXME do not put all body in RAM blindly.
+        self.request.body += body
+
+    def on_url(self, url: bytes):
+        parsed = parse_url(url)
+        self.request.url = url
+        self.request.path = unquote(parsed.path.decode())
+        self.request.query_string = (parsed.query or b'').decode()
+        self.request.method = self.parser.get_method().decode().upper()
+
+    def on_message_begin(self):
+        pass
+
+    def on_message_complete(self):
+        handler, params = self.app.lookup(self.request)
+        task = self.app.loop.create_task(
+            self.app.__call__(self.request, handler, params))
+
+    def should_keep_alive(self):
+        self.parser.should_keep_alive()
+
+    def connection_lost(self, exc):
+        pass
+
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserUpgrade:
+            # Upgrade request
+            pass
+        except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            raise
+
+
+class OutgoingHTTP:
+
+    __slots__ = ('app', 'writer')
 
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (
@@ -20,14 +72,17 @@ class Context:
         HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
         HTTPStatus.NOT_MODIFIED,
     )
-    
-    def __init__(self, app, writer, parser):
+
+    def __init__(self, writer, app):
         self.app = app
         self.writer = writer
-        self.parser = parser
 
-    def connection_lost(self, exc):
-        pass
+    def report_error(self, exc):
+        response = self.app.Response(self.app)
+        response.status = HTTPStatus.BAD_REQUEST
+        response.body = b'Unparsable request'
+        self.write_response(response)
+        self.writer.close()
 
     def write(self, data):
         self.writer.write(data)
@@ -55,71 +110,35 @@ class Context:
         if response.body and not bodyless:
             payload += response.body
         self.writer.write(payload)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
-
-    def data_received(self, data: bytes):
-        try:
-            self.parser.feed_data(data)
-        except HttpParserUpgrade:
-            # Upgrade request
-            pass
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            raise
-            response = self.app.Response(self.app)
-            response.status = HTTPStatus.BAD_REQUEST
-            response.body = b'Unparsable request'
-            self.write_html(response)
-            
 
 
 class Protocol(asyncio.Protocol):
-    """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'writer')
-    RequestParser = HttpRequestParser
+    __slots__ = ('app', 'incoming', 'outgoing')
 
     def __init__(self, app):
         self.app = app
-        self.parser = self.RequestParser(self)
 
     def connection_made(self, transport):
         self.writer = transport
-        self.request = self.app.Request(self.app)
-        self.request.set_context(Context(self.app, self.writer, self.parser))
+        self.request = self.app.Request(self.app, self)
+        self.incoming = IncomingHTTP(self.app, self.request)
+        self.outgoing = OutgoingHTTP(transport, self.app)
 
     def connection_lost(self, exc):
-        self.request.context.connection_lost(exc)
+        self.incoming.connection_lost(exc)
         super().connection_lost(exc)
 
     def data_received(self, data: bytes):
-        self.request.context.data_received(data)
+        try:
+            self.incoming.data_received(data)
+        except Exception as exc:
+            self.outgoing.report_error(exc)
 
     def write(self, data):
-        self.request.context.write(data)
+        self.outgoing.write(data)
 
-    # All on_xxx methods are in use by httptools parser.
-    # See https://github.com/MagicStack/httptools#apis
-    def on_header(self, name: bytes, value: bytes):
-        self.request.headers[name.decode().upper()] = value.decode()
-
-    def on_body(self, body: bytes):
-        # FIXME do not put all body in RAM blindly.
-        self.request.body += body
-
-    def on_url(self, url: bytes):
-        parsed = parse_url(url)
-        self.request.url = url
-        self.request.path = unquote(parsed.path.decode())
-        self.request.query_string = (parsed.query or b'').decode()
-        self.request.method = self.parser.get_method().decode().upper()
-
-    def on_message_begin(self):
-        pass
-
-    def on_message_complete(self):
-        handler, params = self.app.lookup(self.request)
-        task = self.app.loop.create_task(
-            self.app.__call__(self.request, handler, params))
+    def reply(self, response):
+        self.outgoing.write_response(response)
+        if not self.incoming.should_keep_alive():
+            self.writer.close()

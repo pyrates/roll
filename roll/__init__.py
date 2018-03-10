@@ -190,14 +190,15 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'url', 'path', 'query_string', 'method', 'body', 'headers',
-        'context', '_query', 'route', '_cookies', '_form', '_files',
+        'protocol', 'app', 'url', 'path', 'query_string', 'method',
+        'body', 'headers', '_query', 'route', '_cookies', '_form',
+        '_files',
     )
     
-    def __init__(self, app):
+    def __init__(self, app, protocol):
         self.app = app
+        self.protocol = protocol
         self.body = b''
-        self.context = None
         self.headers = {}
         self.method = b''
         self.path = b''
@@ -207,9 +208,6 @@ class Request(dict):
         self._files = None
         self._form = None
         self._query = None
-
-    def set_context(self, context):
-        self.context = context
         
     @property
     def cookies(self):
@@ -283,8 +281,8 @@ class Response:
     __slots__ = (
         'context', '_status', 'headers', 'body', '_cookies')
 
-    def __init__(self, context):
-        self.context = context
+    def __init__(self, app):
+        self.app = app
         self._status = None
         self.body = b''
         self.status = HTTPStatus.OK
@@ -313,9 +311,6 @@ class Response:
             self._cookies = self.app.Cookies()
         return self._cookies
 
-    def write(self):
-        self.context.write_response(self)
-
 
 Route = namedtuple('Route', ['payload', 'vars'])
 
@@ -334,12 +329,15 @@ class Roll:
     Request = Request
     Response = Response
     Cookies = Cookies
-
+    
     def __init__(self):
-        self.routes = self.Routes()
+        self.routes = Routes()
         self.hooks = {}
         self.storage = {}
 
+    def factory(self):
+        return self.Protocol(self)
+        
     def lookup(self, request):
         route = Route(*self.routes.match(request.path))
         if not route.payload:
@@ -359,7 +357,7 @@ class Roll:
     async def __call__(self, request: Request, handler, params: dict):
         try:
             if not await self.hook('request', request):
-                response_factory = partial(self.Response, request.context)
+                response_factory = partial(self.Response, self)
                 response = await handler(request, response_factory, **params)
         except Exception as error:
             response = await self.on_error(request, error)
@@ -368,11 +366,10 @@ class Roll:
             await self.hook('response', request, response)
         except Exception as error:
             response = await self.on_error(request, error)
-        if response:
-            response.write()
+        request.protocol.reply(response)
 
     async def on_error(self, request: Request, error):
-        response = self.Response(request.context)
+        response = self.Response(request.app)
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
@@ -384,9 +381,6 @@ class Roll:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(e)
         return response
-
-    def factory(self):
-        return self.Protocol(self)
 
     def route(self, path: str, methods: list=None, **extras: dict):
         if methods is None:
