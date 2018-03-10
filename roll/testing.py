@@ -1,10 +1,12 @@
+# -*- coding: utf-8 -*-
+
 import json
 import mimetypes
+import pytest
+
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
-
-import pytest
 
 
 def encode_multipart(data, charset='utf-8'):
@@ -76,8 +78,9 @@ class Client:
     # taste if needed.
     content_type = 'application/json; charset=utf-8'
 
-    def __init__(self, app):
+    def __init__(self, app, event_loop):
         self.app = app
+        self.loop = event_loop
 
     def handle_files(self, kwargs):
         kwargs.setdefault('headers', {})
@@ -131,15 +134,15 @@ class Client:
             body = body.encode()
         self.protocol = self.app.factory()
         self.protocol.connection_made(Transport())
-        self.protocol.on_message_begin()
-        self.protocol.on_url(path.encode())
+        self.protocol.incoming.on_message_begin()
+        self.protocol.incoming.on_url(path.encode())
         self.protocol.request.body = body
         self.protocol.request.method = method
         for key, value in headers.items():
-            self.protocol.on_header(key.encode(), value.encode())
-        await self.app(self.protocol.request, self.protocol.response)
-        self.protocol.write()
-        return self.protocol.response
+            self.protocol.incoming.on_header(key.encode(), value.encode())
+        response = await self.app(self.protocol.request)
+        self.protocol.reply(response)
+        return response
 
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)
@@ -171,10 +174,64 @@ class Client:
     async def connect(self, path, **kwargs):
         return await self.request(path, method='CONNECT', **kwargs)
 
-
+    
 @pytest.fixture
 def client(app, event_loop):
     app.loop = event_loop
     app.loop.run_until_complete(app.startup())
-    yield Client(app)
+    yield Client(app, event_loop)
     app.loop.run_until_complete(app.shutdown())
+
+
+### LIVE TESTING FOR WEBSOCKETS ###
+import socket
+import requests
+from functools import partial
+
+
+def unused_port():
+    """Return a port that is unused on the current host."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
+class LiveClient:
+
+    def __init__(self, app, loop):
+        self.app = app
+        self.loop = loop
+        self.url = None
+        self.wsl = None
+ 
+    def start(self):
+        port = unused_port()
+        self.app.loop.run_until_complete(self.app.startup())
+        self.server = self.app.loop.run_until_complete(
+            self.loop.create_server(self.app.factory, '127.0.0.1', port))
+        self.url = 'http://127.0.0.1:{port}'.format(port=port)
+        self.wsl = 'ws://127.0.0.1:{port}'.format(port=port)
+
+    def stop(self):
+        self.server.close()
+        self.url = self.wsl = None
+        self.app.loop.run_until_complete(self.server.wait_closed())
+        self.app.loop.run_until_complete(self.app.shutdown())
+        
+    async def query(self, method, uri, cookies: dict=None, headers: dict=None):
+        assert self.url is not None
+        if headers is None:
+            headers = {}
+        requester = partial(getattr(requests, method.lower()), 
+                            self.url + uri, headers=headers, cookies=cookies)
+        response = await self.loop.run_in_executor(None, requester)
+        return response
+
+
+@pytest.fixture()
+def liveclient(app, event_loop):
+    app.loop = event_loop
+    client = LiveClient(app, loop=event_loop)
+    client.start()
+    yield client
+    client.stop()
