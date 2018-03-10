@@ -2,9 +2,6 @@
 
 import asyncio
 import types
-from functools import wraps
-from urllib.parse import unquote
-from httptools import HttpParserUpgrade
 from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
 
@@ -19,6 +16,9 @@ class IncomingWebsocket:
 
     def connection_lost(self, exc):
         self.websocket.connection_lost(exc)
+
+    def should_keep_alive(self):
+        return False
 
     def data_received(self, data):
         # Received data. We refuse the data if the websocket is
@@ -35,42 +35,46 @@ class IncomingWebsocket:
 
 class OutgoingWebsocket:
 
-    websocket_timeout = 5
-    websocket_max_size = 2 ** 20  # 1 megabytes
-    websocket_max_queue = 16
-    websocket_read_limit = 2 ** 16
-    websocket_write_limit = 2 ** 16
-
-    __slots__ = ('websocket', 'app', 'writer')
+    __slots__ = ('websocket', 'app')
     
-    def __init__(self, writer, app):
+    def __init__(self, app):
         self.app = app
-        self.writer = writer
 
-    def write(self, data):
-        self.writer.write(data)
-    
-    def create_websocket(self, subprotocol):
-        self.websocket = WebSocketCommonProtocol(
-            timeout=self.websocket_timeout,
-            max_size=self.websocket_max_size,
-            max_queue=self.websocket_max_queue,
-            read_limit=self.websocket_read_limit,
-            write_limit=self.websocket_write_limit
-        )
-        self.websocket.subprotocol = subprotocol
-        self.websocket.connection_made(self.writer)
-        self.websocket.connection_open()
-        return self.websocket
-    
+    def report_error(self, exc):
+        raise exc
+
     def write(self, *args):
-        self.writer.close()
+        # We can't write data directly though the main protocol.
+        pass
 
-    def writer_response(self, response):
-        raise NotImplementedError
+    def write_response(self, response):
+        # We don't need a response.
+        pass
 
 
-def websocket_handshake(request, subprotocols: set=None):
+def create_websocket(
+        transport, subprotocol,
+        websocket_timeout = 5,
+        websocket_max_size = 2 ** 20,  # 1 megabytes
+        websocket_max_queue = 16,
+        websocket_read_limit = 2 ** 16,
+        websocket_write_limit = 2 ** 16):
+    """Instanciate a new websocket with the given subprotocol.
+    """
+    websocket = WebSocketCommonProtocol(
+        timeout=websocket_timeout,
+        max_size=websocket_max_size,
+        max_queue=websocket_max_queue,
+        read_limit=websocket_read_limit,
+        write_limit=websocket_write_limit
+    )
+    websocket.subprotocol = subprotocol
+    websocket.connection_made(transport)
+    websocket.connection_open()
+    return websocket
+
+
+def websocket_handshake(app, request, subprotocols: set=None):
     """Websocket handshake, handled by `websockets`
     """
     headers = []
@@ -107,10 +111,9 @@ def websocket_handshake(request, subprotocols: set=None):
     request.protocol.write(rv)
 
     # hook up the websocket protocol and new context
-    protocol = request.protocol
-    protocol.outgoing = OutgoingWebsocket(protocol.writer, request.app)
-    websocket = protocol.outgoing.create_websocket(subprotocol)
-    protocol.incoming = IncomingWebsocket(request.app, websocket)
+    websocket = create_websocket(request.protocol.writer, subprotocol)
+    request.protocol.incoming = IncomingWebsocket(app, websocket)
+    request.protocol.outgoing = OutgoingWebsocket(app)
     return websocket
 
 
@@ -122,7 +125,7 @@ def websocket(app, path, subprotocols: list=None, **extras: dict):
     def websocket_wrapper(handler):
 
         async def websocket_handler(request, _, **params):
-            ws = websocket_handshake(request, subprotocols)
+            ws = websocket_handshake(app, request, subprotocols)
             fut = asyncio.ensure_future(
                 handler(request, ws, **params), loop=app.loop)
             app.storage['websockets'].add((fut, ws))

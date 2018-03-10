@@ -1,12 +1,12 @@
+# -*- coding: utf-8 -*-
+
 import json
-import asyncio
 import mimetypes
 import pytest
 
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
-
 
 
 def encode_multipart(data, charset='utf-8'):
@@ -134,15 +134,14 @@ class Client:
             body = body.encode()
         self.protocol = self.app.factory()
         self.protocol.connection_made(Transport())
-        self.protocol.on_message_begin()
-        self.protocol.on_url(path.encode())
+        self.protocol.incoming.on_message_begin()
+        self.protocol.incoming.on_url(path.encode())
         self.protocol.request.body = body
         self.protocol.request.method = method
         for key, value in headers.items():
-            self.protocol.on_header(key.encode(), value.encode())
-        handler, params = self.app.lookup(self.protocol.request)
-        response = await self.app(self.protocol.request, handler, params)
-        self.protocol.write(response)
+            self.protocol.incoming.on_header(key.encode(), value.encode())
+        response = await self.app(self.protocol.request)
+        self.protocol.reply(response)
         return response
 
     async def get(self, path, **kwargs):

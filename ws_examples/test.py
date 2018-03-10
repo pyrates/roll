@@ -29,10 +29,8 @@ websockets(app)
 
 
 @app.route('/')
-async def hello(request, response_class):
-    response = response_class()
+async def hello(request, response):
     response.html('Hello World !')
-    return response
 
 
 @app.websocket('/chat', websocket=True)

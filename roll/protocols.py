@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-from collections import deque
 from http import HTTPStatus
 from urllib.parse import unquote
 from httptools import (
-    HttpParserUpgrade, HttpParserError, HttpRequestParser, parse_url)
-from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
-from websockets import ConnectionClosed  # exposed for convenience
+    HttpParserUpgrade, HttpRequestParser, parse_url)
 
 
 class IncomingHTTP:
@@ -40,9 +37,8 @@ class IncomingHTTP:
         pass
 
     def on_message_complete(self):
-        handler, params = self.app.lookup(self.request)
-        task = self.app.loop.create_task(
-            self.app.__call__(self.request, handler, params))
+        task = self.app.loop.create_task(self.app.__call__(self.request))
+        task.add_done_callback(self.request.protocol.process_ready_response)
 
     def should_keep_alive(self):
         self.parser.should_keep_alive()
@@ -56,15 +52,11 @@ class IncomingHTTP:
         except HttpParserUpgrade:
             # Upgrade request
             pass
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            raise
 
 
 class OutgoingHTTP:
 
-    __slots__ = ('app', 'writer')
+    __slots__ = ('request', 'app', 'writer', 'response')
 
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (
@@ -73,19 +65,23 @@ class OutgoingHTTP:
         HTTPStatus.NOT_MODIFIED,
     )
 
-    def __init__(self, writer, app):
+    def __init__(self, writer, app, request):
         self.app = app
         self.writer = writer
+        self.request = request
+        self.response = None
 
     def report_error(self, exc):
-        response = self.app.Response(self.app)
-        response.status = HTTPStatus.BAD_REQUEST
-        response.body = b'Unparsable request'
-        self.write_response(response)
+        if not self.response:
+            self.response = self.app.Response(self.app)
+        self.response.status = HTTPStatus.BAD_REQUEST
+        self.response.body = b'Unparsable request'
+        self.write_response(self.response)
         self.writer.close()
 
     def write(self, data):
-        self.writer.write(data)
+        if data is not None:
+            self.writer.write(data)
 
     def write_response(self, response):
         # Appends bytes for performances.
@@ -109,7 +105,7 @@ class OutgoingHTTP:
         payload += b'\r\n'
         if response.body and not bodyless:
             payload += response.body
-        self.writer.write(payload)
+        self.write(payload)
 
 
 class Protocol(asyncio.Protocol):
@@ -123,7 +119,7 @@ class Protocol(asyncio.Protocol):
         self.writer = transport
         self.request = self.app.Request(self.app, self)
         self.incoming = IncomingHTTP(self.app, self.request)
-        self.outgoing = OutgoingHTTP(transport, self.app)
+        self.outgoing = OutgoingHTTP(transport, self.app, self.request)
 
     def connection_lost(self, exc):
         self.incoming.connection_lost(exc)
@@ -142,3 +138,7 @@ class Protocol(asyncio.Protocol):
         self.outgoing.write_response(response)
         if not self.incoming.should_keep_alive():
             self.writer.close()
+
+    def process_ready_response(self, task):
+        response = task.result()
+        self.reply(response)

@@ -8,7 +8,6 @@ If you do not understand why something is not working as expected,
 please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
-import asyncio
 from autoroutes import Routes
 from biscuits import Cookie, parse
 from collections import namedtuple
@@ -17,9 +16,7 @@ from io import BytesIO
 from multifruits import Parser, extract_filename, parse_content_disposition
 from typing import TypeVar
 from urllib.parse import parse_qs
-from .protocols import Protocol, ConnectionClosed
-from traceback import print_exc
-from functools import partial
+from .protocols import Protocol
 
 
 try:
@@ -204,6 +201,7 @@ class Request(dict):
         self.path = b''
         self.query_string = b''
         self.url = b''
+        self.route = None
         self._cookies = None
         self._files = None
         self._form = None
@@ -278,8 +276,7 @@ class Request(dict):
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = (
-        'context', '_status', 'headers', 'body', '_cookies')
+    __slots__ = ('app', '_status', 'headers', 'body', '_cookies')
 
     def __init__(self, app):
         self.app = app
@@ -337,39 +334,41 @@ class Roll:
 
     def factory(self):
         return self.Protocol(self)
-        
-    def lookup(self, request):
-        route = Route(*self.routes.match(request.path))
-        if not route.payload:
-            raise HttpError(HTTPStatus.NOT_FOUND, request.path)
-        # Uppercased in order to only consider HTTP verbs.
-        if request.method.upper() not in route.payload:
-            raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-        handler = route.payload[request.method]
-        return handler, route.vars
 
     async def startup(self):
         await self.hook('startup')
 
     async def shutdown(self):
         await self.hook('shutdown')
-        
-    async def __call__(self, request: Request, handler, params: dict):
+    
+    async def process(self, request, response):
+        route = Route(*self.routes.match(request.path))
+        request.route = route
+
+        if not await self.hook('request', request, response):
+            if not route.payload:
+                raise HttpError(HTTPStatus.NOT_FOUND, request.path)
+            # Uppercased in order to only consider HTTP verbs.
+            if request.method.upper() not in route.payload:
+                raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+
+            handler = route.payload[request.method]
+            await handler(request, response, **route.vars)
+
+    async def __call__(self, request: Request):
+        response = request.protocol.outgoing.response = self.Response(self)
         try:
-            if not await self.hook('request', request):
-                response_factory = partial(self.Response, self)
-                response = await handler(request, response_factory, **params)
+            await self.process(request, response)
         except Exception as error:
-            response = await self.on_error(request, error)
+            await self.on_error(request, response, error)
         try:
             # Views exceptions should still pass by the response hooks.
             await self.hook('response', request, response)
         except Exception as error:
-            response = await self.on_error(request, error)
-        request.protocol.reply(response)
+            await self.on_error(request, response, error)
+        return response
 
-    async def on_error(self, request: Request, error):
-        response = self.Response(request.app)
+    async def on_error(self, request: Request, response: Response, error):
         if not isinstance(error, HttpError):
             error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
                               str(error).encode())
@@ -380,7 +379,6 @@ class Roll:
         except Exception as e:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(e)
-        return response
 
     def route(self, path: str, methods: list=None, **extras: dict):
         if methods is None:
