@@ -9,16 +9,17 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
+from autoroutes import Routes
+from biscuits import Cookie, parse
 from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
-from typing import TypeVar
-from urllib.parse import parse_qs, unquote
-
-from autoroutes import Routes
-from biscuits import Cookie, parse
-from httptools import HttpParserError, HttpRequestParser, parse_url
 from multifruits import Parser, extract_filename, parse_content_disposition
+from typing import TypeVar
+from urllib.parse import parse_qs
+from .protocols import Protocol, ConnectionClosed
+from traceback import print_exc
+
 
 try:
     # In case you use json heavily, we recommend installing
@@ -187,11 +188,14 @@ class Request(dict):
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
-    __slots__ = ('app', 'url', 'path', 'query_string', '_query', 'method',
-                 'body', 'headers', 'route', '_cookies', '_form', '_files')
+    __slots__ = (
+        'app', 'protocol', 'url', 'path', 'query_string', '_query',
+        'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
+    )
 
-    def __init__(self, app):
+    def __init__(self, app, protocol):
         self.app = app
+        self.protocol = protocol
         self.headers = {}
         self.body = b''
         self._cookies = None
@@ -300,87 +304,7 @@ class Response:
             self._cookies = self.app.Cookies()
         return self._cookies
 
-
-class Protocol(asyncio.Protocol):
-    """Responsible of parsing the request and writing the response."""
-
-    __slots__ = ('app', 'request', 'parser', 'response', 'writer')
-    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
-    _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
-                          HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
-                          HTTPStatus.NOT_MODIFIED)
-    RequestParser = HttpRequestParser
-
-    def __init__(self, app):
-        self.app = app
-        self.parser = self.RequestParser(self)
-
-    def data_received(self, data: bytes):
-        try:
-            self.parser.feed_data(data)
-        except HttpParserError:
-            # If the parsing failed before on_message_begin, we don't have a
-            # response.
-            self.response = self.app.Response(self.app)
-            self.response.status = HTTPStatus.BAD_REQUEST
-            self.response.body = b'Unparsable request'
-            self.write()
-
-    def connection_made(self, transport):
-        self.writer = transport
-
-    # All on_xxx methods are in use by httptools parser.
-    # See https://github.com/MagicStack/httptools#apis
-    def on_header(self, name: bytes, value: bytes):
-        self.request.headers[name.decode().upper()] = value.decode()
-
-    def on_body(self, body: bytes):
-        # FIXME do not put all body in RAM blindly.
-        self.request.body += body
-
-    def on_url(self, url: bytes):
-        self.request.url = url
-        parsed = parse_url(url)
-        self.request.path = unquote(parsed.path.decode())
-        self.request.query_string = (parsed.query or b'').decode()
-
-    def on_message_begin(self):
-        self.request = self.app.Request(self.app)
-        self.response = self.app.Response(self.app)
-
-    def on_message_complete(self):
-        self.request.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.request, self.response))
-        task.add_done_callback(self.write)
-
-    # May or may not have "future" as arg.
-    def write(self, *args):
-        # Appends bytes for performances.
-        payload = b'HTTP/1.1 %a %b\r\n' % (
-            self.response.status.value, self.response.status.phrase.encode())
-        if not isinstance(self.response.body, bytes):
-            self.response.body = str(self.response.body).encode()
-        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        bodyless = (self.response.status in self._BODYLESS_STATUSES or
-                    (hasattr(self, 'request') and
-                     self.request.method in self._BODYLESS_METHODS))
-        if 'Content-Length' not in self.response.headers and not bodyless:
-            length = len(self.response.body)
-            self.response.headers['Content-Length'] = length
-        if self.response._cookies:
-            # https://tools.ietf.org/html/rfc7230#page-23
-            for cookie in self.response.cookies.values():
-                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
-        for key, value in self.response.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n'
-        if self.response.body and not bodyless:
-            payload += self.response.body
-        self.writer.write(payload)
-        if not self.parser.should_keep_alive():
-            self.writer.close()
-
-
+            
 Route = namedtuple('Route', ['payload', 'vars'])
 
 
@@ -402,6 +326,7 @@ class Roll:
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = {}
+        self.storage = {}
 
     async def startup(self):
         await self.hook('startup')
