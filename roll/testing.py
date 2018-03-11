@@ -187,6 +187,7 @@ def client(app, event_loop):
 import socket
 import requests
 from functools import partial
+from roll.websockets import websockets
 
 
 def unused_port():
@@ -229,9 +230,10 @@ class LiveClient:
 
 
 @pytest.fixture()
-def liveclient(wsapp, event_loop):
-    wsapp.loop = event_loop
-    client = LiveClient(wsapp, loop=event_loop)
+def liveclient(app, event_loop):
+    app.loop = event_loop
+    websockets(app)
+    client = LiveClient(app, loop=event_loop)
     client.start()
     yield client
     client.stop()

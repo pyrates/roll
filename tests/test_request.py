@@ -355,7 +355,7 @@ async def test_request_get_unknown_cookie_key_raises_keyerror(protocol):
 
 
 async def test_can_store_arbitrary_keys_on_request():
-    request = Request(None)
+    request = Request(None, None)
     request['custom'] = 'value'
     assert 'custom' in request
     assert request['custom'] == 'value'

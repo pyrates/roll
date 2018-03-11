@@ -17,7 +17,7 @@ from io import BytesIO
 from multifruits import Parser, extract_filename, parse_content_disposition
 from typing import TypeVar
 from urllib.parse import parse_qs
-from .protocols import Protocol, WSProtocol, ConnectionClosed
+from .protocols import Protocol, ConnectionClosed
 from traceback import print_exc
 
 
@@ -189,13 +189,13 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'transport', 'url', 'path', 'query_string', '_query',
+        'app', 'protocol', 'url', 'path', 'query_string', '_query',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
     )
 
-    def __init__(self, app, transport=None):
+    def __init__(self, app, protocol):
         self.app = app
-        self.transport = transport
+        self.protocol = protocol
         self.headers = {}
         self.body = b''
         self._cookies = None
@@ -326,6 +326,7 @@ class Roll:
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = {}
+        self.storage = {}
 
     async def startup(self):
         await self.hook('startup')
@@ -395,70 +396,3 @@ class Roll:
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
             pass
-
-
-class WSRoll(Roll):
-
-    Protocol = WSProtocol
-
-    def __init__(self):
-        super().__init__()
-        self.websockets = set()  # set of 2 items tuple, (task, websocket)
-
-    async def on_error(self, request: Request, response: Response, error):
-        if request.route.payload['is_websocket'] is None:
-            # This is not a websocket.
-            # Report the HTTP error as planned.
-            return await super().on_error(request, response, error)
-        print_exc()
-
-    def route(self, path: str, websocket: bool=False,
-              subprotocols: list=None, methods: list=None, **extras: dict):
-
-        if not websocket:
-            return super(WSRoll, self).route(path, methods=methods, **extras)
-
-        if methods and methods != ['GET']:
-            raise RuntimeError('Websockets can only handshake on GET')
-
-        extras['is_websocket'] = websocket
-        if subprotocols:
-            subprotocols = frozenset(subprotocols)  # Set in stone.
-        def ws_wrapper(func):
-            async def websocket_handler(request, response, **params):
-                protocol = request.transport.get_protocol()
-                ws = protocol.websocket_handshake(request, subprotocols)
-                fut = asyncio.ensure_future(
-                    func(request, ws, **params), loop=self.loop)
-                self.websockets.add((fut, ws))
-                try:
-                    await fut
-                except ConnectionClosed:
-                    # The client closed the connection.
-                    # We cancel the future to be sure it's in order.
-                    fut.cancel()
-                    await ws.close(1002, 'Connection closed untimely.')
-                except asyncio.CancelledError:
-                    # The websocket task was cancelled
-                    # We need to warn the client.
-                    await ws.close(1001, 'Handler cancelled.')
-                except Exception as exc:
-                    # A more serious error happened.
-                    # The websocket handler was untimely terminated
-                    # by an unwarranted exception. Warn the client.
-                    await ws.close(1011, 'Handler died prematurely.')
-                    raise
-                else:
-                    # The handler finished gracefully.
-                    # We can close the socket in peace.
-                    await ws.close()
-                finally:
-                    # Whatever happened, the websocket fate has been
-                    # sealed. We remove it from our watch.
-                    self.websockets.discard((fut, ws))
-
-            payload = {'GET':  websocket_handler}
-            payload.update(extras)
-            self.routes.add(path, **payload)
-
-        return ws_wrapper

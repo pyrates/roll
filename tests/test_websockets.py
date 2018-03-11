@@ -9,7 +9,7 @@ import websockets
 async def test_websocket_route(liveclient):
     ev = asyncio.Event()
 
-    @liveclient.app.route('/ws', websocket=True)
+    @liveclient.app.websocket('/ws')
     async def handler(request, ws, **params):
         assert ws.subprotocol is None
         ev.set()
@@ -22,19 +22,11 @@ async def test_websocket_route(liveclient):
     assert ev.is_set()
     assert response.status_code == 101
 
-    with pytest.raises(RuntimeError) as exc:
-        @liveclient.app.route('/ws', websocket=True, methods=['POST'])
-        async def handler(request, ws, **params):
-            assert ws.subprotocol is None
-            ev.set()
-
-    assert str(exc.value) == 'Websockets can only handshake on GET'
-
 
 @pytest.mark.asyncio
 async def test_websocket_communication(liveclient):
 
-    @liveclient.app.route('/echo', websocket=True)
+    @liveclient.app.websocket('/echo')
     async def echo(request, ws, **params):
         while True:
             message = await ws.recv()
@@ -58,13 +50,13 @@ async def test_websocket_communication(liveclient):
 @pytest.mark.asyncio
 async def test_websocket_broadcasting(liveclient):
 
-    @liveclient.app.route('/broadcast', websocket=True)
+    @liveclient.app.websocket('/broadcast')
     async def feed(request, ws, **params):
         while True:
             message = await ws.recv()
             await asyncio.wait([
                 socket.send(message) for (task, socket)
-                in request.app.websockets if socket != ws])
+                in request.app.storage['websockets'] if socket != ws])
 
     # connecting
     connected = []
@@ -89,7 +81,7 @@ async def test_websocket_broadcasting(liveclient):
 @pytest.mark.asyncio
 async def test_websocket_binary(liveclient):
 
-    @liveclient.app.route('/bin', websocket=True)
+    @liveclient.app.websocket('/bin')
     async def binary(request, ws, **params):
         await ws.send(b'test')
 
@@ -106,7 +98,7 @@ async def test_websocket_binary(liveclient):
 async def test_websocket_route_with_subprotocols(liveclient):
     results = []
 
-    @liveclient.app.route('/ws', websocket=True, subprotocols=['foo', 'bar'])
+    @liveclient.app.websocket('/ws', subprotocols=['foo', 'bar'])
     async def handler(request, ws):
         results.append(ws.subprotocol)
 
