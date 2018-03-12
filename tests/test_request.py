@@ -315,6 +315,20 @@ async def test_request_parse_multiple_cookies(protocol):
     assert protocol.request.cookies['other'] == 'new_value'
 
 
+async def test_request_parse_multiple_cookies_headers(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Cookie: key=value\r\n'
+        b'Cookie: other=new_value\r\n'
+        b'\r\n')
+    assert protocol.request.cookies['key'] == 'value'
+    assert protocol.request.cookies['other'] == 'new_value'
+
+
 async def test_request_cookies_get(protocol):
     protocol.data_received(
         b'GET /feeds HTTP/1.1\r\n'
@@ -442,6 +456,31 @@ async def test_parse_unparsable_urlencoded(protocol):
     with pytest.raises(HttpError) as e:
         assert protocol.request.form
     assert e.value.message == 'Unparsable urlencoded body'
+
+
+async def test_multiple_identical_headers(protocol):
+
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'Accept: text/plain, text/html\r\n'
+        b'Accept: text/x-dvi; q=.8; mxb=100000; mxt=5.0\r\n'
+        b'\r\n'
+    )
+    assert protocol.request.headers['ACCEPT'] == (
+        'text/plain, text/html, text/x-dvi; q=.8; mxb=100000; mxt=5.0')
+
+
+async def test_multiple_identical_headers_empty(protocol):
+
+    protocol.data_received(
+        b'POST /post HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'Accept: text/plain, text/html\r\n'
+        b'Accept: \r\n'
+        b'\r\n'
+    )
+    assert protocol.request.headers['ACCEPT'] == 'text/plain, text/html'
 
 
 @pytest.mark.parametrize('params', [

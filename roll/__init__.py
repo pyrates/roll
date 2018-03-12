@@ -446,7 +446,13 @@ class Protocol(asyncio.Protocol):
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
     def on_header(self, name: bytes, value: bytes):
-        self.request.headers[name.decode().upper()] = value.decode()
+        value = value.decode()
+        if value:
+            name = name.decode().upper()
+            if name in self.request.headers:
+                self.request.headers[name] += ', {}'.format(value)
+            else:
+                self.request.headers[name] = value
 
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
