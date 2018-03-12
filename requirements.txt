@@ -4,4 +4,3 @@ httptools==0.0.10
 multifruits==0.1.0
 uvloop==0.9.1
 websockets==4.0.1
-requests==2.18.4

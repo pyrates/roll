@@ -9,16 +9,18 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
+from abc import ABC, abstractmethod
 from autoroutes import Routes
 from biscuits import Cookie, parse
 from collections import namedtuple
+from functools import wraps
 from http import HTTPStatus
+from httptools import (
+    HttpParserUpgrade, HttpParserError, HttpRequestParser, parse_url)
 from io import BytesIO
 from multifruits import Parser, extract_filename, parse_content_disposition
 from typing import TypeVar
-from urllib.parse import parse_qs
-from .protocols import Protocol, WSProtocol, ConnectionClosed
-from traceback import print_exc
+from urllib.parse import parse_qs, unquote
 
 
 try:
@@ -189,13 +191,13 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'transport', 'url', 'path', 'query_string', '_query',
+        'app', 'protocol', 'url', 'path', 'query_string', '_query',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
     )
 
-    def __init__(self, app, transport=None):
+    def __init__(self, app, protocol):
         self.app = app
-        self.transport = transport
+        self.protocol = protocol
         self.headers = {}
         self.body = b''
         self._cookies = None
@@ -304,11 +306,173 @@ class Response:
             self._cookies = self.app.Cookies()
         return self._cookies
 
-            
+
+# PROTOCOL STATUS FLAGS
+HTTP_FLOW = 1
+HTTP_NEEDS_UPGRADE = 2
+HTTP_UPGRADED = 4
+
+
+class ProtocolUpgrade(ABC):
+
+    @staticmethod
+    def delegator(method):
+        @wraps(method)
+        def delegate_to(protocol, *args, **kwargs):
+            if protocol.status == HTTP_FLOW:
+                return method(protocol, *args, **kwargs)
+            if protocol.status == HTTP_NEEDS_UPGRADE:
+                raise RuntimeError(
+                    'Expected protocol upgrade: {}.'.format(
+                        protocol.request.headers['UPGRADE']))
+
+            surrogate = getattr(protocol.upgrade, method.__name__, None)
+            if surrogate is None:
+                raise RuntimeError(
+                    "Protocol upgrade doesn't provide '{}'.".format
+                    (method.__name__))
+            # Is this the end of the pipe (oep)
+            eop = surrogate(protocol, *args, **kwargs)
+            if not eop:
+                # This is not the end of the pipe, we go through the
+                # delegator.
+                return method(protocol, *args, **kwargs)
+        return delegate_to
+
+    @abstractmethod
+    def upgrade_response(self, request) -> bytes:
+        """Return a upgrade response for the client.
+        """
+
+    @abstractmethod
+    def connection_lost(self, protocol, exc) -> bool:
+        """Connection with the client was lost.
+        Returns None or False if it wants to pass through the delegator.
+        """
+
+    @abstractmethod
+    def data_received(self, protocol, data: bytes) -> bool:
+        """Data was received from the client.
+        Dispatch to the upgrade.
+        Returns None or False if it wants to pass through the delegator.
+        """
+
+    @abstractmethod
+    def write(self, protocol, *args) -> bool:
+        """Write to the client, on the upgrade channel.
+        Returns None or False if it wants to pass through the delegator.
+        """
+
+
+class Protocol(asyncio.Protocol):
+    """Responsible of parsing the request and writing the response."""
+
+    __slots__ = ('app', 'request', 'response', 'task',
+                 'parser', 'writer', 'status', 'upgrade')
+    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
+    _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
+                          HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
+                          HTTPStatus.NOT_MODIFIED)
+    RequestParser = HttpRequestParser
+
+    def __init__(self, app):
+        self.app = app
+        self.parser = self.RequestParser(self)
+        self.upgrade = None
+        self.status = HTTP_FLOW
+        self.task = None
+
+    def connection_made(self, transport):
+        self.writer = transport
+
+    def upgrade_protocol(self, upgrade):
+        if self.status != HTTP_NEEDS_UPGRADE:
+            # We are trying to upgrade request that did not ask for it
+            # Do we really want to allow that ? If not raise. If so, log ?
+            ...
+        assert isinstance(upgrade, ProtocolUpgrade)
+        upres = upgrade.upgrade_response(self.request)
+        self.writer.write(upres)  # writing the upgrade response
+        upgrade.bootstrap(self)  # Boot the upgrade
+        self.status = HTTP_UPGRADED  # We are upgraded
+        self.upgrade = upgrade  # We are ready to deputize.
+
+    @ProtocolUpgrade.delegator
+    def connection_lost(self, exc):
+        super().connection_lost(exc)
+
+    @ProtocolUpgrade.delegator
+    def data_received(self, data: bytes):
+        try:
+            self.parser.feed_data(data)
+        except HttpParserError:
+            # If the parsing failed before on_message_begin, we don't have a
+            # response.
+            self.response = self.app.Response(self.app)
+            self.response.status = HTTPStatus.BAD_REQUEST
+            self.response.body = b'Unparsable request'
+            self.write()
+        except HttpParserUpgrade as exc:
+            self.status = HTTP_NEEDS_UPGRADE
+
+    # May or may not have "future" as arg.
+    @ProtocolUpgrade.delegator
+    def write(self, *args):
+        # Appends bytes for performances.
+        payload = b'HTTP/1.1 %a %b\r\n' % (
+            self.response.status.value, self.response.status.phrase.encode())
+        if not isinstance(self.response.body, bytes):
+            self.response.body = str(self.response.body).encode()
+        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
+        bodyless = (self.response.status in self._BODYLESS_STATUSES or
+                    (hasattr(self, 'request') and
+                     self.request.method in self._BODYLESS_METHODS))
+        if 'Content-Length' not in self.response.headers and not bodyless:
+            length = len(self.response.body)
+            self.response.headers['Content-Length'] = length
+        if self.response._cookies:
+            # https://tools.ietf.org/html/rfc7230#page-23
+            for cookie in self.response.cookies.values():
+                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
+        for key, value in self.response.headers.items():
+            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+        payload += b'\r\n'
+        if self.response.body and not bodyless:
+            payload += self.response.body
+        self.writer.write(payload)
+        if not self.parser.should_keep_alive():
+            self.writer.close()
+
+    # All on_xxx methods are in use by httptools parser.
+    # See https://github.com/MagicStack/httptools#apis
+    def on_header(self, name: bytes, value: bytes):
+        self.request.headers[name.decode().upper()] = value.decode()
+
+    def on_body(self, body: bytes):
+        # FIXME do not put all body in RAM blindly.
+        self.request.body += body
+
+    def on_url(self, url: bytes):
+        self.request.url = url
+        parsed = parse_url(url)
+        self.request.path = unquote(parsed.path.decode())
+        self.request.query_string = (parsed.query or b'').decode()
+
+    def on_message_begin(self):
+        self.request = self.app.Request(self.app, self)
+        self.response = self.app.Response(self.app)
+
+    def on_message_complete(self):
+        self.request.method = self.parser.get_method().decode().upper()
+        self.task = self.app.loop.create_task(
+            self.app(self.request, self.response))
+        self.task.add_done_callback(self.write)
+
+
 Route = namedtuple('Route', ['payload', 'vars'])
 
 
-class Roll:
+class Roll(dict):
     """Deal with routes dispatching and events listening.
 
     You can subclass it to set your own `Protocol`, `Routes`, `Query`, `Form`,
@@ -395,70 +559,3 @@ class Roll:
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
             pass
-
-
-class WSRoll(Roll):
-
-    Protocol = WSProtocol
-
-    def __init__(self):
-        super().__init__()
-        self.websockets = set()  # set of 2 items tuple, (task, websocket)
-
-    async def on_error(self, request: Request, response: Response, error):
-        if request.route.payload['is_websocket'] is None:
-            # This is not a websocket.
-            # Report the HTTP error as planned.
-            return await super().on_error(request, response, error)
-        print_exc()
-
-    def route(self, path: str, websocket: bool=False,
-              subprotocols: list=None, methods: list=None, **extras: dict):
-
-        if not websocket:
-            return super(WSRoll, self).route(path, methods=methods, **extras)
-
-        if methods and methods != ['GET']:
-            raise RuntimeError('Websockets can only handshake on GET')
-
-        extras['is_websocket'] = websocket
-        if subprotocols:
-            subprotocols = frozenset(subprotocols)  # Set in stone.
-        def ws_wrapper(func):
-            async def websocket_handler(request, response, **params):
-                protocol = request.transport.get_protocol()
-                ws = protocol.websocket_handshake(request, subprotocols)
-                fut = asyncio.ensure_future(
-                    func(request, ws, **params), loop=self.loop)
-                self.websockets.add((fut, ws))
-                try:
-                    await fut
-                except ConnectionClosed:
-                    # The client closed the connection.
-                    # We cancel the future to be sure it's in order.
-                    fut.cancel()
-                    await ws.close(1002, 'Connection closed untimely.')
-                except asyncio.CancelledError:
-                    # The websocket task was cancelled
-                    # We need to warn the client.
-                    await ws.close(1001, 'Handler cancelled.')
-                except Exception as exc:
-                    # A more serious error happened.
-                    # The websocket handler was untimely terminated
-                    # by an unwarranted exception. Warn the client.
-                    await ws.close(1011, 'Handler died prematurely.')
-                    raise
-                else:
-                    # The handler finished gracefully.
-                    # We can close the socket in peace.
-                    await ws.close()
-                finally:
-                    # Whatever happened, the websocket fate has been
-                    # sealed. We remove it from our watch.
-                    self.websockets.discard((fut, ws))
-
-            payload = {'GET':  websocket_handler}
-            payload.update(extras)
-            self.routes.add(path, **payload)
-
-        return ws_wrapper

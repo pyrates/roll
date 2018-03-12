@@ -1,12 +1,16 @@
 import json
-import asyncio
 import mimetypes
 import pytest
 
+from roll.websockets import websockets
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
 
+# LIVE TESTING FOR WEBSOCKETS
+import socket
+import http
+from functools import partial
 
 
 def encode_multipart(data, charset='utf-8'):
@@ -174,7 +178,7 @@ class Client:
     async def connect(self, path, **kwargs):
         return await self.request(path, method='CONNECT', **kwargs)
 
-    
+
 @pytest.fixture
 def client(app, event_loop):
     app.loop = event_loop
@@ -183,12 +187,7 @@ def client(app, event_loop):
     app.loop.run_until_complete(app.shutdown())
 
 
-### LIVE TESTING FOR WEBSOCKETS ###
-import socket
-import requests
-from functools import partial
-
-
+# LIVE TESTING FOR WEBSOCKETS
 def unused_port():
     """Return a port that is unused on the current host."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -203,35 +202,43 @@ class LiveClient:
         self.loop = loop
         self.url = None
         self.wsl = None
- 
+
     def start(self):
-        port = unused_port()
+        self.port = unused_port()
         self.app.loop.run_until_complete(self.app.startup())
         self.server = self.app.loop.run_until_complete(
-            self.loop.create_server(self.app.factory, '127.0.0.1', port))
-        self.url = 'http://127.0.0.1:{port}'.format(port=port)
-        self.wsl = 'ws://127.0.0.1:{port}'.format(port=port)
+            self.loop.create_server(self.app.factory, '127.0.0.1', self.port))
+        self.url = 'http://127.0.0.1:{port}'.format(port=self.port)
+        self.wsl = 'ws://127.0.0.1:{port}'.format(port=self.port)
 
     def stop(self):
         self.server.close()
-        self.url = self.wsl = None
+        self.port = self.url = self.wsl = None
         self.app.loop.run_until_complete(self.server.wait_closed())
         self.app.loop.run_until_complete(self.app.shutdown())
-        
-    async def query(self, method, uri, cookies: dict=None, headers: dict=None):
+
+    def execute_query(self, method, uri, headers):
+        conn = http.client.HTTPConnection('127.0.0.1', self.port)
+        conn.request(method, uri, headers=headers)
+        response = conn.getresponse()
+        conn.close()
+        return response
+
+    async def query(self, method, uri, headers: dict=None):
         assert self.url is not None
         if headers is None:
             headers = {}
-        requester = partial(getattr(requests, method.lower()), 
-                            self.url + uri, headers=headers, cookies=cookies)
+
+        requester = partial(self.execute_query, method.upper(), uri, headers)
         response = await self.loop.run_in_executor(None, requester)
         return response
 
 
 @pytest.fixture()
-def liveclient(wsapp, event_loop):
-    wsapp.loop = event_loop
-    client = LiveClient(wsapp, loop=event_loop)
+def liveclient(app, event_loop):
+    app.loop = event_loop
+    websockets(app)
+    client = LiveClient(app, loop=event_loop)
     client.start()
     yield client
     client.stop()
