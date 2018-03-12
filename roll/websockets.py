@@ -1,8 +1,10 @@
 import asyncio
 import types
-from roll import ProtocolUpgrade
+
 from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
+
+from roll import ProtocolUpgrade
 
 
 def create_websocket(
