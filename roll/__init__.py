@@ -330,8 +330,8 @@ class ProtocolUpgrade(ABC):
             surrogate = getattr(protocol.upgrade, method.__name__, None)
             if surrogate is None:
                 raise RuntimeError(
-                    "Protocol upgrade doesn't provide '{}'.".format
-                    (method.__name__))
+                    "Protocol upgrade doesn't provide '{}'.".format(
+                        method.__name__))
             # Is this the end of the pipe (oep)
             eop = surrogate(protocol, *args, **kwargs)
             if not eop:
