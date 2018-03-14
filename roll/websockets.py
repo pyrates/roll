@@ -99,11 +99,9 @@ def websocket(app, path, subprotocols: list=None, **extras: dict):
 
         async def websocket_handler(request, _, **params):
             # Handshake and protocol upgrade
-            # This is the part that makes the presence of the protocol
-            # mandatory on the request. How could we fix it ?
             websocket_upgrade = WebsocketProtocol(
                 request, subprotocols, **params)
-            request.protocol.upgrade_protocol(websocket_upgrade)
+            request.upgrade_protocol(websocket_upgrade)
             ws = websocket_upgrade.websocket
 
             fut = asyncio.ensure_future(
@@ -146,3 +144,4 @@ def websocket(app, path, subprotocols: list=None, **extras: dict):
 def websockets(app):
     app['websockets'] = set()
     app.websocket = types.MethodType(websocket, app)
+    return app

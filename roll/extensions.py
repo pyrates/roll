@@ -21,6 +21,8 @@ def cors(app, origin='*', methods=None, headers=None):
             allow_headers = ','.join(headers)
             response.headers['Access-Control-Allow-Headers'] = allow_headers
 
+    return app
+            
 
 def logger(app, level=logging.DEBUG, handler=None):
 
@@ -40,6 +42,8 @@ def logger(app, level=logging.DEBUG, handler=None):
     async def shutdown():
         logger.removeHandler(handler)
 
+    return app
+        
 
 def options(app):
 
@@ -47,6 +51,8 @@ def options(app):
     async def handle_options(request):
         # Shortcut the request handling for OPTIONS requests.
         return request.method == 'OPTIONS'
+
+    return app
 
 
 def content_negociation(app):
@@ -64,6 +70,8 @@ def content_negociation(app):
         if accept is None or get_best_match(accept, accepts) is None:
             raise HttpError(HTTPStatus.NOT_ACCEPTABLE)
 
+    return app
+        
 
 def traceback(app):
 
@@ -72,6 +80,8 @@ def traceback(app):
         if error.status == HTTPStatus.INTERNAL_SERVER_ERROR:
             print_exc()
 
+    return app
+            
 
 def igniter(app):
 
@@ -88,6 +98,8 @@ def igniter(app):
 
         ''')
 
+    return app
+        
 
 def simple_server(app, port=3579, host='127.0.0.1', quiet=False):
     app.loop = asyncio.get_event_loop()
@@ -131,3 +143,5 @@ def static(app, prefix='/static/', root=Path()):
     @app.listen('startup')
     async def register_route():
         app.route(prefix)(serve)
+
+    return app

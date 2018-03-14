@@ -193,19 +193,39 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'url', 'path', 'query_string', '_query', 'protocol',
+        'app', '_url', 'path', 'query_string', '_query', 'upgrade_protocol',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
     )
 
-    def __init__(self, protocol):
-        self.protocol = protocol
-        self.headers = {}
-        self.body = b''
+    def __init__(self, app, method='GET', url=b'/', body=b'', headers=None):
+        self.app = app
+        self.method = method
+        if headers is None:
+            self.headers = {}
+        self.body = body
         self._cookies = None
         self._query = None
         self._form = None
         self._files = None
+        self.url = url
+        self.upgrade_protocol = None
 
+    def upgrade(self, *args, **kwargs):
+        if self.upgrade_protocol is None:
+            raise NotImplementedError('This request is not upgradeable.')
+        return self.upgrade_protocol(*args, **kwargs)
+
+    @property
+    def url(self):
+        return self._url
+
+    @url.setter
+    def url(self, url):
+        self._url = url
+        parsed = parse_url(url)
+        self.path = unquote(parsed.path.decode())
+        self.query_string = (parsed.query or b'').decode()
+        
     @property
     def cookies(self):
         if self._cookies is None:
@@ -216,11 +236,11 @@ class Request(dict):
     def query(self):
         if self._query is None:
             parsed_qs = parse_qs(self.query_string, keep_blank_values=True)
-            self._query = self.protocol.app.Query(parsed_qs)
+            self._query = self.app.Query(parsed_qs)
         return self._query
 
     def _parse_multipart(self):
-        parser = Multipart(self.protocol.app)
+        parser = Multipart(self.app)
         self._form, self._files = parser.initialize(self.content_type)
         try:
             parser.feed_data(self.body)
@@ -235,7 +255,7 @@ class Request(dict):
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             'Unparsable urlencoded body')
-        self._form = self.protocol.app.Form(parsed_qs)
+        self._form = self.app.Form(parsed_qs)
 
     @property
     def form(self):
@@ -245,7 +265,7 @@ class Request(dict):
             elif 'application/x-www-form-urlencoded' in self.content_type:
                 self._parse_urlencoded()
             else:
-                self._form = self.protocol.app.Form()
+                self._form = self.app.Form()
         return self._form
 
     @property
@@ -254,7 +274,7 @@ class Request(dict):
             if 'multipart/form-data' in self.content_type:
                 self._parse_multipart()
             else:
-                self._files = self.protocol.app.Files()
+                self._files = self.app.Files()
         return self._files
 
     @property
@@ -410,10 +430,10 @@ class Protocol(asyncio.Protocol):
         self.parser = self.RequestParser(self)
         self.status = HTTP_FLOW
         self.keep_alive = False
+        self.request = None
 
     def connection_made(self, transport):
         self.writer = transport
-        self.request = self.app.Request(self)
 
     def upgrade_protocol(self, upgrade):
         if self.status != HTTP_NEEDS_UPGRADE:
@@ -422,7 +442,7 @@ class Protocol(asyncio.Protocol):
             ...
         assert isinstance(upgrade, ProtocolUpgrade)
         response = upgrade.do_upgrade(self)
-        self.writer.write(upres)  # writing the upgrade response
+        self.writer.write(response)  # writing the upgrade response
         self.status = HTTP_UPGRADED
         self.upgrade = upgrade  # We are ready to deputize.
 
@@ -432,10 +452,13 @@ class Protocol(asyncio.Protocol):
 
     @upgrade_delegator
     def data_received(self, data: bytes):
+        if self.request is None:
+            self.request = self.app.Request(self)
         try:
             self.parser.feed_data(data)
         except HttpParserUpgrade:
             self.status = HTTP_NEEDS_UPGRADE
+            self.request.upgrade_protocol = self.upgrade_protocol
             self.upgrade_type = self.request.headers['UPGRADE']
         except HttpParserError:
             self.report_http_error(HttpError(
@@ -454,6 +477,8 @@ class Protocol(asyncio.Protocol):
         self.write(response)
         if not self.keep_alive:
             self.writer.close()
+        else:
+            self.request = None
 
     def report_http_error(self, error):
         # Direct output through the original transport.
@@ -461,6 +486,7 @@ class Protocol(asyncio.Protocol):
         response = self.app.Response.from_http_error(error)
         self.writer.write(bytes(response))
         self.writer.close()
+        self.request = None
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -473,19 +499,12 @@ class Protocol(asyncio.Protocol):
             else:
                 self.request.headers[name] = value
 
-    def on_headers_complete(self):
-        pass
-                
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
 
     def on_url(self, url: bytes):
         self.request.url = url
-        parsed = parse_url(url)
-        self.request.method = self.parser.get_method().decode().upper()
-        self.request.path = unquote(parsed.path.decode())
-        self.request.query_string = (parsed.query or b'').decode()
 
     def on_message_complete(self):
         self.keep_alive = self.parser.should_keep_alive()
