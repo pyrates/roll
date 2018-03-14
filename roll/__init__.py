@@ -432,9 +432,6 @@ class Protocol(asyncio.Protocol):
         self.keep_alive = False
         self.request = None
 
-    def connection_made(self, transport):
-        self.writer = transport
-
     def upgrade_protocol(self, upgrade):
         if self.status != HTTP_NEEDS_UPGRADE:
             # We are trying to upgrade request that did not ask for it
@@ -445,6 +442,11 @@ class Protocol(asyncio.Protocol):
         self.writer.write(response)  # writing the upgrade response
         self.status = HTTP_UPGRADED
         self.upgrade = upgrade  # We are ready to deputize.
+
+    def connection_made(self, transport):
+        # This is done only once for possibly several requests, depending
+        # on the keep alive marker.
+        self.writer = transport
 
     @upgrade_delegator
     def connection_lost(self, exc):
@@ -457,6 +459,9 @@ class Protocol(asyncio.Protocol):
         try:
             self.parser.feed_data(data)
         except HttpParserUpgrade:
+            # This request needs an upgrade.
+            # We mark ourselves as needing an upgrade and provide
+            # the request with the means to do so.
             self.status = HTTP_NEEDS_UPGRADE
             self.request.upgrade_protocol = self.upgrade_protocol
             self.upgrade_type = self.request.headers['UPGRADE']
@@ -474,11 +479,11 @@ class Protocol(asyncio.Protocol):
 
     def reply(self, response):
         # `reply` is used as the main task callback.
+        response = response.result()
         self.write(response)
         if not self.keep_alive:
             self.writer.close()
-        else:
-            self.request = None
+        self.request = None
 
     def report_http_error(self, error):
         # Direct output through the original transport.
@@ -508,8 +513,8 @@ class Protocol(asyncio.Protocol):
 
     def on_message_complete(self):
         self.keep_alive = self.parser.should_keep_alive()
-        self.task = self.app.loop.create_task(
-            self.app(self.request, self.reply))
+        self.task = self.app.loop.create_task(self.app(self.request))
+        self.task.add_done_callback(self.reply)
 
 
 Route = namedtuple('Route', ['payload', 'vars'])
@@ -540,7 +545,7 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, request: Request, reply):
+    async def __call__(self, request: Request):
         response = self.Response(request)
         try:
             request.route = Route(*self.routes.match(request.path))
@@ -559,7 +564,7 @@ class Roll(dict):
             await self.hook('response', request, response)
         except Exception as error:
             await self.on_error(request, response, error)
-        reply(bytes(response))
+        return memoryview(bytes(response))
 
     async def on_error(self, request: Request, response: Response, error):
         if not isinstance(error, HttpError):
