@@ -394,6 +394,7 @@ class ProtocolUpgrade(ABC):
 
 
 def upgrade_delegator(method):
+    bubble_up = getattr(method, 'bubble_up', False)
     @wraps(method)
     def delegate_to(protocol, *args, **kwargs):
         if protocol.status == HTTP_FLOW:
@@ -407,7 +408,7 @@ def upgrade_delegator(method):
         else:
             surrogate = getattr(protocol.upgrade, method.__name__)
             surrogate(protocol, *args, **kwargs)
-            if getattr(method, 'bubble_up', False):
+            if bubble_up:
                 method(protocol, *args, **kwargs)
     return delegate_to
 
