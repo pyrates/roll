@@ -3,6 +3,7 @@ import types
 
 from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
+from websockets.protocol import State
 
 from roll import ProtocolUpgrade
 
@@ -54,7 +55,7 @@ class WebsocketProtocol(ProtocolUpgrade):
         # Received data. We refuse the data if the websocket is
         # already closed. If the websocket is closing, this data
         # might be part of the closing handshake (closing frame)
-        if self.websocket.state != 3:  # not closed
+        if self.websocket.state != State.CLOSED:
             self.websocket.data_received(data)
         else:
             # The websocket is closed and we still get data for it

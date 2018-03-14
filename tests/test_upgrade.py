@@ -2,8 +2,7 @@ from http import HTTPStatus
 
 import pytest
 
-from roll import HttpError, Protocol, Request
-from roll import HTTP_FLOW, HTTP_NEEDS_UPGRADE, HTTP_UPGRADED
+from roll import HttpError, Protocol, ProtocolStatus, Request
 from roll.testing import Transport
 
 
@@ -41,7 +40,7 @@ async def test_upgrade(protocol):
 
     protocol.data_received(UPGRADE_REQUEST)
 
-    assert protocol.status == HTTP_NEEDS_UPGRADE
+    assert protocol.status == ProtocolStatus.UPGRADE_EXPECTED
     assert protocol.upgrade == None
     assert protocol.upgrade_type == 'h2c'
     protocol.write(
@@ -56,4 +55,4 @@ async def test_upgrade(protocol):
 async def test_malformed_upgrade(protocol):
 
     protocol.data_received(UNCOMPLETE_UPGRADE_REQUEST)
-    assert protocol.status == HTTP_FLOW
+    assert protocol.status == ProtocolStatus.NO_UPGRADE

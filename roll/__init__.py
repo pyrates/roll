@@ -10,6 +10,7 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
 import operator
+import enum
 
 from abc import ABC, abstractmethod
 from collections import namedtuple, defaultdict
@@ -376,9 +377,23 @@ class Response:
 
 
 # PROTOCOL STATUS FLAGS
-HTTP_FLOW = 1
-HTTP_NEEDS_UPGRADE = 2
-HTTP_UPGRADED = 4
+class ProtocolStatus(enum.IntEnum):
+    """The ProtocolStatus flags act like workflow states.
+
+    On normal HTTP Request, the protocol is marked as NO_UPDATE.
+
+    When an HTTP request demands an upgrade, we mark the
+    protocol as UPGRADE_EXPECTED.
+
+    No protocol methods marked as upgrade-delegated can be called
+    until the upgrade is made. If a call is made despite this flag,
+    a code 501 response (Not Implemented) is issued to the client.
+
+    Once the protocol has received its upgrade, it's marked as 
+    UPGRADED and can now delegate the marked methods to the 
+    newly set "ProtocolUpgrade" object.
+    """
+    NO_UPGRADE, UPGRADE_EXPECTED, UPGRADED = range(1, 4)
 
 
 class ProtocolUpgrade(ABC):
@@ -408,9 +423,9 @@ def upgrade_delegator(method):
     bubble_up = getattr(method, 'bubble_up', False)
     @wraps(method)
     def delegate_to(protocol, *args, **kwargs):
-        if protocol.status == HTTP_FLOW:
+        if protocol.status == ProtocolStatus.NO_UPGRADE:
             return method(protocol, *args, **kwargs)
-        elif protocol.status == HTTP_NEEDS_UPGRADE:
+        elif protocol.status == ProtocolStatus.UPGRADE_EXPECTED:
             error = HttpError(
                 HTTPStatus.NOT_IMPLEMENTED,
                 message='Expected upgrade to {} protocol failed.'.format(
@@ -436,7 +451,7 @@ class Protocol(asyncio.Protocol):
         self.parser = self.RequestParser(self)
         self.keep_alive = False
         self.upgrade = None
-        self.status = HTTP_FLOW
+        self.status = ProtocolStatus.NO_UPGRADE
         self.prime_for_request()
 
     def prime_for_request(self):
@@ -447,14 +462,14 @@ class Protocol(asyncio.Protocol):
         self.error = None
 
     def upgrade_protocol(self, upgrade):
-        if self.status != HTTP_NEEDS_UPGRADE:
+        if self.status != ProtocolStatus.UPGRADE_EXPECTED:
             # We are trying to upgrade request that did not ask for it
             # Do we really want to allow that ? If not raise. If so, log ?
             ...
         assert isinstance(upgrade, ProtocolUpgrade)
         response = upgrade(self)
         self.writer.write(response)  # writing the upgrade response
-        self.status = HTTP_UPGRADED
+        self.status = ProtocolStatus.UPGRADED
         self.upgrade = upgrade  # We are ready to deputize.
 
     def connection_made(self, transport):
@@ -474,7 +489,7 @@ class Protocol(asyncio.Protocol):
             # This request needs an upgrade.
             # We mark ourselves as needing an upgrade and provide
             # the request with the means to do so.
-            self.status = HTTP_NEEDS_UPGRADE
+            self.status = ProtocolStatus.UPGRADE_EXPECTED
             self.request.upgrade_protocol = self.upgrade_protocol
             self.upgrade_type = self.request.headers['UPGRADE']
         except HttpParserError:
@@ -564,7 +579,7 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def lookup(self, request, response):
+    async def lookup(self, request: Request, response: Response):
         route = Route(*self.routes.match(request.path))
         request.route = route
         if not await self.hook('request', request, response):
@@ -575,7 +590,7 @@ class Roll(dict):
                 raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
             return route, route.vars
 
-    async def __call__(self, request: Request):
+    async def __call__(self, request: Request) -> Response:
         response = self.Response(self, request)
         try:
             found = await self.lookup(request, response)
