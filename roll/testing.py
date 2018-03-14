@@ -155,7 +155,6 @@ class Client:
             bytes(response), close=not self.protocol.keep_alive)
         return response
 
-    
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)
 

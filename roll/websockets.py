@@ -32,7 +32,10 @@ def create_websocket(
 
 class WebsocketProtocol(ProtocolUpgrade):
 
-    __slots__ = ('websocket')
+    __slots__ = (
+        'websocket', 'subprotocol',
+        'timeout', 'max_size', 'max_queue', 'read_limit', 'write_limit',
+    )
 
     timeout = 5
     max_size = 2 ** 20  # 1 megabytes
@@ -107,7 +110,7 @@ class WebsocketProtocol(ProtocolUpgrade):
         rv += b'\r\n'
         return rv
 
-        
+
 def websocket(app, path, subprotocols: list=None, **extras: dict):
 
     def websocket_wrapper(handler):

@@ -226,7 +226,7 @@ class Request(dict):
         parsed = parse_url(url)
         self.path = unquote(parsed.path.decode())
         self.query_string = (parsed.query or b'').decode()
-        
+
     @property
     def cookies(self):
         if self._cookies is None:
@@ -296,9 +296,10 @@ class Request(dict):
 
 class Response:
     """A container for `status`, `headers` and `body`."""
+
     __slots__ = (
         'app', 'request', 'headers', 'body', 'bodyless',
-        '_cookies','_status',
+        '_cookies', '_status',
     )
 
     BODYLESS_METHODS = frozenset(('HEAD', 'CONNECT'))
@@ -306,7 +307,7 @@ class Response:
         HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
         HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
         HTTPStatus.NOT_MODIFIED))
-    
+
     def __init__(self, app, request=None, status=HTTPStatus.OK, body=b''):
         self.app = app
         self.request = request
@@ -389,8 +390,8 @@ class ProtocolStatus(enum.IntEnum):
     until the upgrade is made. If a call is made despite this flag,
     a code 501 response (Not Implemented) is issued to the client.
 
-    Once the protocol has received its upgrade, it's marked as 
-    UPGRADED and can now delegate the marked methods to the 
+    Once the protocol has received its upgrade, it's marked as
+    UPGRADED and can now delegate the marked methods to the
     newly set "ProtocolUpgrade" object.
     """
     NO_UPGRADE, UPGRADE_EXPECTED, UPGRADED = range(1, 4)
@@ -421,6 +422,7 @@ class ProtocolUpgrade(ABC):
 
 def upgrade_delegator(method):
     bubble_up = getattr(method, 'bubble_up', False)
+
     @wraps(method)
     def delegate_to(protocol, *args, **kwargs):
         if protocol.status == ProtocolStatus.NO_UPGRADE:
@@ -436,13 +438,14 @@ def upgrade_delegator(method):
             surrogate(protocol, *args, **kwargs)
             if bubble_up:
                 method(protocol, *args, **kwargs)
+
     return delegate_to
 
 
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'task', 'status', 'error', 
+    __slots__ = ('app', 'request', 'task', 'status', 'error',
                  'parser', 'writer', 'upgrade', 'upgrade_type')
     RequestParser = HttpRequestParser
 
@@ -549,7 +552,7 @@ class Protocol(asyncio.Protocol):
     def on_message_complete(self):
         self.task = self.app.loop.create_task(self.app(self.request))
         self.task.add_done_callback(self.reply)
-            
+
 
 Route = namedtuple('Route', ['payload', 'vars'])
 

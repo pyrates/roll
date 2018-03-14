@@ -22,7 +22,7 @@ def cors(app, origin='*', methods=None, headers=None):
             response.headers['Access-Control-Allow-Headers'] = allow_headers
 
     return app
-            
+
 
 def logger(app, level=logging.DEBUG, handler=None):
 
@@ -43,7 +43,7 @@ def logger(app, level=logging.DEBUG, handler=None):
         logger.removeHandler(handler)
 
     return app
-        
+
 
 def options(app):
 
@@ -71,7 +71,7 @@ def content_negociation(app):
             raise HttpError(HTTPStatus.NOT_ACCEPTABLE)
 
     return app
-        
+
 
 def traceback(app):
 
@@ -81,7 +81,7 @@ def traceback(app):
             print_exc()
 
     return app
-            
+
 
 def igniter(app):
 
@@ -99,7 +99,7 @@ def igniter(app):
         ''')
 
     return app
-        
+
 
 def simple_server(app, port=3579, host='127.0.0.1', quiet=False):
     app.loop = asyncio.get_event_loop()
