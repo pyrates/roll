@@ -46,7 +46,27 @@ class WebsocketProtocol(ProtocolUpgrade):
                         self.subprotocol = p
                         break
 
-    def do_upgrade(self, protocol):
+    def connection_lost(self, protocol, exc):
+        self.websocket.connection_lost(exc)
+    connection_lost.bubble_up = True
+
+    def data_received(self, protocol, data):
+        # Received data. We refuse the data if the websocket is
+        # already closed. If the websocket is closing, this data
+        # might be part of the closing handshake (closing frame)
+        if self.websocket.state != 3:  # not closed
+            self.websocket.data_received(data)
+        else:
+            # The websocket is closed and we still get data for it
+            # This is an unexpected problem. Let's do nothing
+            # about it
+            pass
+
+    def write(self, protocol, *args):
+        # We don't need a response.
+        protocol.writer.close()
+
+    def __call__(self, protocol):
         self.websocket = create_websocket(protocol.writer, self.subprotocol)
         headers = []
 
@@ -72,27 +92,7 @@ class WebsocketProtocol(ProtocolUpgrade):
         rv += b'\r\n'
         return rv
 
-    def connection_lost(self, protocol, exc):
-        self.websocket.connection_lost(exc)
-        protocol.connection_lost(exc)
-
-    def data_received(self, protocol, data):
-        # Received data. We refuse the data if the websocket is
-        # already closed. If the websocket is closing, this data
-        # might be part of the closing handshake (closing frame)
-        if self.websocket.state != 3:  # not closed
-            self.websocket.data_received(data)
-        else:
-            # The websocket is closed and we still get data for it
-            # This is an unexpected problem. Let's do nothing
-            # about it
-            pass
-
-    def write(self, protocol, *args):
-        # We don't need a response.
-        protocol.writer.close()
-
-
+        
 def websocket(app, path, subprotocols: list=None, **extras: dict):
 
     def websocket_wrapper(handler):

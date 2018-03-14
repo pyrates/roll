@@ -342,31 +342,27 @@ class Response:
             self._cookies = self.app.Cookies()
         return self._cookies
 
-    def __iter__(self):
-        return self.http_generator()
-    
-    def http_generator(self):
-        yield b'HTTP/1.1 %a %b\r\n' % (
+    def __bytes__(self):
+        response = b'HTTP/1.1 %a %b\r\n' % (
             self.status.value, self.status.phrase.encode())
-        if not isinstance(self.body, bytes):
-            body = str(self.body).encode()
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
         if 'Content-Length' not in self.headers and not self.bodyless:
-            length = len(body)
+            length = len(self.body)
             self.headers['Content-Length'] = length
         if self._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
             for cookie in self.cookies.values():
-                yield b'Set-Cookie: %b\r\n' % str(cookie).encode()
+                response += b'Set-Cookie: %b\r\n' % str(cookie).encode()
         for key, value in self.headers.items():
-            yield b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        yield b'\r\n'
-        if body and not self.bodyless:
-            yield body
+            response += b'%b: %b\r\n' % (key.encode(), str(value).encode())
+        response += b'\r\n'
+        if self.body and not self.bodyless:
+            if not isinstance(self.body, bytes):
+                response += str(self.body).encode()
+            else:
+                response += self.body
+        return response
 
-    def __bytes__(self):
-        return reduce(operator.add, self.http_generator())
-    
 
 # PROTOCOL STATUS FLAGS
 HTTP_FLOW = 1
@@ -377,27 +373,23 @@ HTTP_UPGRADED = 4
 class ProtocolUpgrade(ABC):
 
     @abstractmethod
-    def do_upgrade(self, protocol) -> bytes:
-        """Return a upgrade response for the client.
-        """
-
-    @abstractmethod
-    def connection_lost(self, protocol, exc) -> bool:
+    def connection_lost(self, protocol, exc) -> None:
         """Connection with the client was lost.
-        Returns None or False if it wants to pass through the delegator.
         """
 
     @abstractmethod
-    def data_received(self, protocol, data: bytes) -> bool:
-        """Data was received from the client.
-        Dispatch to the upgrade.
-        Returns None or False if it wants to pass through the delegator.
+    def data_received(self, protocol, data: bytes) -> None:
+        """Data was received from the client: dispatch to the upgrade.
         """
 
     @abstractmethod
-    def write(self, protocol, *args) -> bool:
+    def write(self, protocol, *args) -> None:
         """Write to the client, on the upgrade channel.
-        Returns None or False if it wants to pass through the delegator.
+        """
+
+    @abstractmethod
+    def __call__(self, protocol) -> bytes:
+        """Returns an upgrade response for the client.
         """
 
 
@@ -413,11 +405,13 @@ def upgrade_delegator(method):
                     protocol.upgrade_type))
             protocol.report_http_error(error)
         else:
-            surrogate = getattr(protocol.upgrade, method.__name)
-            return surrogate(protocol, *args, **kwargs)
+            surrogate = getattr(protocol.upgrade, method.__name__)
+            surrogate(protocol, *args, **kwargs)
+            if getattr(method, 'bubble_up', False):
+                method(protocol, *args, **kwargs)
     return delegate_to
 
-        
+
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
@@ -428,8 +422,14 @@ class Protocol(asyncio.Protocol):
     def __init__(self, app):
         self.app = app
         self.parser = self.RequestParser(self)
-        self.status = HTTP_FLOW
         self.keep_alive = False
+        self.upgrade = None
+        self.status = HTTP_FLOW
+        self.prime_for_request()
+
+    def prime_for_request(self):
+        # This method is called when we are expecting requests.
+        # In case of a new protocol or a protocol kept alive.
         self.request = None
 
     def upgrade_protocol(self, upgrade):
@@ -438,7 +438,7 @@ class Protocol(asyncio.Protocol):
             # Do we really want to allow that ? If not raise. If so, log ?
             ...
         assert isinstance(upgrade, ProtocolUpgrade)
-        response = upgrade.do_upgrade(self)
+        response = upgrade(self)
         self.writer.write(response)  # writing the upgrade response
         self.status = HTTP_UPGRADED
         self.upgrade = upgrade  # We are ready to deputize.
@@ -455,7 +455,7 @@ class Protocol(asyncio.Protocol):
     @upgrade_delegator
     def data_received(self, data: bytes):
         if self.request is None:
-            self.request = self.app.Request(self)
+            self.request = self.app.Request(self.app)
         try:
             self.parser.feed_data(data)
         except HttpParserUpgrade:
@@ -477,13 +477,14 @@ class Protocol(asyncio.Protocol):
         if close:
             self.writer.close()
 
-    def reply(self, response):
+    def reply(self, task):
         # `reply` is used as the main task callback.
-        response = response.result()
+        response = task.result()
         self.write(response)
         if not self.keep_alive:
             self.writer.close()
-        self.request = None
+        else:
+            self.prime_for_request()
 
     def report_http_error(self, error):
         # Direct output through the original transport.
@@ -491,7 +492,6 @@ class Protocol(asyncio.Protocol):
         response = self.app.Response.from_http_error(error)
         self.writer.write(bytes(response))
         self.writer.close()
-        self.request = None
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -504,6 +504,9 @@ class Protocol(asyncio.Protocol):
             else:
                 self.request.headers[name] = value
 
+    def on_headers_complete(self):
+        self.keep_alive = self.parser.should_keep_alive()
+                
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
@@ -512,7 +515,6 @@ class Protocol(asyncio.Protocol):
         self.request.url = url
 
     def on_message_complete(self):
-        self.keep_alive = self.parser.should_keep_alive()
         self.task = self.app.loop.create_task(self.app(self.request))
         self.task.add_done_callback(self.reply)
 
