@@ -37,14 +37,22 @@ class WebsocketProtocol(ProtocolUpgrade):
         'timeout', 'max_size', 'max_queue', 'read_limit', 'write_limit',
     )
 
-    timeout = 5
-    max_size = 2 ** 20  # 1 megabytes
-    max_queue = 16
-    read_limit = 2 ** 16
-    write_limit = 2 ** 16
+    def __init__(self,
+                 request,
+                 subprotocols,
+                 timeout = 5,
+                 max_size = 2 ** 20,  # 1 megabytes
+                 max_queue = 16,
+                 read_limit = 2 ** 16,
+                 write_limit = 2 ** 16):
 
-    def __init__(self, request, subprotocols):
-        self.subprotocol = None
+        self.timeout = timeout
+        self.max_size = max_size
+        self.max_queue = max_queue
+        self.read_limit = read_limit
+        self.write_limit = write_limit
+
+        self.subprotocol = None  # By default, before the following parsing.
         if subprotocols:
             ws_protocol = request.headers.get('SEC-WEBSOCKET-PROTOCOL')
             if ws_protocol:

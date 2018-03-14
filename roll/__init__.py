@@ -9,12 +9,11 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 import asyncio
-import operator
 import enum
 
 from abc import ABC, abstractmethod
 from collections import namedtuple, defaultdict
-from functools import wraps, reduce
+from functools import wraps
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
