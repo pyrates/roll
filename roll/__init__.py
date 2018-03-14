@@ -564,16 +564,23 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
+    async def lookup(self, request, response):
+        route = Route(*self.routes.match(request.path))
+        request.route = route
+        if not await self.hook('request', request, response):
+            if not request.route.payload:
+                raise HttpError(HTTPStatus.NOT_FOUND, request.path)
+            # Uppercased in order to only consider HTTP verbs.
+            if request.method.upper() not in request.route.payload:
+                raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+            return route, route.vars
+
     async def __call__(self, request: Request):
         response = self.Response(self, request)
         try:
-            request.route = Route(*self.routes.match(request.path))
-            if not await self.hook('request', request, response):
-                if not request.route.payload:
-                    raise HttpError(HTTPStatus.NOT_FOUND, request.path)
-                # Uppercased in order to only consider HTTP verbs.
-                if request.method.upper() not in request.route.payload:
-                    raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+            found = await self.lookup(request, response)
+            if found is not None:
+                handler, params = found
                 handler = request.route.payload[request.method]
                 await handler(request, response, **request.route.vars)
         except Exception as error:
