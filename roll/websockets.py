@@ -10,19 +10,19 @@ from roll import ProtocolUpgrade
 
 def create_websocket(
         transport, subprotocol,
-        websocket_timeout=5,
-        websocket_max_size=2 ** 20,  # 1 megabytes
-        websocket_max_queue=16,
-        websocket_read_limit=2 ** 16,
-        websocket_write_limit=2 ** 16):
+        timeout=5,
+        max_size=2 ** 20,  # 1 megabytes
+        max_queue=16,
+        read_limit=2 ** 16,
+        write_limit=2 ** 16):
     """Instanciate a new websocket with the given subprotocol.
     """
     websocket = WebSocketCommonProtocol(
-        timeout=websocket_timeout,
-        max_size=websocket_max_size,
-        max_queue=websocket_max_queue,
-        read_limit=websocket_read_limit,
-        write_limit=websocket_write_limit
+        timeout=timeout,
+        max_size=max_size,
+        max_queue=max_queue,
+        read_limit=read_limit,
+        write_limit=write_limit
     )
     websocket.subprotocol = subprotocol
     websocket.connection_made(transport)
@@ -34,7 +34,13 @@ class WebsocketProtocol(ProtocolUpgrade):
 
     __slots__ = ('websocket')
 
-    def __init__(self, request, subprotocols, **params):
+    timeout = 5
+    max_size = 2 ** 20  # 1 megabytes
+    max_queue = 16
+    read_limit = 2 ** 16
+    write_limit = 2 ** 16
+
+    def __init__(self, request, subprotocols):
         self.subprotocol = None
         if subprotocols:
             ws_protocol = request.headers.get('SEC-WEBSOCKET-PROTOCOL')
@@ -68,7 +74,15 @@ class WebsocketProtocol(ProtocolUpgrade):
         protocol.writer.close()
 
     def __call__(self, protocol):
-        self.websocket = create_websocket(protocol.writer, self.subprotocol)
+        self.websocket = create_websocket(
+            protocol.writer,
+            self.subprotocol,
+            timeout=self.timeout,
+            max_size=self.max_size,
+            max_queue=self.max_queue,
+            read_limit=self.read_limit,
+            write_limit=self.write_limit,
+        )
         headers = []
 
         def get_header(k):
@@ -100,13 +114,12 @@ def websocket(app, path, subprotocols: list=None, **extras: dict):
 
         async def websocket_handler(request, _, **params):
             # Handshake and protocol upgrade
-            websocket_upgrade = WebsocketProtocol(
-                request, subprotocols, **params)
+            websocket_upgrade = WebsocketProtocol(request, subprotocols)
             request.upgrade_protocol(websocket_upgrade)
             ws = websocket_upgrade.websocket
 
-            fut = asyncio.ensure_future(
-                handler(request, ws, **params), loop=app.loop)
+            # Run the websocket handler to completion
+            fut = app.loop.create_task(handler(request, ws, **params))
             app['websockets'].add((fut, ws))
             try:
                 await fut
