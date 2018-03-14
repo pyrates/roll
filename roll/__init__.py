@@ -35,11 +35,6 @@ except ImportError:
     from json.decoder import JSONDecodeError
 
 
-BODYLESS_METHODS = ('HEAD', 'CONNECT')
-BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
-                     HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
-                     HTTPStatus.NOT_MODIFIED)
-
 HttpCode = TypeVar('HttpCode', HTTPStatus, int)
 
 
@@ -198,12 +193,11 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'protocol', 'url', 'path', 'query_string', '_query',
+        'url', 'path', 'query_string', '_query', 'protocol',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
     )
 
-    def __init__(self, app, protocol):
-        self.app = app
+    def __init__(self, protocol):
         self.protocol = protocol
         self.headers = {}
         self.body = b''
@@ -222,11 +216,11 @@ class Request(dict):
     def query(self):
         if self._query is None:
             parsed_qs = parse_qs(self.query_string, keep_blank_values=True)
-            self._query = self.app.Query(parsed_qs)
+            self._query = self.protocol.app.Query(parsed_qs)
         return self._query
 
     def _parse_multipart(self):
-        parser = Multipart(self.app)
+        parser = Multipart(self.protocol.app)
         self._form, self._files = parser.initialize(self.content_type)
         try:
             parser.feed_data(self.body)
@@ -241,7 +235,7 @@ class Request(dict):
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             'Unparsable urlencoded body')
-        self._form = self.app.Form(parsed_qs)
+        self._form = self.protocol.app.Form(parsed_qs)
 
     @property
     def form(self):
@@ -251,7 +245,7 @@ class Request(dict):
             elif 'application/x-www-form-urlencoded' in self.content_type:
                 self._parse_urlencoded()
             else:
-                self._form = self.app.Form()
+                self._form = self.protocol.app.Form()
         return self._form
 
     @property
@@ -260,7 +254,7 @@ class Request(dict):
             if 'multipart/form-data' in self.content_type:
                 self._parse_multipart()
             else:
-                self._files = self.app.Files()
+                self._files = self.protocol.app.Files()
         return self._files
 
     @property
@@ -281,15 +275,22 @@ class Request(dict):
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = ('_status', 'headers', 'body', '_cookies')
+    __slots__ = (
+        'request', '_status', 'headers', 'body', '_cookies', 'bodyless')
 
+    BODYLESS_METHODS = frozenset(('HEAD', 'CONNECT'))
+    BODYLESS_STATUSES = frozenset((
+        HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
+        HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
+        HTTPStatus.NOT_MODIFIED))
+    
     def __init__(self, request=None, status=HTTPStatus.OK, body=b''):
+        self.request = request
         self._cookies = None
         self._status = None
         self.body = body
         self.headers = {}
         self.status = status
-        self.request = request
 
     @classmethod
     def from_http_error(cls, error):
@@ -303,6 +304,10 @@ class Response:
     def status(self, http_code: HttpCode):
         # Idempotent if `http_code` is already an `HTTPStatus` instance.
         self._status = HTTPStatus(http_code)
+        self.bodyless = (
+            self._status in self.BODYLESS_STATUSES or
+            (self.request is not None and
+             self.request.method in self.BODYLESS_METHODS))
 
     def json(self, value: dict):
         # Shortcut from a dict to JSON with proper content type.
@@ -326,10 +331,7 @@ class Response:
         if not isinstance(self.body, bytes):
             body = str(self.body).encode()
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        bodyless = (self.status in BODYLESS_STATUSES or
-                    (self.request is not None and
-                     self.request.method in BODYLESS_METHODS))
-        if 'Content-Length' not in self.headers and not bodyless:
+        if 'Content-Length' not in self.headers and not self.bodyless:
             length = len(body)
             self.headers['Content-Length'] = length
         if self._cookies:
@@ -339,7 +341,7 @@ class Response:
         for key, value in self.headers.items():
             yield b'%b: %b\r\n' % (key.encode(), str(value).encode())
         yield b'\r\n'
-        if body and not bodyless:
+        if body and not self.bodyless:
             yield body
 
     def __bytes__(self):
@@ -388,7 +390,7 @@ def upgrade_delegator(method):
             error = HttpError(
                 HTTPStatus.NOT_IMPLEMENTED,
                 message='Expected upgrade to {} protocol failed.'.format(
-                    protocol.upgrade_type.type))
+                    protocol.upgrade_type))
             protocol.report_http_error(error)
         else:
             surrogate = getattr(protocol.upgrade, method.__name)
@@ -399,19 +401,19 @@ def upgrade_delegator(method):
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'task', 'status',
+    __slots__ = ('app', 'request', 'task', 'status', 
                  'parser', 'writer', 'upgrade', 'upgrade_type')
     RequestParser = HttpRequestParser
 
     def __init__(self, app):
         self.app = app
         self.parser = self.RequestParser(self)
-        self.task = None
         self.status = HTTP_FLOW
         self.keep_alive = False
 
     def connection_made(self, transport):
         self.writer = transport
+        self.request = self.app.Request(self)
 
     def upgrade_protocol(self, upgrade):
         if self.status != HTTP_NEEDS_UPGRADE:
@@ -447,10 +449,9 @@ class Protocol(asyncio.Protocol):
         if close:
             self.writer.close()
 
-    def reply(self, task):
+    def reply(self, response):
         # `reply` is used as the main task callback.
-        response = task.result()
-        self.writer.writelines(response)
+        self.write(response)
         if not self.keep_alive:
             self.writer.close()
 
@@ -472,6 +473,9 @@ class Protocol(asyncio.Protocol):
             else:
                 self.request.headers[name] = value
 
+    def on_headers_complete(self):
+        pass
+                
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
@@ -483,13 +487,10 @@ class Protocol(asyncio.Protocol):
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
 
-    def on_message_begin(self):
-        self.request = self.app.Request(self.app, self)
-
     def on_message_complete(self):
         self.keep_alive = self.parser.should_keep_alive()
-        self.task = asyncio.ensure_future(self.app(self.request))
-        self.task.add_done_callback(self.reply)
+        self.task = self.app.loop.create_task(
+            self.app(self.request, self.reply))
 
 
 Route = namedtuple('Route', ['payload', 'vars'])
@@ -520,7 +521,7 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
-    async def __call__(self, request: Request):
+    async def __call__(self, request: Request, reply):
         response = self.Response(request)
         try:
             request.route = Route(*self.routes.match(request.path))
@@ -539,8 +540,7 @@ class Roll(dict):
             await self.hook('response', request, response)
         except Exception as error:
             await self.on_error(request, response, error)
-
-        return response.http_generator()
+        reply(bytes(response))
 
     async def on_error(self, request: Request, response: Response, error):
         if not isinstance(error, HttpError):
