@@ -39,7 +39,7 @@ async def test_response_hook_can_alter_response(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == b'another response'
+    assert resp.body == 'another response'
 
 
 async def test_error_with_json_format(client, app):
@@ -55,7 +55,7 @@ async def test_error_with_json_format(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    error = json.loads(resp.body.decode())
+    error = json.loads(resp.body)
     assert error == {"status": 500, "message": "JSON error"}
 
 

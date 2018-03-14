@@ -9,7 +9,8 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def protocol(app):
+def protocol(app, event_loop):
+    app.loop = event_loop
     protocol = Protocol(app)
     protocol.connection_made(Transport())
     return protocol
@@ -143,7 +144,9 @@ async def test_request_host_shortcut(protocol):
 async def test_invalid_request(protocol):
     protocol.data_received(
         b'INVALID HTTP/1.22\r\n')
-    assert protocol.response.status == HTTPStatus.BAD_REQUEST
+    assert protocol.writer.data == (
+        b'HTTP/1.1 400 Bad Request\r\n'
+        b'Content-Length: 18\r\n\r\nUnparsable request')
 
 
 async def test_query_get_should_return_value(protocol):
@@ -548,4 +551,4 @@ async def test_post_unparsable_json(client, app):
 
     resp = await client.post('/test', data='{"foo')
     assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == b'Unparsable JSON body'
+    assert resp.body == 'Unparsable JSON body'

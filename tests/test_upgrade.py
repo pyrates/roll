@@ -11,44 +11,49 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def protocol(app):
+def protocol(app, event_loop):
+    app.loop = event_loop
     protocol = Protocol(app)
     protocol.connection_made(Transport())
     return protocol
 
 
+
+UPGRADE_REQUEST = b'''
+GET / HTTP/1.1
+Host: example.org
+Connection: Upgrade, HTTP2-Settings
+Upgrade: h2c
+HTTP2-Settings: <some settings>
+User-Agent: Lynx
+
+'''
+
+UNCOMPLETE_UPGRADE_REQUEST = b'''
+GET / HTTP/1.1
+Host: example.org
+Connection: Upgrade
+User-Agent: Lynx
+
+'''
+
 async def test_upgrade(protocol):
 
-    protocol.data_received(
-        b'POST /post HTTP/1.1\r\n'
-        b'Upgrade: h2\r\n'
-        b'Connection: Upgrade, HTTP2-Settings\r\n'
-        b'HTTP2-Settings: My HTTP2 settings in b64\r\n'
-        b'\r\n'
-    )
+    protocol.data_received(UPGRADE_REQUEST)
+
     assert protocol.status == HTTP_NEEDS_UPGRADE
     assert protocol.upgrade == None
-    assert protocol.upgrade_type.type == 'h2'
-    assert protocol.upgrade_type.headers == {'UPGRADE', 'HTTP2-SETTINGS'}
-    await protocol.task
+    assert protocol.upgrade_type == 'h2c'
+    protocol.write(
+        "We shouldn't be answering without acknowledging the upgrade.")
     assert protocol.writer.data == (
         b'HTTP/1.1 501 Not Implemented\r\n'
-        b'Content-Length: 39\r\n'
+        b'Content-Length: 40\r\n'
         b'\r\n'
-        b'Expected upgrade to h2 protocol failed.'
+        b'Expected upgrade to h2c protocol failed.'
     )
 
 async def test_malformed_upgrade(protocol):
 
-    protocol.data_received(
-        b'POST /post HTTP/1.1\r\n'
-        b'Upgrade: h2\r\n'
-        b'Connection: Upgrade, HTTP2-Settings\r\n'
-        b'\r\n'
-    )
-    assert protocol.writer.data == (
-        b'HTTP/1.1 400 Bad Request\r\n'
-        b'Content-Length: 18\r\n'
-        b'\r\n'
-        b'Unparsable request'
-    )
+    protocol.data_received(UNCOMPLETE_UPGRADE_REQUEST)
+    assert protocol.status == HTTP_FLOW

@@ -18,7 +18,7 @@ async def test_cors(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.OK
-    assert resp.body == b'test response'
+    assert resp.body == 'test response'
     assert resp.headers['Access-Control-Allow-Origin'] == '*'
 
 
@@ -85,7 +85,7 @@ async def test_json_with_default_code(client, app):
 
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert json.loads(resp.body.decode()) == {'key': 'value'}
+    assert json.loads(resp.body) == {'key': 'value'}
     assert resp.status == HTTPStatus.OK
 
 
@@ -98,7 +98,7 @@ async def test_json_with_custom_code(client, app):
 
     resp = await client.get('/test')
     assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert json.loads(resp.body.decode()) == {'key': 'value'}
+    assert json.loads(resp.body) == {'key': 'value'}
     assert resp.status == HTTPStatus.BAD_REQUEST
 
 
@@ -180,7 +180,7 @@ async def test_get_accept_content_negociation(client, app):
 
     resp = await client.get('/test', headers={'Accept': 'text/html'})
     assert resp.status == HTTPStatus.OK
-    assert resp.body == b'accepted'
+    assert resp.body == 'accepted'
     assert resp.headers['Content-Type'] == 'text/html'
 
 
@@ -198,11 +198,11 @@ async def test_get_accept_content_negociation_if_many(client, app):
 
     resp = await client.get('/test', headers={'Accept': 'text/html'})
     assert resp.status == HTTPStatus.OK
-    assert resp.body == b'<h1>accepted</h1>'
+    assert resp.body == '<h1>accepted</h1>'
     assert resp.headers['Content-Type'] == 'text/html'
     resp = await client.get('/test', headers={'Accept': 'application/json'})
     assert resp.status == HTTPStatus.OK
-    assert json.loads(resp.body.decode()) == {'status': 'accepted'}
+    assert json.loads(resp.body) == {'status': 'accepted'}
     assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
 
 
@@ -255,7 +255,7 @@ async def test_post_accept_content_negociation(client, app):
                              headers={'Accept': 'application/json'})
     assert resp.status == HTTPStatus.OK
     assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert json.loads(resp.body.decode()) == {'status': 'accepted'}
+    assert json.loads(resp.body) == {'status': 'accepted'}
 
 
 async def test_post_reject_content_negociation(client, app):

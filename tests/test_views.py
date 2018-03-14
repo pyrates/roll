@@ -13,7 +13,7 @@ async def test_simple_get_request(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.OK
-    assert resp.body == b'test response'
+    assert resp.body == 'test response'
 
 
 async def test_simple_non_200_response(client, app):

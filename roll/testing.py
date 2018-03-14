@@ -144,11 +144,18 @@ class Client:
         self.protocol.request.method = method
         for key, value in headers.items():
             self.protocol.on_header(key.encode(), value.encode())
-        if self.protocol.task is not None:
-            response = await self.protocol.task
-            self.protocol.write_response(response)
-        return self.protocol.writer.data
 
+        if self.protocol.error is not None:
+            # An error occured before the app could be ran.
+            # This is most probably an error of HTTP parsing.
+            return self.protocol.error
+
+        response = await self.app(self.protocol.request)
+        self.protocol.write(
+            bytes(response), close=not self.protocol.keep_alive)
+        return response
+
+    
     async def get(self, path, **kwargs):
         return await self.request(path, method='GET', **kwargs)
 

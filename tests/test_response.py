@@ -46,7 +46,7 @@ async def test_write_get_204_no_content_type(client, app):
     async def get(req, resp):
         resp.status = HTTPStatus.NO_CONTENT
 
-    await client.get('/test')
+    response = await client.get('/test')
     assert client.protocol.writer.data == b'HTTP/1.1 204 No Content\r\n\r\n'
 
 

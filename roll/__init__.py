@@ -296,7 +296,9 @@ class Request(dict):
 class Response:
     """A container for `status`, `headers` and `body`."""
     __slots__ = (
-        'request', '_status', 'headers', 'body', '_cookies', 'bodyless')
+        'app', 'request', 'headers', 'body', 'bodyless',
+        '_cookies','_status',
+    )
 
     BODYLESS_METHODS = frozenset(('HEAD', 'CONNECT'))
     BODYLESS_STATUSES = frozenset((
@@ -304,7 +306,8 @@ class Response:
         HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
         HTTPStatus.NOT_MODIFIED))
     
-    def __init__(self, request=None, status=HTTPStatus.OK, body=b''):
+    def __init__(self, app, request=None, status=HTTPStatus.OK, body=b''):
+        self.app = app
         self.request = request
         self._cookies = None
         self._status = None
@@ -313,8 +316,8 @@ class Response:
         self.status = status
 
     @classmethod
-    def from_http_error(cls, error):
-        return cls(status=error.status, body=error.message)
+    def from_http_error(cls, app, error):
+        return cls(app, status=error.status, body=error.message)
 
     @property
     def status(self):
@@ -345,22 +348,30 @@ class Response:
     def __bytes__(self):
         response = b'HTTP/1.1 %a %b\r\n' % (
             self.status.value, self.status.phrase.encode())
-        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        if 'Content-Length' not in self.headers and not self.bodyless:
-            length = len(self.body)
-            self.headers['Content-Length'] = length
+
         if self._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
             for cookie in self.cookies.values():
                 response += b'Set-Cookie: %b\r\n' % str(cookie).encode()
+
+        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
         for key, value in self.headers.items():
             response += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        response += b'\r\n'
-        if self.body and not self.bodyless:
+
+        if not self.bodyless:
             if not isinstance(self.body, bytes):
-                response += str(self.body).encode()
+                body = str(self.body).encode()
             else:
-                response += self.body
+                body = self.body
+
+            if 'Content-Length' not in self.headers:
+                response += b'Content-Length: %i\r\n' % len(body)
+
+            response += b'\r\n'
+            if body:
+                response += body
+        else:
+            response += b'\r\n'
         return response
 
 
@@ -416,7 +427,7 @@ def upgrade_delegator(method):
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'task', 'status', 
+    __slots__ = ('app', 'request', 'task', 'status', 'error', 
                  'parser', 'writer', 'upgrade', 'upgrade_type')
     RequestParser = HttpRequestParser
 
@@ -432,6 +443,8 @@ class Protocol(asyncio.Protocol):
         # This method is called when we are expecting requests.
         # In case of a new protocol or a protocol kept alive.
         self.request = None
+        self.task = None
+        self.error = None
 
     def upgrade_protocol(self, upgrade):
         if self.status != HTTP_NEEDS_UPGRADE:
@@ -455,8 +468,6 @@ class Protocol(asyncio.Protocol):
 
     @upgrade_delegator
     def data_received(self, data: bytes):
-        if self.request is None:
-            self.request = self.app.Request(self.app)
         try:
             self.parser.feed_data(data)
         except HttpParserUpgrade:
@@ -470,7 +481,6 @@ class Protocol(asyncio.Protocol):
             self.report_http_error(HttpError(
                 HTTPStatus.BAD_REQUEST,
                 message=b'Unparsable request'))
-            raise
 
     @upgrade_delegator
     def write(self, data: bytes, close: bool=False):
@@ -481,7 +491,7 @@ class Protocol(asyncio.Protocol):
     def reply(self, task):
         # `reply` is used as the main task callback.
         response = task.result()
-        self.write(response)
+        self.write(bytes(response))
         if not self.keep_alive:
             self.writer.close()
         else:
@@ -490,12 +500,17 @@ class Protocol(asyncio.Protocol):
     def report_http_error(self, error):
         # Direct output through the original transport.
         # This is a HTTP error, no upgrade would change that.
-        response = self.app.Response.from_http_error(error)
+        response = self.app.Response.from_http_error(self.app, error)
+        self.error = response
         self.writer.write(bytes(response))
         self.writer.close()
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
+    def on_message_begin(self):
+        if self.request is None:
+            self.request = self.app.Request(self.app)
+
     def on_header(self, name: bytes, value: bytes):
         value = value.decode()
         if value:
@@ -507,7 +522,8 @@ class Protocol(asyncio.Protocol):
 
     def on_headers_complete(self):
         self.keep_alive = self.parser.should_keep_alive()
-                
+        self.request.method = self.parser.get_method().decode().upper()
+
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
@@ -518,7 +534,7 @@ class Protocol(asyncio.Protocol):
     def on_message_complete(self):
         self.task = self.app.loop.create_task(self.app(self.request))
         self.task.add_done_callback(self.reply)
-
+            
 
 Route = namedtuple('Route', ['payload', 'vars'])
 
@@ -549,10 +565,10 @@ class Roll(dict):
         await self.hook('shutdown')
 
     async def __call__(self, request: Request):
-        response = self.Response(request)
+        response = self.Response(self, request)
         try:
             request.route = Route(*self.routes.match(request.path))
-            if not await self.hook('request', request):
+            if not await self.hook('request', request, response):
                 if not request.route.payload:
                     raise HttpError(HTTPStatus.NOT_FOUND, request.path)
                 # Uppercased in order to only consider HTTP verbs.
@@ -567,7 +583,7 @@ class Roll(dict):
             await self.hook('response', request, response)
         except Exception as error:
             await self.on_error(request, response, error)
-        return memoryview(bytes(response))
+        return response
 
     async def on_error(self, request: Request, response: Response, error):
         if not isinstance(error, HttpError):
