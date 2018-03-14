@@ -22,7 +22,7 @@ class Application(Roll):
 
 app = Application()
 logger(app)
-websockets(app)
+#websockets(app)
 traceback(app)
 
 
@@ -31,24 +31,14 @@ async def hello(request, response):
     response.html('Hello World !')
 
 
-@app.websocket('/test')
-async def test(request, ws, **params):
-    await ws.send('Welcome !')
-
-
-@app.websocket('/chat')
-async def broadcast(request, ws, **params):
-    wsid = str(uuid.uuid4())
-    await ws.send('Welcome {} !'.format(wsid))
-    async for message in ws:
-        for (task, socket) in request.app['websockets']:
-            if socket != ws:
-                await socket.send('{}: {}'.format(wsid, message))
-
-
-@app.route('/fail', websocket=True)
-async def failer(request, ws, **params):
-    raise RuntimeError('TEST')
+# @app.websocket('/chat')
+# async def broadcast(request, ws, **params):
+#     wsid = str(uuid.uuid4())
+#     await ws.send('Welcome {} !'.format(wsid))
+#     async for message in ws:
+#         for (task, socket) in request.app['websockets']:
+#             if socket != ws:
+#                 await socket.send('{}: {}'.format(wsid, message))
                 
 
 if __name__ == '__main__':

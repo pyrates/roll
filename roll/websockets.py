@@ -46,15 +46,12 @@ class WebsocketProtocol(ProtocolUpgrade):
                         self.subprotocol = p
                         break
 
-    def bootstrap(self, protocol):
+    def do_upgrade(self, protocol):
         self.websocket = create_websocket(protocol.writer, self.subprotocol)
-        return self.websocket
-
-    def upgrade_response(self, request):
         headers = []
 
         def get_header(k):
-            return request.headers.get(k.upper(), '')
+            return protocol.request.headers.get(k.upper(), '')
 
         def set_header(k, v):
             headers.append((k, v))
@@ -77,7 +74,7 @@ class WebsocketProtocol(ProtocolUpgrade):
 
     def connection_lost(self, protocol, exc):
         self.websocket.connection_lost(exc)
-        return False  # not EoP
+        protocol.connection_lost(exc)
 
     def data_received(self, protocol, data):
         # Received data. We refuse the data if the websocket is
@@ -90,12 +87,10 @@ class WebsocketProtocol(ProtocolUpgrade):
             # This is an unexpected problem. Let's do nothing
             # about it
             pass
-        return True  # EoP
 
     def write(self, protocol, *args):
         # We don't need a response.
         protocol.writer.close()
-        return True  # EoP
 
 
 def websocket(app, path, subprotocols: list=None, **extras: dict):
