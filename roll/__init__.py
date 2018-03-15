@@ -420,8 +420,7 @@ class ProtocolUpgrade(ABC):
 
 
 def upgrade_delegator(method):
-    bubble_up = getattr(method, 'bubble_up', False)
-
+    
     @wraps(method)
     def delegate_to(protocol, *args, **kwargs):
         if protocol.status == ProtocolStatus.NO_UPGRADE:
@@ -434,7 +433,13 @@ def upgrade_delegator(method):
             protocol.report_http_error(error)
         else:
             surrogate = getattr(protocol.upgrade, method.__name__)
-            surrogate(protocol, *args, **kwargs)
+            bubble_up = getattr(surrogate, 'bubble_up', False)
+            try:
+                surrogate(protocol, *args, **kwargs)
+            except NotImplementedError:
+                # The method is not implemented on the upgrade.
+                # We fallback on the original method
+                bubble_up = True
             if bubble_up:
                 method(protocol, *args, **kwargs)
 
@@ -468,7 +473,10 @@ class Protocol(asyncio.Protocol):
             # We are trying to upgrade request that did not ask for it
             # Do we really want to allow that ? If not raise. If so, log ?
             ...
-        assert isinstance(upgrade, ProtocolUpgrade)
+        if not isinstance(upgrade, ProtocolUpgrade):
+            raise TypeError(
+                'Upgrade must be an instance of roll.ProtocolUpgrade')
+
         response = upgrade(self)
         self.writer.write(response)  # writing the upgrade response
         self.status = ProtocolStatus.UPGRADED
