@@ -47,7 +47,8 @@ async def test_error_with_json_format(client, app):
     @app.listen('error')
     async def listener(request, response, error):
         assert error.message == b'JSON error'
-        response.json = {'status': error.status, 'message': error.message}
+        response.json = {
+            'status': error.status, 'message': error.message.decode()}
 
     @app.route('/test')
     async def get(req, resp):
