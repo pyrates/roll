@@ -18,6 +18,7 @@ from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
 from urllib.parse import parse_qs, unquote
+from time import time
 
 from autoroutes import Routes
 from biscuits import Cookie, parse
@@ -48,10 +49,17 @@ class HttpError(Exception):
 
     __slots__ = ('status', 'message')
 
-    def __init__(self, http_code: HttpCode, message: str=None):
+    def __init__(self, http_code: HttpCode, message=None):
         # Idempotent if `http_code` is already an `HTTPStatus` instance.
         self.status = HTTPStatus(http_code)
-        self.message = message or self.status.phrase
+        if isinstance(message, str):
+            message = message.encode()
+        self.message = message or self.status.phrase.encode()
+
+    def __bytes__(self):
+        return b'HTTP/1.1 %a %b\r\nContent-Length: %a\r\n\r\n%b' % (
+            self.status.value, self.status.phrase.encode(),
+            len(self.message), self.message)
 
 
 class Multidict(dict):
@@ -308,16 +316,15 @@ class Response:
         HTTPStatus.NOT_MODIFIED))
 
     def __init__(self, app, request=None, status=HTTPStatus.OK, body=b''):
+        self._cookies = None
         self.app = app
         self.request = request
-        self._cookies = None
-        self._status = None
+        self.status = status  # Needs to be after request assignation.
         self.body = body
         self.headers = {}
-        self.status = status
 
     @classmethod
-    def from_http_error(cls, app, error):
+    def from_http_error(cls, app, error: HttpError):
         return cls(app, status=error.status, body=error.message)
 
     @property
@@ -426,16 +433,14 @@ def upgrade_delegator(method):
         if protocol.status == ProtocolStatus.NO_UPGRADE:
             return method(protocol, *args, **kwargs)
         elif protocol.status == ProtocolStatus.UPGRADE_EXPECTED:
-            error = HttpError(
+            protocol.report_http_error(HttpError(
                 HTTPStatus.NOT_IMPLEMENTED,
                 message='Expected upgrade to {} protocol failed.'.format(
-                    protocol.upgrade_type))
-            protocol.report_http_error(error)
+                    protocol.upgrade_type)))
         else:
             surrogate = getattr(protocol.upgrade, method.__name__)
-            bubble_up = getattr(surrogate, 'bubble_up', False)
             try:
-                surrogate(protocol, *args, **kwargs)
+                bubble_up = surrogate(protocol, *args, **kwargs)
             except NotImplementedError:
                 # The method is not implemented on the upgrade.
                 # We fallback on the original method
@@ -450,6 +455,7 @@ class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
     __slots__ = ('app', 'request', 'task', 'status', 'error',
+                 'waiting_since', 'keep_alive_for',
                  'parser', 'writer', 'upgrade', 'upgrade_type')
     RequestParser = HttpRequestParser
 
@@ -459,14 +465,34 @@ class Protocol(asyncio.Protocol):
         self.keep_alive = False
         self.upgrade = None
         self.status = ProtocolStatus.NO_UPGRADE
-        self.prime_for_request()
+        self.prime_for_request(new=True)
+        self.keep_alive_for = 10  # seconds
+        self.watchers = {}
 
-    def prime_for_request(self):
+    def waiting_check(self):
+        elapsed = time() - self.waiting_since
+        if elapsed < self.keep_alive_for:
+            time_left = self.keep_alive_for - elapsed
+            if 'keep_alive' in self.watchers:
+                self.watchers['keep_alive'].cancel()
+            self.watchers['keep_alive'] = self.app.loop.call_later(
+                time_left, self.waiting_check)
+        else:
+            if 'keep_alive' in self.watchers:
+                self.watchers['keep_alive'].cancel()
+                del self.watchers['keep_alive']
+            self.report_http_error(HttpError(HTTPStatus.REQUEST_TIMEOUT))
+
+    def prime_for_request(self, new: bool=False):
         # This method is called when we are expecting requests.
         # In case of a new protocol or a protocol kept alive.
         self.request = None
         self.task = None
         self.error = None
+        if not new and self.keep_alive:
+            self.waiting_since = time()
+            self.watchers['keep_alive'] = self.app.loop.call_later(
+                self.keep_alive_for, self.waiting_check)
 
     def upgrade_protocol(self, upgrade):
         if self.status != ProtocolStatus.UPGRADE_EXPECTED:
@@ -486,10 +512,16 @@ class Protocol(asyncio.Protocol):
         # This is done only once for possibly several requests, depending
         # on the keep alive marker.
         self.writer = transport
+        self.app.connections.add(self)
 
     @upgrade_delegator
     def connection_lost(self, exc):
+        # This should never be bypassed.
         super().connection_lost(exc)
+        self.app.connections.discard(self)
+        if self.watchers:
+            for name, task in self.watchers.items():
+                task.cancel()
 
     @upgrade_delegator
     def data_received(self, data: bytes):
@@ -508,27 +540,27 @@ class Protocol(asyncio.Protocol):
                 message=b'Unparsable request'))
 
     @upgrade_delegator
-    def write(self, data: bytes, close: bool=False):
+    def write(self, data: bytes, close: bool=False) -> None:
         self.writer.write(data)
         if close:
             self.writer.close()
 
-    def reply(self, task):
+    def reply(self, task) -> None:
         # `reply` is used as the main task callback.
         response = task.result()
-        self.write(bytes(response))
+        self.write(bytes(response), not self.keep_alive)
+        if self.keep_alive:
+            self.prime_for_request()
+
+    def report_http_error(self, error: HttpError):
+        # Direct output through the original transport.
+        # This is a HTTP error, no upgrade would change that.
+        self.error = error
+        self.writer.write(bytes(error))
         if not self.keep_alive:
             self.writer.close()
         else:
             self.prime_for_request()
-
-    def report_http_error(self, error):
-        # Direct output through the original transport.
-        # This is a HTTP error, no upgrade would change that.
-        response = self.app.Response.from_http_error(self.app, error)
-        self.error = response
-        self.writer.write(bytes(response))
-        self.writer.close()
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -546,9 +578,12 @@ class Protocol(asyncio.Protocol):
                 self.request.headers[name] = value
 
     def on_headers_complete(self):
+        if self.keep_alive and 'keep_alive' in self.watchers:
+            self.watchers['keep_alive'].cancel()  # We received a new request.
+            del self.watchers['keep_alive']
         self.keep_alive = self.parser.should_keep_alive()
         self.request.method = self.parser.get_method().decode().upper()
-
+        
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
@@ -582,6 +617,7 @@ class Roll(dict):
     def __init__(self):
         self.routes = self.Routes()
         self.hooks = defaultdict(list)
+        self.connections = set()
 
     async def startup(self):
         await self.hook('startup')

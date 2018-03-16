@@ -442,7 +442,7 @@ async def test_parse_unparsable_multipart(protocol):
         b'--foofoo--foofoo--')
     with pytest.raises(HttpError) as e:
         assert protocol.request.form
-    assert e.value.message == 'Unparsable multipart body'
+    assert e.value.message == b'Unparsable multipart body'
 
 
 async def test_parse_unparsable_urlencoded(protocol):
@@ -458,7 +458,7 @@ async def test_parse_unparsable_urlencoded(protocol):
         b'foo')
     with pytest.raises(HttpError) as e:
         assert protocol.request.form
-    assert e.value.message == 'Unparsable urlencoded body'
+    assert e.value.message == b'Unparsable urlencoded body'
 
 
 async def test_multiple_identical_headers(protocol):
@@ -551,4 +551,4 @@ async def test_post_unparsable_json(client, app):
 
     resp = await client.post('/test', data='{"foo')
     assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == 'Unparsable JSON body'
+    assert resp.body == b'Unparsable JSON body'

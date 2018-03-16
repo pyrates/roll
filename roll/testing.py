@@ -68,12 +68,18 @@ class Transport:
 
     def __init__(self):
         self.data = b''
+        self.closed = False
 
     def write(self, data):
+        if self.closed:
+            raise Exception('Transport is closed.')
         self.data += data
 
+    async def drain(self):
+        self.data = b''
+
     def close(self):
-        ...
+        self.closed = True
 
 
 class Client:
@@ -225,20 +231,25 @@ class LiveClient:
         self.app.loop.run_until_complete(self.app.shutdown())
 
     def execute_query(self, method, uri, headers):
-        conn = http.client.HTTPConnection('127.0.0.1', self.port)
-        conn.request(method, uri, headers=headers)
-        response = conn.getresponse()
-        conn.close()
+        self.conn.request(method, uri, headers=headers)
+        response = self.conn.getresponse()
         return response
 
     async def query(self, method, uri, headers: dict=None):
-        assert self.url is not None
         if headers is None:
             headers = {}
 
         requester = partial(self.execute_query, method.upper(), uri, headers)
         response = await self.loop.run_in_executor(None, requester)
         return response
+    
+    def __enter__(self):
+        assert self.url is not None
+        self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
+        return self.query
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.close()
 
 
 @pytest.fixture()

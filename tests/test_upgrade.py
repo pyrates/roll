@@ -34,7 +34,7 @@ class ReverseAndEchoProcotol(ReverseProcotol):
         # We reverse the data$
         protocol.writer.write(bytes(list(reversed(data))))
         protocol.writer.write(b'\n')
-    write.bubble_up = True
+        return True
 
 
 @pytest.fixture

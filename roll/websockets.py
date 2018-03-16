@@ -66,7 +66,7 @@ class WebsocketProtocol(ProtocolUpgrade):
 
     def connection_lost(self, protocol, exc):
         self.websocket.connection_lost(exc)
-    connection_lost.bubble_up = True
+        return True
 
     def data_received(self, protocol, data):
         # Received data. We refuse the data if the websocket is
@@ -82,7 +82,7 @@ class WebsocketProtocol(ProtocolUpgrade):
 
     def write(self, protocol, *args):
         # We don't need a response.
-        protocol.writer.close()
+        pass
 
     def __call__(self, protocol):
         self.websocket = create_websocket(
@@ -157,6 +157,7 @@ def websocket(app, path, subprotocols: list=None, **extras: dict):
                 # Whatever happened, the websocket fate has been
                 # sealed. We remove it from our watch.
                 app['websockets'].discard((fut, ws))
+            return True
 
         payload = {'GET': websocket_handler}
         payload.update(extras)

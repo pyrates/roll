@@ -14,7 +14,7 @@ async def test_simple_error(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert resp.body == 'Oops.'
+    assert resp.body == b'Oops.'
 
 
 async def test_httpstatus_error(client, app):
@@ -25,7 +25,7 @@ async def test_httpstatus_error(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == 'Really bad.'
+    assert resp.body == b'Really bad.'
 
 
 async def test_error_only_with_status(client, app):
@@ -36,7 +36,7 @@ async def test_error_only_with_status(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert resp.body == 'Internal Server Error'
+    assert resp.body == b'Internal Server Error'
 
 
 async def test_error_only_with_httpstatus(client, app):
@@ -47,7 +47,7 @@ async def test_error_only_with_httpstatus(client, app):
 
     resp = await client.get('/test')
     assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert resp.body == 'Internal Server Error'
+    assert resp.body == b'Internal Server Error'
 
 
 async def test_error_subclasses_with_super(client, app):
