@@ -21,7 +21,6 @@ async def test_not_persistent(protocol):
         b'Connection: Close\r\n'
         b'\r\n')
     assert protocol.keep_alive == False
-    assert not protocol.watchers
 
 
 @pytest.mark.asyncio
@@ -35,13 +34,6 @@ async def test_switch(protocol):
         b'Connection: Keep-Alive\r\n'
         b'\r\n')
     assert protocol.keep_alive == True
-    assert not protocol.watchers
-
-    # Replying here will create the keep alive timeout task
-    # We simulate this by calling "prime_for_request", as the
-    # reply method does after writing
-    protocol.prime_for_request()
-    assert protocol.watchers['keep_alive']
     
     # We ask for close for the next request
     protocol.data_received(
@@ -51,14 +43,6 @@ async def test_switch(protocol):
         b'Connection: Close\r\n'
         b'\r\n')
     assert protocol.keep_alive == False
-
-    # The timeout task was cleared
-    assert not protocol.watchers
-
-    # Priming the request again will not create a timeout
-    # task, as we are expected to close the connection.
-    protocol.prime_for_request()
-    assert not protocol.watchers
 
     # If we ask again, we are expected to be closed, so new keep_alive
     # Won't mean a thing, until we re-create a protocol.

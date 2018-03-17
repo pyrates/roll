@@ -365,7 +365,7 @@ class Response:
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
         for key, value in self.headers.items():
             response += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-
+            
         if not self.bodyless:
             if not isinstance(self.body, bytes):
                 body = str(self.body).encode()
@@ -459,40 +459,26 @@ class Protocol(asyncio.Protocol):
                  'parser', 'writer', 'upgrade', 'upgrade_type')
     RequestParser = HttpRequestParser
 
-    def __init__(self, app):
+    def __init__(self, app, keep_alive_for=10):
         self.app = app
         self.parser = self.RequestParser(self)
         self.keep_alive = False
         self.upgrade = None
         self.status = ProtocolStatus.NO_UPGRADE
         self.prime_for_request(new=True)
-        self.keep_alive_for = 10  # seconds
-        self.watchers = {}
-
-    def waiting_check(self):
-        elapsed = time() - self.waiting_since
-        if elapsed < self.keep_alive_for:
-            time_left = self.keep_alive_for - elapsed
-            if 'keep_alive' in self.watchers:
-                self.watchers['keep_alive'].cancel()
-            self.watchers['keep_alive'] = self.app.loop.call_later(
-                time_left, self.waiting_check)
-        else:
-            if 'keep_alive' in self.watchers:
-                self.watchers['keep_alive'].cancel()
-                del self.watchers['keep_alive']
-            self.report_http_error(HttpError(HTTPStatus.REQUEST_TIMEOUT))
-
+        self.keep_alive_for = keep_alive_for  # seconds
+            
     def prime_for_request(self, new: bool=False):
         # This method is called when we are expecting requests.
         # In case of a new protocol or a protocol kept alive.
         self.request = None
         self.task = None
         self.error = None
-        if not new and self.keep_alive:
-            self.waiting_since = time()
-            self.watchers['keep_alive'] = self.app.loop.call_later(
-                self.keep_alive_for, self.waiting_check)
+        self.waiting_since = time()
+
+    def keep_alive_timeout(self):
+        self.keep_alive = False
+        self.report_http_error(HttpError(HTTPStatus.REQUEST_TIMEOUT))
 
     def upgrade_protocol(self, upgrade):
         if self.status != ProtocolStatus.UPGRADE_EXPECTED:
@@ -519,9 +505,6 @@ class Protocol(asyncio.Protocol):
         # This should never be bypassed.
         super().connection_lost(exc)
         self.app.connections.discard(self)
-        if self.watchers:
-            for name, task in self.watchers.items():
-                task.cancel()
 
     @upgrade_delegator
     def data_received(self, data: bytes):
@@ -548,6 +531,12 @@ class Protocol(asyncio.Protocol):
     def reply(self, task) -> None:
         # `reply` is used as the main task callback.
         response = task.result()
+        if self.keep_alive:
+            if not 'Connection' in response.headers:
+                response.headers['Connection'] = 'keep-alive'
+            if not 'Keep-Alive' in response.headers:
+                response.headers['Keep-Alive'] = self.keep_alive_for
+
         self.write(bytes(response), not self.keep_alive)
         if self.keep_alive:
             self.prime_for_request()
@@ -578,12 +567,9 @@ class Protocol(asyncio.Protocol):
                 self.request.headers[name] = value
 
     def on_headers_complete(self):
-        if self.keep_alive and 'keep_alive' in self.watchers:
-            self.watchers['keep_alive'].cancel()  # We received a new request.
-            del self.watchers['keep_alive']
         self.keep_alive = self.parser.should_keep_alive()
         self.request.method = self.parser.get_method().decode().upper()
-        
+
     def on_body(self, body: bytes):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
@@ -618,11 +604,26 @@ class Roll(dict):
         self.routes = self.Routes()
         self.hooks = defaultdict(list)
         self.connections = set()
+        self.idle_checker = None
+
+    def check_idle(self):
+        if self.connections:
+            now = time()
+            for connection in self.connections:
+                if connection.request is None:
+                    elapsed = now - connection.waiting_since
+                    if elapsed > connection.keep_alive_for:
+                        connection.keep_alive_timeout()
+        # We check the connections again within 0.5s
+        self.watcher = self.loop.call_later(0.5, self.check_idle)
 
     async def startup(self):
         await self.hook('startup')
+        # We check the connections within 0.5s
+        self.idle_checker = self.loop.call_later(0.5, self.check_idle)
 
     async def shutdown(self):
+        self.idle_checker.cancel()
         await self.hook('shutdown')
 
     async def lookup(self, request: Request, response: Response):
