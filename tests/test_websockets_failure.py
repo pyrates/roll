@@ -4,6 +4,43 @@ import websockets
 
 
 @pytest.mark.asyncio
+async def test_websocket_upgrade_error(liveclient):
+
+    @liveclient.app.route('/ws', protocol="websocket")
+    async def handler(request, ws, **params):
+        pass
+
+    # Wrong upgrade
+    with liveclient as query:
+        response = await query('GET', '/ws', headers={
+            'Upgrade': 'http2',
+            'Connection': 'upgrade',
+            'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
+            'Sec-WebSocket-Version': '13'})
+
+    assert response.status == 426
+    assert response.reason == 'Upgrade Required'
+
+    # No upgrade
+    with liveclient as query:
+        response = await query('GET', '/ws', headers={
+            'Connection': 'keep-alive',
+        })
+
+    assert response.status == 426
+    assert response.reason == 'Upgrade Required'
+
+    # Connection upgrade with no upgrade header
+    with liveclient as query:
+        response = await query('GET', '/ws', headers={
+            'Connection': 'upgrade',
+        })
+
+    assert response.status == 426
+    assert response.reason == 'Upgrade Required'
+
+    
+@pytest.mark.asyncio
 async def test_websocket_failure(liveclient):
 
     @liveclient.app.route('/failure', protocol="websocket")

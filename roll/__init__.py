@@ -10,6 +10,7 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 
 import asyncio
+import re
 
 from collections import namedtuple
 from http import HTTPStatus
@@ -195,6 +196,7 @@ class Request(dict):
     __slots__ = (
         'app', 'transport', 'url', 'path', 'query_string', '_query',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
+        'upgrade',
     )
 
     def __init__(self, app, transport=None):
@@ -202,6 +204,7 @@ class Request(dict):
         self.transport = transport
         self.headers = {}
         self.body = b''
+        self.upgrade = None
         self._cookies = None
         self._query = None
         self._form = None
@@ -312,7 +315,7 @@ class Response:
 class Protocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'writer', 'upgrade')
+    __slots__ = ('app', 'request', 'parser', 'response', 'writer')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
@@ -322,7 +325,6 @@ class Protocol(asyncio.Protocol):
     def __init__(self, app):
         self.app = app
         self.parser = self.RequestParser(self)
-        self.upgrade = None
 
     def connection_made(self, transport):
         self.writer = transport
@@ -338,7 +340,13 @@ class Protocol(asyncio.Protocol):
             self.response.body = b'Unparsable request'
             self.write()
         except HttpParserUpgrade:
-            self.upgrade = self.request.headers.get('UPGRADE')
+            # https://tools.ietf.org/html/rfc2616#page-144
+            # We precise the upgrade type requested on the request itself.
+            # It's up to the handler to act on it or not.
+            # This header should be parsed and maybe validated if we want
+            # to handle complex declarations, such as :
+            # Upgrade: HTTP/2.0, SHTTP/1.3, IRC/6.9, RTA/x11
+            self.request.upgrade = self.request.headers['UPGRADE'].lower()
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis

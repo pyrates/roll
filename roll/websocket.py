@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
+from http import HTTPStatus
 from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
 from websockets.protocol import State
@@ -109,6 +110,13 @@ class WebsocketHandler:
         return wsprotocol, websocket
 
     async def __call__(self, request, response, **params):
+        if request.upgrade != 'websocket':
+            # https://tools.ietf.org/html/rfc7231.html#page-62
+            # Upgrade needed but none was request or of the wrong type
+            response.status = HTTPStatus.UPGRADE_REQUIRED
+            response.body = b"This service requires the websocket protocol"
+            return
+
         protocol, ws = self.switch_protocol(request)
         if 'websockets' not in request.app:
             request.app['websockets'] = set()

@@ -22,6 +22,16 @@ async def test_websocket_route(liveclient):
     assert ev.is_set()
     assert response.status == 101
 
+    # With keep-alive in Connection
+    with liveclient as query:
+        response = await query('GET', '/ws', headers={
+            'Upgrade': 'websocket',
+            'Connection': 'keep-alive, upgrade',
+            'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
+            'Sec-WebSocket-Version': '13'})
+
+    assert response.status == 101
+
 
 @pytest.mark.asyncio
 async def test_websocket_communication(liveclient):
