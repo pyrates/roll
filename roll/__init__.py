@@ -477,12 +477,17 @@ class Roll(dict):
         if methods is None:
             methods = ['GET']
         elif protocol == 'websocket' and methods != ['GET']:
+            # Do we keep that hardcoded here ?
             raise RuntimeError('Websockets can only be registered on GET.')
 
         def wrapper(func):
-            proxy = self.Protocols.get(protocol, None)
-            if proxy is not None:
-                func = proxy(func, **extras)
+            # If a protocol was specified, we try to find a suitable
+            # handler, that will wrap the route controller and take care
+            # of the protocol switch or specificity.
+            # If none is found, the original function is returned.
+            handler = self.Protocols.get(protocol, None)
+            if handler is not None:
+                func = handler(func, **extras)
 
             payload = {method: func for method in methods}
             payload.update(extras)
