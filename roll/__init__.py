@@ -397,9 +397,6 @@ class Protocol(asyncio.Protocol):
 
 
 Route = namedtuple('Route', ['payload', 'vars'])
-Protocols = {
-    'websocket': WebsocketHandler,
-}
 
 
 class Roll(dict):
@@ -416,6 +413,10 @@ class Roll(dict):
     Request = Request
     Response = Response
     Cookies = Cookies
+
+    Protocols = {
+        'websocket': WebsocketHandler,
+    }
 
     def __init__(self):
         self.routes = self.Routes()
@@ -471,7 +472,7 @@ class Roll(dict):
             raise RuntimeError('Websockets can only be registered on GET.')
 
         def wrapper(func):
-            proxy = Protocols.get(protocol, None)
+            proxy = self.Protocols.get(protocol, None)
             if proxy is not None:
                 func = proxy(func, **extras)
 
