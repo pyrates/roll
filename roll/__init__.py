@@ -14,7 +14,6 @@ import asyncio
 from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
-from traceback import print_exc
 from typing import TypeVar
 from urllib.parse import unquote, parse_qs
 
@@ -327,7 +326,7 @@ class Protocol(asyncio.Protocol):
 
     def connection_made(self, transport):
         self.writer = transport
-        
+
     def data_received(self, data: bytes):
         try:
             self.parser.feed_data(data)
@@ -396,7 +395,7 @@ class Protocol(asyncio.Protocol):
         if not self.parser.should_keep_alive():
             self.writer.close()
 
-    
+
 Route = namedtuple('Route', ['payload', 'vars'])
 Protocols = {
     'websocket': WebsocketHandler,
