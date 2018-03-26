@@ -64,12 +64,16 @@ class Transport:
 
     def __init__(self):
         self.data = b''
+        self._closing = False
 
+    def is_closing(self):
+        return self._closing
+        
     def write(self, data):
         self.data += data
 
     def close(self):
-        ...
+        self._closing = True
 
 
 class Client:
@@ -229,9 +233,9 @@ class LiveClient:
 
 
 @pytest.fixture()
-def liveclient(wsapp, event_loop):
-    wsapp.loop = event_loop
-    client = LiveClient(wsapp, loop=event_loop)
+def liveclient(app, event_loop):
+    app.loop = event_loop
+    client = LiveClient(app, loop=event_loop)
     client.start()
     yield client
     client.stop()

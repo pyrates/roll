@@ -3,8 +3,7 @@
 import uuid
 import uvloop
 import asyncio
-from roll import Roll, WSRoll
-from roll import Response
+from roll import Roll, Response
 from roll.extensions import logger, simple_server, traceback
 
 
@@ -18,7 +17,7 @@ class HTMLResponse(Response):
         self.body = body
 
         
-class Application(WSRoll):
+class Application(Roll):
     Response = HTMLResponse
 
 
@@ -32,19 +31,14 @@ async def hello(request, response):
     response.html('Hello World !')
 
 
-@app.route('/chat', websocket=True)
+@app.route('/chat', protocol="websocket")
 async def broadcast(request, ws, **params):
     wsid = str(uuid.uuid4())
     await ws.send(f'Welcome {wsid} !')
     async for message in ws:
-        for (task, socket) in request.app.websockets:
+        for (task, socket) in request.app['websockets']:
             if socket != ws:
                 await socket.send('{}: {}'.format(wsid, message))
-
-
-@app.route('/fail', websocket=True)
-async def failer(request, ws, **params):
-    raise RuntimeError('TEST')
                 
 
 if __name__ == '__main__':
