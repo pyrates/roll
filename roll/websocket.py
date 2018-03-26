@@ -45,13 +45,11 @@ class WebsocketHandler:
     read_limit = 2 ** 16
     write_limit = 2 ** 16
 
-
     def __init__(self, handler, subprotocols: list=None, **kwargs):
         self.handler = handler
         if subprotocols:
             subprotocols = frozenset(subprotocols)
         self.subprotocols = subprotocols
-        self.websocket = None
 
     def handshake(self, request):
         """Websocket handshake, handled by `websockets`
@@ -92,7 +90,7 @@ class WebsocketHandler:
 
         # Return the subprotocol agreed upon, if any
         return subprotocol
-        
+
     def switch_protocol(self, request):
         subprotocol = self.handshake(request)
         websocket = WebSocketCommonProtocol(
@@ -101,7 +99,7 @@ class WebsocketHandler:
             max_queue=self.max_queue,
             read_limit=self.read_limit,
             write_limit=self.write_limit
-        )        
+        )
         websocket.subprotocol = subprotocol
         websocket.connection_made(request.transport)
         websocket.connection_open()

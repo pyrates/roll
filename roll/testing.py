@@ -1,12 +1,14 @@
+
+import http
 import json
-import asyncio
 import mimetypes
 import pytest
+import socket
 
+from functools import partial
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
-
 
 
 def encode_multipart(data, charset='utf-8'):
@@ -68,7 +70,7 @@ class Transport:
 
     def is_closing(self):
         return self._closing
-        
+
     def write(self, data):
         self.data += data
 
@@ -178,19 +180,13 @@ class Client:
     async def connect(self, path, **kwargs):
         return await self.request(path, method='CONNECT', **kwargs)
 
-    
+
 @pytest.fixture
 def client(app, event_loop):
     app.loop = event_loop
     app.loop.run_until_complete(app.startup())
     yield Client(app, event_loop)
     app.loop.run_until_complete(app.shutdown())
-
-
-### LIVE TESTING FOR WEBSOCKETS ###
-import socket
-import requests
-from functools import partial
 
 
 def unused_port():
@@ -207,29 +203,41 @@ class LiveClient:
         self.loop = loop
         self.url = None
         self.wsl = None
- 
+
     def start(self):
-        port = unused_port()
+        self.port = unused_port()
         self.app.loop.run_until_complete(self.app.startup())
         self.server = self.app.loop.run_until_complete(
-            self.loop.create_server(self.app.factory, '127.0.0.1', port))
-        self.url = 'http://127.0.0.1:{port}'.format(port=port)
-        self.wsl = 'ws://127.0.0.1:{port}'.format(port=port)
+            self.loop.create_server(self.app.factory, '127.0.0.1', self.port))
+        self.url = 'http://127.0.0.1:{port}'.format(port=self.port)
+        self.wsl = 'ws://127.0.0.1:{port}'.format(port=self.port)
 
     def stop(self):
         self.server.close()
-        self.url = self.wsl = None
+        self.port = self.url = self.wsl = None
         self.app.loop.run_until_complete(self.server.wait_closed())
         self.app.loop.run_until_complete(self.app.shutdown())
-        
-    async def query(self, method, uri, cookies: dict=None, headers: dict=None):
-        assert self.url is not None
+
+    def execute_query(self, method, uri, headers):
+        self.conn.request(method, uri, headers=headers)
+        response = self.conn.getresponse()
+        return response
+
+    async def query(self, method, uri, headers: dict=None):
         if headers is None:
             headers = {}
-        requester = partial(getattr(requests, method.lower()), 
-                            self.url + uri, headers=headers, cookies=cookies)
+
+        requester = partial(self.execute_query, method.upper(), uri, headers)
         response = await self.loop.run_in_executor(None, requester)
         return response
+
+    def __enter__(self):
+        assert self.url is not None
+        self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
+        return self.query
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.close()
 
 
 @pytest.fixture()
