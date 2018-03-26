@@ -46,7 +46,7 @@ class WebsocketHandler:
     write_limit = 2 ** 16
 
 
-    def __init__(self, handler, subprotocols: list=None):
+    def __init__(self, handler, subprotocols: list=None, **kwargs):
         self.handler = handler
         if subprotocols:
             subprotocols = frozenset(subprotocols)
@@ -77,7 +77,7 @@ class WebsocketHandler:
             client_subprotocols = tuple(
                 (p.strip() for p in ws_protocol.split(',')))
             for p in client_subprotocols:
-                if p in subprotocols:
+                if p in self.subprotocols:
                     subprotocol = p
                     set_header('Sec-Websocket-Protocol', subprotocol)
                     break
@@ -114,8 +114,8 @@ class WebsocketHandler:
         if 'websockets' not in request.app:
             request.app['websockets'] = set()
         try:
-            fut = asyncio.ensure_future(
-                self.handler(request, ws, **params), loop=request.app.loop)
+            fut = request.app.loop.create_task(
+                self.handler(request, ws, **params))
             request.app['websockets'].add((fut, ws))
             await fut
         except ConnectionClosed:

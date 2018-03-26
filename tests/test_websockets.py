@@ -64,7 +64,7 @@ async def test_websocket_broadcasting(liveclient):
             message = await ws.recv()
             await asyncio.wait([
                 socket.send(message) for (task, socket)
-                in request.app.websockets if socket != ws])
+                in request.app['websockets'] if socket != ws])
 
     # connecting
     connected = []

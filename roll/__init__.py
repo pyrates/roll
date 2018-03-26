@@ -474,7 +474,7 @@ class Roll(dict):
         def wrapper(func):
             proxy = Protocols.get(protocol, None)
             if proxy is not None:
-                func = proxy(func)
+                func = proxy(func, **extras)
 
             payload = {method: func for method in methods}
             payload.update(extras)
