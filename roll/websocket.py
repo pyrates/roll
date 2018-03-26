@@ -1,46 +1,12 @@
-# -*- coding: utf-8 -*-
 
 import asyncio
 from http import HTTPStatus
 from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
-from websockets.protocol import State
-
-
-class WSProtocol(asyncio.Protocol):
-    """Websocket protocol.
-    """
-
-    def __init__(self, websocket):
-        self.websocket = websocket
-
-    def connection_lost(self, exc):
-        if self.websocket is not None:
-            self.websocket.connection_lost(exc)
-        super().connection_lost(exc)
-
-    def data_received(self, data):
-        # Received data. We refuse the data if the websocket is
-        # already closed. If the websocket is closing, this data
-        # might be part of the closing handshake (closing frame)
-        if self.websocket.state != State.CLOSED:
-            self.websocket.data_received(data)
-        else:
-            # The websocket is closed and we still get data for it
-            # This is an unexpected problem. Let's do nothing
-            # about it
-            pass
-
-    def write(self, *args):
-        # We are in websocket land
-        # We are not supposed to write outside the websocket.
-        # Maybe log ?
-        self.writer.close()
 
 
 class WebsocketHandler:
 
-    Protocol = WSProtocol
     timeout = 5
     max_size = 2 ** 20  # 1 megabytes
     max_queue = 64
@@ -94,7 +60,11 @@ class WebsocketHandler:
         return subprotocol
 
     def switch_protocol(self, request):
+        # The websocket handshake agrees on the subprotocol to use.
+        # It then writes a response to the client, before we go any further.
         subprotocol = self.handshake(request)
+
+        # Creation of the new protocol, with the agreed upon subprotocol
         websocket = WebSocketCommonProtocol(
             timeout=self.timeout,
             max_size=self.max_size,
@@ -103,11 +73,12 @@ class WebsocketHandler:
             write_limit=self.write_limit
         )
         websocket.subprotocol = subprotocol
+
+        # The protocol now opens the connection and gets pushed into place.
         websocket.connection_made(request.transport)
         websocket.connection_open()
-        wsprotocol = self.Protocol(websocket)
-        request.transport.set_protocol(wsprotocol)
-        return wsprotocol, websocket
+        request.transport.set_protocol(websocket)
+        return websocket
 
     async def __call__(self, request, response, **params):
         if request.upgrade != 'websocket':
@@ -117,7 +88,7 @@ class WebsocketHandler:
             response.body = b"This service requires the websocket protocol"
             return
 
-        protocol, ws = self.switch_protocol(request)
+        ws = self.switch_protocol(request)
         if 'websockets' not in request.app:
             request.app['websockets'] = set()
         try:
