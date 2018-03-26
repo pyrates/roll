@@ -13,9 +13,10 @@ class WebsocketHandler:
     read_limit = 2 ** 16
     write_limit = 2 ** 16
 
-    allowed_methods = {'GET'}
+    def __init__(self, handler, methods, subprotocols: list=None, **kwargs):
+        if methods != ['GET']:
+            raise RuntimeError('Websockets can only be registered on GET.')
 
-    def __init__(self, handler, subprotocols: list=None, **kwargs):
         self.handler = handler
         if subprotocols:
             subprotocols = frozenset(subprotocols)
