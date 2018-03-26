@@ -338,7 +338,7 @@ class Protocol(asyncio.Protocol):
             self.response.body = b'Unparsable request'
             self.write()
         except HttpParserUpgrade:
-            self.upgrade = self.request.headers.get('Upgrade')
+            self.upgrade = self.request.headers.get('UPGRADE')
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
