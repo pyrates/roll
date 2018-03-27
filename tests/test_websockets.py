@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import websockets
+from http import HTTPStatus
 
 
 @pytest.mark.asyncio
@@ -20,7 +21,7 @@ async def test_websocket_route(liveclient):
             'Sec-WebSocket-Version': '13'})
 
     assert ev.is_set()
-    assert response.status == 101
+    assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
     # With keep-alive in Connection
     with liveclient as query:
@@ -30,7 +31,7 @@ async def test_websocket_route(liveclient):
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-    assert response.status == 101
+    assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
 
 @pytest.mark.asyncio
@@ -101,7 +102,7 @@ async def test_websocket_binary(liveclient):
     await websocket.close_connection_task
     assert bdata == b'test'
     assert websocket.close_reason == ''
-    assert websocket.state == 3
+    assert websocket.state == websockets.protocol.State.CLOSED
 
 
 @pytest.mark.asyncio
@@ -120,7 +121,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Protocol': 'bar'})
-        assert response.status == 101
+        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
     with liveclient as query:
         response = await query('GET', '/ws', headers={
@@ -129,7 +130,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Protocol': 'bar, foo'})
-        assert response.status == 101
+        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
     with liveclient as query:
         response = await query('GET', '/ws', headers={
@@ -138,7 +139,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Protocol': 'baz'})
-        assert response.status == 101
+        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
     with liveclient as query:
         response = await query('GET', '/ws', headers={
@@ -146,5 +147,5 @@ async def test_websocket_route_with_subprotocols(liveclient):
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13'})
-        assert response.status == 101
+        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
         assert results == ['bar', 'bar', None, None]

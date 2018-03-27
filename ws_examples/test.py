@@ -22,8 +22,8 @@ class Application(Roll):
 
 
 app = Application()
-logger(app)
-traceback(app)
+#logger(app)
+#traceback(app)
 
 
 @app.route('/')

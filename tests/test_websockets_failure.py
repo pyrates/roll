@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import websockets
+from http import HTTPStatus
 
 
 @pytest.mark.asyncio
@@ -18,7 +19,7 @@ async def test_websocket_upgrade_error(liveclient):
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-    assert response.status == 426
+    assert response.status == HTTPStatus.UPGRADE_REQUIRED
     assert response.reason == 'Upgrade Required'
 
     # No upgrade
@@ -27,7 +28,7 @@ async def test_websocket_upgrade_error(liveclient):
             'Connection': 'keep-alive',
         })
 
-    assert response.status == 426
+    assert response.status == HTTPStatus.UPGRADE_REQUIRED
     assert response.reason == 'Upgrade Required'
 
     # Connection upgrade with no upgrade header
@@ -36,7 +37,7 @@ async def test_websocket_upgrade_error(liveclient):
             'Connection': 'upgrade',
         })
 
-    assert response.status == 426
+    assert response.status == HTTPStatus.UPGRADE_REQUIRED
     assert response.reason == 'Upgrade Required'
 
     
@@ -61,7 +62,7 @@ async def test_websocket_failure(liveclient):
     # No need to close here, the closing was unilateral, as we
     # did not comply in time.
     # We check the remains of the disowned client :
-    assert websocket.state == 3
+    assert websocket.state == websockets.protocol.State.CLOSED
     assert websocket.close_code == 1011
     assert websocket.close_reason == 'Handler died prematurely.'
 
@@ -85,7 +86,7 @@ async def test_websocket_failure_intime(liveclient):
     
     # The websocket was closed with the error, but in a gentle way.
     # No exception raised.
-    assert websocket.state == 3
+    assert websocket.state == websockets.protocol.State.CLOSED
     assert websocket.close_code == 1011
     assert websocket.close_reason == 'Handler died prematurely.'
 
@@ -105,6 +106,6 @@ async def test_websocket_failure_receive(liveclient):
         await websocket.recv()
 
     await websocket.close()
-    assert websocket.state == 3  # closing state
+    assert websocket.state == websockets.protocol.State.CLOSED
     assert websocket.close_code == 1011
     assert websocket.close_reason == 'Handler died prematurely.'
