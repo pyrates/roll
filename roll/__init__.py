@@ -278,11 +278,10 @@ class Request(dict):
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = ('app', '_status', 'headers', 'body', '_cookies', 'websocket')
+    __slots__ = ('app', '_status', 'headers', 'body', '_cookies')
 
     def __init__(self, app):
         self.app = app
-        self._status = None
         self.body = b''
         self.status = HTTPStatus.OK
         self.headers = {}
