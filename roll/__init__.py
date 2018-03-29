@@ -10,8 +10,6 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 
 import asyncio
-import re
-
 from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
@@ -198,7 +196,7 @@ class Request(dict):
     __slots__ = (
         'app', 'url', 'path', 'query_string', '_query',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade', 'keep_alive'
+        'upgrade'
     )
 
     def __init__(self, app):
@@ -313,41 +311,7 @@ class Response:
         return self._cookies
 
 
-class BaseProtocol:
-
-    # May or may not have "future" as arg.
-    def write(self, *args):
-        if self.transport.is_closing():
-            # We can't write, the transport is closing or is closed.
-            return
-
-        # Appends bytes for performances.
-        payload = b'HTTP/1.1 %a %b\r\n' % (
-            self.response.status.value, self.response.status.phrase.encode())
-        if not isinstance(self.response.body, bytes):
-            self.response.body = str(self.response.body).encode()
-        # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        bodyless = (self.response.status in self._BODYLESS_STATUSES or
-                    (hasattr(self, 'request') and
-                     self.request.method in self._BODYLESS_METHODS))
-        if 'Content-Length' not in self.response.headers and not bodyless:
-            length = len(self.response.body)
-            self.response.headers['Content-Length'] = length
-        if self.response._cookies:
-            # https://tools.ietf.org/html/rfc7230#page-23
-            for cookie in self.response.cookies.values():
-                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
-        for key, value in self.response.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n'
-        if self.response.body and not bodyless:
-            payload += self.response.body
-        self.transport.write(payload)
-        if not self.request.keep_alive:
-            self.transport.close()
-    
-
-class WSProtocol(WebsocketCommonProtocol):
+class WSProtocol(WebSocketCommonProtocol):
 
     needs_upgrade = True
     allowed_methods = {'GET'}
@@ -396,10 +360,10 @@ class WSProtocol(WebsocketCommonProtocol):
 
         # Return the subprotocol agreed upon, if any
         self.subprotocol = subprotocol
-        response.websocket = self
 
     async def run(self):
         try:
+            self.request.app.websockets.add(self)
             await self.request.route.payload['GET'](self.request, self)
         except ConnectionClosed:
             # The client closed the connection.
@@ -418,6 +382,7 @@ class WSProtocol(WebsocketCommonProtocol):
         else:
             # The handler finished gracefully.
             # We can close the socket in peace.
+            self.request.app.websockets.discard(self)
             await self.close()
 
 
@@ -436,11 +401,13 @@ class Protocol(asyncio.Protocol):
         self.parser = self.RequestParser(self)
 
     def connection_made(self, transport):
-        self.writer = transport
+        self.transport = transport
 
     def data_received(self, data: bytes):
         try:
             self.parser.feed_data(data)
+        except HttpParserUpgrade:
+            pass  # https://github.com/MagicStack/httptools/issues/17
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
@@ -448,35 +415,32 @@ class Protocol(asyncio.Protocol):
             self.response.status = HTTPStatus.BAD_REQUEST
             self.response.body = b'Unparsable request'
             self.write()
-        except HttpParserUpgrade:
-            self.request.upgrade = requested_protocol
 
     def upgrade(self):
         handler_protocol = self.request.route.payload.get('protocol', 'http')
-        requested_protocol = self.request.headers['UPGRADE'].lower()
 
-        if requested_protocol != handler_protocol:
+        if self.request.upgrade != handler_protocol:
             self.response.status = HTTPStatus.NOT_IMPLEMENTED
             self.response.body = 'Resource can not be upgraded.'
             self.write()
             return
 
-        upgrade_protocol = app.protocols.get(requested)
+        upgrade_protocol = self.app.protocols.get(self.request.upgrade)
         if upgrade_protocol is None:
             # https://tools.ietf.org/html/rfc7231.html#page-63
-            # the server does not support the functionality required by the request.
+            # the server does not support the functionality.
             self.response.status = HTTPStatus.NOT_IMPLEMENTED
             self.response.body = 'Unknown upgrade requested.'
             self.write()
             return
 
-        new_protocol = upgrade_protocol()
-        new_protocol.handshake(self.request, self.response)
+        new_protocol = upgrade_protocol(self.request)
+        new_protocol.handshake(self.response)
         self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
         self.write()
-        new_protocol.connection_made(self.writer)
+        new_protocol.connection_made(self.transport)
         new_protocol.connection_open()
-        self.writer.set_protocol(new_protocol)
+        self.transport.set_protocol(new_protocol)
         return new_protocol
 
     # All on_xxx methods are in use by httptools parser.
@@ -488,32 +452,45 @@ class Protocol(asyncio.Protocol):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
 
+    def on_headers_complete(self):
+        # Lookup the route requested
+        self.app.lookup(self.request)
+        if 'upgrade' in self.request.headers.get('CONNECTION', '').lower():
+            # We HAVE to parse it by hand, because ot HTTP-PARSER
+            # https://github.com/MagicStack/httptools/issues/17
+            self.request.upgrade = (
+                self.request.headers.get('UPGRADE', '').lower())
+
     def on_url(self, url: bytes):
         self.request.method = self.parser.get_method().decode().upper()
         self.request.url = url
         parsed = parse_url(url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
-        self.app.lookup(self.request)
 
     def on_message_begin(self):
         self.request = self.app.Request(self.app)
         self.response = self.app.Response(self.app)
 
-    def on_headers_complete(self):
-        self.request.keep_alive = self.parser.should_keep_alive()
-
     def on_message_complete(self):
-        if self.request.route.payload.get('_needs_upgrade') and not self.request.upgrade:
-            self.response.status = HTTPStatus.UPGRADED_REQUIRED
-            self.write()
-            return
-
-        if not self.request.upgrade:
-            self.app.loop.create_task(self.run())
-        else:
+        if self.request.upgrade:
+            # An upgrade has been requested
             new_protocol = self.upgrade()
-            self.app.loop.create_task(new_protocol.run())
+            if new_protocol is not None:
+                # No error occured during the upgrade
+                # The protocol was found and the handler willing to comply
+                # We run the protocol task.
+                self.app.loop.create_task(new_protocol.run())
+        else:
+            # No upgrade was requested
+            if self.request.route.payload.get('_needs_upgrade'):
+                # The handler need and upgrade: we need to complain.
+                self.response.status = HTTPStatus.UPGRADE_REQUIRED
+                self.write()
+            else:
+                # No upgrade was required and the handler didn't need any.
+                # We run the normal task.
+                self.app.loop.create_task(self.run())
 
     async def run(self):
         await self.app(self.request, self.response)
@@ -542,9 +519,9 @@ class Protocol(asyncio.Protocol):
         payload += b'\r\n'
         if self.response.body and not bodyless:
             payload += self.response.body
-        self.writer.write(payload)
-        if not self.request.keep_alive:
-            self.writer.close()
+        self.transport.write(payload)
+        if not self.parser.should_keep_alive():
+            self.transport.close()
 
 
 Route = namedtuple('Route', ['payload', 'vars'])
@@ -566,12 +543,13 @@ class Roll(dict):
     Cookies = Cookies
 
     protocols = {
-        'websocket': WebSocketCommonProtocol,
+        'websocket': WSProtocol,
         }
-    
+
     def __init__(self):
         self.routes = self.Routes()
-        self.hooks = {}
+        self.hooks = dict()
+        self.websockets = set()
 
     async def startup(self):
         await self.hook('startup')
@@ -581,7 +559,7 @@ class Roll(dict):
 
     def lookup(self, request):
         request.route = Route(*self.routes.match(request.path))
-        
+
     async def __call__(self, request: Request, response: Response):
         try:
             if not await self.hook('request', request, response):
@@ -616,15 +594,18 @@ class Roll(dict):
     def factory(self):
         return self.Protocol(self)
 
-    def route(self, path: str, methods: list=None, protocol: str='http', **extras: dict):
+    def route(self, path: str, methods: list=None,
+              protocol: str='http', **extras: dict):
         if methods is None:
             methods = ['GET']
 
+        protocol = protocol.lower()
         if protocol != 'http':
             upgrade = self.protocols.get(protocol)
             assert upgrade is not None
             assert set(methods) <= set(upgrade.allowed_methods)
             # Computed at load time for perf.
+            extras['protocol'] = protocol
             extras['_needs_upgrade'] = upgrade.needs_upgrade
 
         def wrapper(func):

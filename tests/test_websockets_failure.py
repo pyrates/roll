@@ -19,8 +19,8 @@ async def test_websocket_upgrade_error(liveclient):
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-    assert response.status == HTTPStatus.UPGRADE_REQUIRED
-    assert response.reason == 'Upgrade Required'
+    assert response.status == HTTPStatus.NOT_IMPLEMENTED
+    assert response.reason == 'Not Implemented'
 
     # No upgrade
     with liveclient as query:
