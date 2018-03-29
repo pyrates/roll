@@ -386,10 +386,10 @@ class WSProtocol(WebSocketCommonProtocol):
             await self.close()
 
 
-class Protocol(asyncio.Protocol):
+class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'writer')
+    __slots__ = ('app', 'request', 'parser', 'response', 'transport')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
@@ -407,7 +407,9 @@ class Protocol(asyncio.Protocol):
         try:
             self.parser.feed_data(data)
         except HttpParserUpgrade:
-            pass  # https://github.com/MagicStack/httptools/issues/17
+            # The upgrade raise is done after all the on_x
+            # We acted upon the upgrade earlier, so we just pass.
+            pass
         except HttpParserError:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
@@ -455,11 +457,6 @@ class Protocol(asyncio.Protocol):
     def on_headers_complete(self):
         # Lookup the route requested
         self.app.lookup(self.request)
-        if 'upgrade' in self.request.headers.get('CONNECTION', '').lower():
-            # We HAVE to parse it by hand, because ot HTTP-PARSER
-            # https://github.com/MagicStack/httptools/issues/17
-            self.request.upgrade = (
-                self.request.headers.get('UPGRADE', '').lower())
 
     def on_url(self, url: bytes):
         self.request.method = self.parser.get_method().decode().upper()
@@ -473,8 +470,9 @@ class Protocol(asyncio.Protocol):
         self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
-        if self.request.upgrade:
+        if self.parser.should_upgrade():
             # An upgrade has been requested
+            self.request.upgrade = self.request.headers['UPGRADE'].lower()
             new_protocol = self.upgrade()
             if new_protocol is not None:
                 # No error occured during the upgrade
@@ -533,7 +531,7 @@ class Roll(dict):
     You can subclass it to set your own `Protocol`, `Routes`, `Query`, `Form`,
     `Files`, `Request`, `Response` and/or `Cookies` class(es).
     """
-    Protocol = Protocol
+    Protocol = HTTPProtocol
     Routes = Routes
     Query = Query
     Form = Form
