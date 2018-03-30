@@ -476,7 +476,8 @@ class HTTPProtocol(asyncio.Protocol):
                 self.task = self.app.loop.create_task(new_protocol.run())
         else:
             # No upgrade was requested
-            if self.request.route.payload['_protocol_class'].needs_upgrade:
+            payload = self.request.route.payload
+            if payload and payload['_protocol_class'].needs_upgrade:
                 # The handler need and upgrade: we need to complain.
                 raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
             # No upgrade was required and the handler didn't need any.
@@ -544,9 +545,6 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
-    def lookup(self, request):
-        request.route = Route(*self.routes.match(request.path))
-
     async def __call__(self, request: Request, response: Response):
         try:
             if not await self.hook('request', request, response):
@@ -580,6 +578,9 @@ class Roll(dict):
 
     def factory(self):
         return self.HttpProtocol(self)
+
+    def lookup(self, request):
+        request.route = Route(*self.routes.match(request.path))
 
     def route(self, path: str, methods: list=None,
               protocol: str='http', **extras: dict):

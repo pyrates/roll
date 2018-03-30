@@ -9,7 +9,8 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def protocol(app):
+def protocol(app, event_loop):
+    app.loop = event_loop
     protocol = app.HttpProtocol(app)
     protocol.connection_made(Transport())
     return protocol
@@ -32,6 +33,8 @@ async def test_request_parse_simple_get_response(protocol):
     assert protocol.request.method == 'GET'
     assert protocol.request.path == '/feeds'
     assert protocol.request.headers['ACCEPT'] == '*/*'
+    await protocol.task
+    assert protocol.response.status == HTTPStatus.NOT_FOUND
 
 
 async def test_request_headers_are_uppercased(protocol):
