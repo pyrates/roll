@@ -388,7 +388,7 @@ class WSProtocol(WebSocketCommonProtocol):
 class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'transport')
+    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
@@ -400,6 +400,7 @@ class HTTPProtocol(asyncio.Protocol):
     def __init__(self, app):
         self.app = app
         self.parser = self.RequestParser(self)
+        self.task = None
 
     def connection_made(self, transport):
         self.transport = transport
@@ -472,7 +473,7 @@ class HTTPProtocol(asyncio.Protocol):
                 # No error occured during the upgrade
                 # The protocol was found and the handler willing to comply
                 # We run the protocol task.
-                self.app.loop.create_task(new_protocol.run())
+                self.task = self.app.loop.create_task(new_protocol.run())
         else:
             # No upgrade was requested
             if self.request.route.payload['_protocol_class'].needs_upgrade:
@@ -480,9 +481,9 @@ class HTTPProtocol(asyncio.Protocol):
                 raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
             # No upgrade was required and the handler didn't need any.
             # We run the normal task.
-            task = self.app.loop.create_task(
+            self.task = self.app.loop.create_task(
                 self.app(self.request, self.response))
-            task.add_done_callback(self.write)
+            self.task.add_done_callback(self.write)
 
     # May or may not have "future" as arg.
     def write(self, *args):

@@ -138,16 +138,17 @@ class Client:
         body, headers = self.encode_body(body, headers)
         if isinstance(body, str):
             body = body.encode()
+        if body and not 'Content-Length' in headers:
+            headers['Content-Length'] = len(body)
         self.protocol = self.app.factory()
         self.protocol.connection_made(Transport())
-        self.protocol.on_message_begin()
-        self.protocol.on_url(path.encode())
-        self.protocol.request.body = body
-        self.protocol.request.method = method
-        for key, value in headers.items():
-            self.protocol.on_header(key.encode(), value.encode())
-        await self.app(self.protocol.request, self.protocol.response)
-        self.protocol.write()
+        headers = '\r\n'.join('{}: {}'.format(*h) for h in headers.items())
+        data = b'%b %b HTTP/1.1\r\n%b\r\n\r\n%b' % (
+            method.encode(), path.encode(), headers.encode(), body or b'')
+        print(data)
+        self.protocol.data_received(data)
+        if self.protocol.task:
+            await self.protocol.task
         return self.protocol.response
 
     async def get(self, path, **kwargs):
