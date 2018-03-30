@@ -146,8 +146,8 @@ class Client:
         self.protocol.request.method = method
         for key, value in headers.items():
             self.protocol.on_header(key.encode(), value.encode())
-        self.protocol.on_headers_complete()
-        await self.protocol.run()
+        await self.app(self.protocol.request, self.protocol.response)
+        self.protocol.write()
         return self.protocol.response
 
     async def get(self, path, **kwargs):

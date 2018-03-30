@@ -453,16 +453,13 @@ class HTTPProtocol(asyncio.Protocol):
         # FIXME do not put all body in RAM blindly.
         self.request.body += body
 
-    def on_headers_complete(self):
-        # Lookup the route requested
-        self.app.lookup(self.request)
-
     def on_url(self, url: bytes):
         self.request.method = self.parser.get_method().decode().upper()
         self.request.url = url
         parsed = parse_url(url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
+        self.app.lookup(self.request)
 
     def on_message_begin(self):
         self.request = self.app.Request(self.app)
@@ -487,11 +484,9 @@ class HTTPProtocol(asyncio.Protocol):
             else:
                 # No upgrade was required and the handler didn't need any.
                 # We run the normal task.
-                self.app.loop.create_task(self.run())
-
-    async def run(self):
-        await self.app(self.request, self.response)
-        self.write()
+                task = self.app.loop.create_task(
+                    self.app(self.request, self.response))
+                task.add_done_callback(self.write)
 
     # May or may not have "future" as arg.
     def write(self, *args):
