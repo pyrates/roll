@@ -477,14 +477,12 @@ class HTTPProtocol(asyncio.Protocol):
             # No upgrade was requested
             if self.request.route.payload['_protocol_class'].needs_upgrade:
                 # The handler need and upgrade: we need to complain.
-                self.response.status = HTTPStatus.UPGRADE_REQUIRED
-                self.write()
-            else:
-                # No upgrade was required and the handler didn't need any.
-                # We run the normal task.
-                task = self.app.loop.create_task(
-                    self.app(self.request, self.response))
-                task.add_done_callback(self.write)
+                raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
+            # No upgrade was required and the handler didn't need any.
+            # We run the normal task.
+            task = self.app.loop.create_task(
+                self.app(self.request, self.response))
+            task.add_done_callback(self.write)
 
     # May or may not have "future" as arg.
     def write(self, *args):
