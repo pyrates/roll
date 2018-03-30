@@ -7,14 +7,14 @@ from http import HTTPStatus
 @pytest.mark.asyncio
 async def test_websocket_upgrade_error(liveclient):
 
-    @liveclient.app.route('/ws', protocol="websocket")
+    @liveclient.app.route('/ws', protocol='websocket')
     async def handler(request, ws, **params):
         pass
 
     # Wrong upgrade
     with liveclient as query:
         response = await query('GET', '/ws', headers={
-            'Upgrade': 'http2',
+            'Upgrade': 'h2c',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
@@ -40,7 +40,7 @@ async def test_websocket_upgrade_error(liveclient):
     assert response.status == HTTPStatus.UPGRADE_REQUIRED
     assert response.reason == 'Upgrade Required'
 
-    
+
 @pytest.mark.asyncio
 async def test_websocket_failure(liveclient):
 
@@ -78,12 +78,12 @@ async def test_websocket_failure_intime(liveclient):
     # Sent within the closing frame span messages will be ignored but
     # won't create any error as the server is polite and awaits the
     # closing frame to ends the interaction in a friendly manner.
-    await websocket.send('first')  
+    await websocket.send('first')
 
     # The server is on hold, waiting for the closing handshake
     # We provide it to be civilized.
     await websocket.close()
-    
+
     # The websocket was closed with the error, but in a gentle way.
     # No exception raised.
     assert websocket.state == websockets.protocol.State.CLOSED

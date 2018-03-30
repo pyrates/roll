@@ -394,6 +394,8 @@ class HTTPProtocol(asyncio.Protocol):
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
                           HTTPStatus.NOT_MODIFIED)
     RequestParser = HttpRequestParser
+    needs_upgrade = False
+    allowed_methods = None  # Means all.
 
     def __init__(self, app):
         self.app = app
@@ -409,33 +411,29 @@ class HTTPProtocol(asyncio.Protocol):
             # The upgrade raise is done after all the on_x
             # We acted upon the upgrade earlier, so we just pass.
             pass
-        except HttpParserError:
+        except HttpParserError as error:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
             self.response = self.app.Response(self.app)
-            self.response.status = HTTPStatus.BAD_REQUEST
-            self.response.body = b'Unparsable request'
+            # Original error stored by httptools.
+            if isinstance(error.__context__, HttpError):
+                error = error.__context__
+                self.response.status = error.status
+                self.response.body = error.message
+            else:
+                self.response.status = HTTPStatus.BAD_REQUEST
+                self.response.body = b'Unparsable request'
             self.write()
 
     def upgrade(self):
         handler_protocol = self.request.route.payload.get('protocol', 'http')
 
         if self.request.upgrade != handler_protocol:
-            self.response.status = HTTPStatus.NOT_IMPLEMENTED
-            self.response.body = 'Resource can not be upgraded.'
-            self.write()
-            return
+            raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
+                            'Request cannot be upgraded.')
 
-        upgrade_protocol = self.app.protocols.get(self.request.upgrade)
-        if upgrade_protocol is None:
-            # https://tools.ietf.org/html/rfc7231.html#page-63
-            # the server does not support the functionality.
-            self.response.status = HTTPStatus.NOT_IMPLEMENTED
-            self.response.body = 'Unknown upgrade requested.'
-            self.write()
-            return
-
-        new_protocol = upgrade_protocol(self.request)
+        protocol_class = self.request.route.payload['_protocol_class']
+        new_protocol = protocol_class(self.request)
         new_protocol.handshake(self.response)
         self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
         self.write()
@@ -477,7 +475,7 @@ class HTTPProtocol(asyncio.Protocol):
                 self.app.loop.create_task(new_protocol.run())
         else:
             # No upgrade was requested
-            if self.request.route.payload.get('_needs_upgrade'):
+            if self.request.route.payload['_protocol_class'].needs_upgrade:
                 # The handler need and upgrade: we need to complain.
                 self.response.status = HTTPStatus.UPGRADE_REQUIRED
                 self.write()
@@ -525,7 +523,8 @@ class Roll(dict):
     You can subclass it to set your own `Protocol`, `Routes`, `Query`, `Form`,
     `Files`, `Request`, `Response` and/or `Cookies` class(es).
     """
-    Protocol = HTTPProtocol
+    HttpProtocol = HTTPProtocol
+    WebsocketProtocol = WSProtocol
     Routes = Routes
     Query = Query
     Form = Form
@@ -534,9 +533,6 @@ class Roll(dict):
     Response = Response
     Cookies = Cookies
 
-    protocols = {
-        'websocket': WSProtocol,
-        }
 
     def __init__(self):
         self.routes = self.Routes()
@@ -584,7 +580,7 @@ class Roll(dict):
             response.body = str(e)
 
     def factory(self):
-        return self.Protocol(self)
+        return self.HttpProtocol(self)
 
     def route(self, path: str, methods: list=None,
               protocol: str='http', **extras: dict):
@@ -592,13 +588,13 @@ class Roll(dict):
             methods = ['GET']
 
         protocol = protocol.lower()
-        if protocol != 'http':
-            upgrade = self.protocols.get(protocol)
-            assert upgrade is not None
-            assert set(methods) <= set(upgrade.allowed_methods)
-            # Computed at load time for perf.
-            extras['protocol'] = protocol
-            extras['_needs_upgrade'] = upgrade.needs_upgrade
+        klass = getattr(self, protocol.title() + 'Protocol')
+        assert klass is not None
+        if klass.allowed_methods:
+            assert set(methods) <= set(klass.allowed_methods)
+        # Computed at load time for perf.
+        extras['protocol'] = protocol
+        extras['_protocol_class'] = klass
 
         def wrapper(func):
             payload = {method: func for method in methods}

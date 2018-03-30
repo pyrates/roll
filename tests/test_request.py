@@ -10,7 +10,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture
 def protocol(app):
-    protocol = app.Protocol(app)
+    protocol = app.HttpProtocol(app)
     protocol.connection_made(Transport())
     return protocol
 
