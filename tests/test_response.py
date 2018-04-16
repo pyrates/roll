@@ -80,16 +80,6 @@ async def test_write_head_no_content_type(client, app):
     assert client.protocol.transport.data == b'HTTP/1.1 200 OK\r\n\r\n'
 
 
-async def test_write_connect_no_content_type(client, app):
-
-    @app.route('/test', methods=['CONNECT'])
-    async def connect(req, resp):
-        resp.status = HTTPStatus.OK
-
-    await client.connect('/test')
-    assert client.protocol.transport.data == b'HTTP/1.1 200 OK\r\n\r\n'
-
-
 async def test_write_cookies(client, app):
 
     @app.route('/test')
