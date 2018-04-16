@@ -135,6 +135,39 @@ the point! You also have access to optional `.files`, check out the
 dedicated [reference section](reference.md#request) to learn more.
 
 
+## Websockets
+
+Websockets can bring real-time dialog between a client, usually the browser,
+and your application.
+
+In a browser, using a websocket requires javascript.
+
+Server-side, your websocket endpoint is declared as a route.
+The main difference is that the route handler takes the websocket 
+instead of the response as an argument. This websocket object can send
+and receive.
+
+For our example, we'll implement an echo endpoint that will simply
+parrot what it gets through the websocket:
+
+```python3
+from roll import Roll
+from roll.extensions import simple_server
+
+app = Roll()
+
+@app.route('/ws', protocol="websocket")
+async def echo_websocket(request, ws, **params):
+    async for message in ws:
+        await ws.send(message)
+```
+
+The websocket will exit and close the communication with the client as
+soon as the endpoint execution is done. In this example, we use an
+endless loop that will asynchroneously await for a message on the
+socket and asynchroneously send it back.
+
+
 ## Using extensions
 
 There are a couple of extensions available to “enrich” your application.
