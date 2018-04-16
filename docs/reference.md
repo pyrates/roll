@@ -196,6 +196,54 @@ A namedtuple to collect matched route data with attributes:
 * **vars** (`dict`): URL placeholders resolved for the current route.
 
 
+### Websocket
+
+Communication protocol using a socket between a client (usually the browser)
+and the server (a route endpoint).
+
+- **recv()**: receive the next message (async).
+- **send(data)**: send data to the client. Can handle `str` or `bytes`
+  arg (async).
+- **close(code: int, reason: str)**: close the websocket (async).
+- **ping(data)**: send a ping/heartbeat packet (async).
+  This method returns an `asyncio.Future` object.
+- **pong()**: send a pong packet in response to a ping (async).
+
+The websocket object can be used as an asynchroneous iterator. Using it that
+way will yield a message at each iteration while keeping the websocket
+connection alive.
+
+```python
+async def myendpoint(request, ws, **params):
+    async for message in ws:
+         print(message)
+```
+
+NB: while most clients will keep the connection alive and won't expect
+heartbeats (read ping), some can be more pedantic and ask for a regular
+keep-alive ping.
+
+```python
+import asyncio
+
+async def keep_me_alive(request, ws, **params):
+    while True:
+        try:
+            msg = await asyncio.wait_for(ws.recv(), timeout=20)
+        except asyncio.TimeoutError:
+            # No data in 20 seconds, check the connection.
+            try:
+                pong_waiter = await ws.ping()
+                await asyncio.wait_for(pong_waiter, timeout=10)
+            except asyncio.TimeoutError:
+                # No response to ping in 10 seconds, disconnect.
+                break
+        else:
+            # do something with msg
+            ...
+```
+
+
 ## Extensions
 
 Please read
