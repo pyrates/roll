@@ -20,7 +20,7 @@ async def test_websocket_route(liveclient):
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-    #assert ev.is_set()
+    assert ev.is_set()
     assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
     # With keep-alive in Connection
