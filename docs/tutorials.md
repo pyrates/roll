@@ -164,8 +164,8 @@ async def echo_websocket(request, ws, **params):
 
 The websocket will exit and close the communication with the client as
 soon as the endpoint execution is done. In this example, we use an
-endless loop that will asynchroneously await for a message on the
-socket and asynchroneously send it back.
+endless loop that will asynchronously await for a message on the
+socket and asynchronously send it back.
 
 
 ## Using extensions

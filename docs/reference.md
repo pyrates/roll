@@ -209,7 +209,7 @@ and the server (a route endpoint).
   This method returns an `asyncio.Future` object.
 - **pong()**: send a pong packet in response to a ping (async).
 
-The websocket object can be used as an asynchroneous iterator. Using it that
+The websocket object can be used as an asynchronous iterator. Using it that
 way will yield a message at each iteration while keeping the websocket
 connection alive.
 
