@@ -145,3 +145,42 @@ See the [reference](/reference.md#cookies) for all the available `set` kwargs.
 
 
 See also the [advanced guides](/how-to/advanced.md).
+
+
+## How to consume query parameters
+
+The query parameters (aka URL parameters) are accessible via the `request.query`
+property.
+
+The very basic usage is:
+
+```python3
+# URL looks like http://localhost/path?myparam=blah
+myparam = request.query.get('myparam', 'default-value')
+```
+
+You can also request the full list of values:
+
+```python3
+# URL looks like http://localhost/path?myparam=bar&myparam=foo
+myparam = request.query.list('myparam', 'default-value')
+```
+
+If you don't pass a value, Roll will assume that you are getting a required
+parameter, and so if this parameter is not present in the query,
+a `400` [HttpError](/reference.md#httperror) will be raised.
+
+The [Query](/reference.md#query) class has three getters to cast the value for
+you: `bool`, `int` and `float`.
+
+```python3
+# URL looks like http://localhost/path?myparam=true
+myparam = request.query.bool('myparam', False)
+assert myparam is True
+```
+
+If the parameter value cannot be casted, a `400` [HttpError](/reference.md#httperror)
+will be raised.
+
+See also [/how-to/advanced.md##how-to-subclass-roll-itself] to see how to make
+your how Query getters.
