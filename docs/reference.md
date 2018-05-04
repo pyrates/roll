@@ -18,7 +18,7 @@ You can subclass it to set your own [Protocol](#protocol), [Route](#route),
 [Query](#query), [Form](#form), [Files](#files), [Request](#request),
 [Response](#response) and/or [Cookies](#cookies) class(es).
 
-See [How to subclass Roll itself](how-to-guides.md#how-to-subclass-roll-itself)
+See [How to subclass Roll itself](/how-to/advanced.md#how-to-subclass-roll-itself)
 guide.
 
 ### HttpError
@@ -65,7 +65,7 @@ which keys are never used by Roll itself, they are dedicated to external use,
 for example for session data.
 
 See
-[How to store custom data in the request](how-to-guides.md#how-to-store-custom-data-in-the-request)
+[How to store custom data in the request](how-to/basic.md#how-to-store-custom-data-in-the-request)
 for an example of use.
 
 
@@ -170,7 +170,7 @@ A Cookies management class, built on top of
 - **set(name, value, max_age=None, expires=None, secure=False, httponly=False,
   path=None, domain=None)**: set a new cookie
 
-See [How to deal with cookies](how-to-guides.md#how-to-deal-with-cookies) for
+See [How to deal with cookies](how-to/basic.md#how-to-deal-with-cookies) for
 examples.
 
 
@@ -199,7 +199,7 @@ A namedtuple to collect matched route data with attributes:
 ## Extensions
 
 Please read
-[How to create an extension](how-to-guides.md#how-to-create-an-extension)
+[How to create an extension](how-to/advanced.md#how-to-create-an-extension)
 for usage.
 
 All built-in extensions are imported from `roll.extensions`:
@@ -310,7 +310,7 @@ Launch a local server on `127.0.0.1:3579` by default.
 ## Events
 
 Please read
-[How to create an extension](how-to-guides.md#how-to-create-an-extension)
+[How to create an extension](how-to/advanced.md#how-to-create-an-extension)
 for usage.
 
 ### startup
