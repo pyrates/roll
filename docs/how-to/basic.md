@@ -149,7 +149,7 @@ See also the [advanced guides](/how-to/advanced.md).
 
 ## How to consume query parameters
 
-The query parameters (aka URL parameters) are accessible via the `request.query`
+The query parameters (a.k.a. URL parameters) are made accessible via the `request.query`
 property.
 
 The very basic usage is:
@@ -157,6 +157,9 @@ The very basic usage is:
 ```python3
 # URL looks like http://localhost/path?myparam=blah
 myparam = request.query.get('myparam', 'default-value')
+assert myparam == 'blah'
+other = request.query.get('other', 'default-value')
+assert other == 'default-value'
 ```
 
 You can also request the full list of values:
@@ -164,9 +167,10 @@ You can also request the full list of values:
 ```python3
 # URL looks like http://localhost/path?myparam=bar&myparam=foo
 myparam = request.query.list('myparam', 'default-value')
+assert myparam == ['bar', 'foo']
 ```
 
-If you don't pass a value, Roll will assume that you are getting a required
+If you don't pass a default value, Roll will assume that you are getting a required
 parameter, and so if this parameter is not present in the query,
 a `400` [HttpError](/reference.md#httperror) will be raised.
 
@@ -183,4 +187,4 @@ If the parameter value cannot be casted, a `400` [HttpError](/reference.md#httpe
 will be raised.
 
 See also [/how-to/advanced.md##how-to-subclass-roll-itself] to see how to make
-your how Query getters.
+your own Query getters.

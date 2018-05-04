@@ -40,7 +40,7 @@ and you should be able to read it within the next half-hour.
 ## How-to guides
 
 - [basic](how-to/basic.md): all the basic stuff you'll certainly use
-- [developing](how-to/developing.md): snipets to make developing with Roll more fun
+- [developing](how-to/developing.md): snippets to make developing with Roll more fun
 - [advanced](how-to/advanced.md): more advanced guides
 
 
