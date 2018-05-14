@@ -24,7 +24,7 @@ def cors(app, origin='*', methods=None, headers=None):
 
 def websockets_store(app):
 
-    if not 'websockets' in app:
+    if 'websockets' not in app:
         app['websockets'] = set()
     assert isinstance(app['websockets'], set)
 

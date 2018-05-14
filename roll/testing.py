@@ -1,4 +1,3 @@
-
 import http
 import json
 import mimetypes
@@ -137,7 +136,7 @@ class Client:
         body, headers = self.encode_body(body, headers)
         if isinstance(body, str):
             body = body.encode()
-        if body and not 'Content-Length' in headers:
+        if body and 'Content-Length' not in headers:
             headers['Content-Length'] = len(body)
         self.protocol = self.app.factory()
         self.protocol.connection_made(Transport())

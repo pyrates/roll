@@ -14,17 +14,15 @@ from collections import namedtuple
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
-from urllib.parse import unquote, parse_qs
+from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes
 from biscuits import Cookie, parse
-from httptools import (
-    HttpParserUpgrade, HttpParserError, HttpRequestParser, parse_url)
+from httptools import (HttpParserError, HttpParserUpgrade, HttpRequestParser,
+                       parse_url)
 from multifruits import Parser, extract_filename, parse_content_disposition
-
-from websockets import handshake, WebSocketCommonProtocol, InvalidHandshake
 from websockets import ConnectionClosed  # exposed for convenience
-
+from websockets import InvalidHandshake, WebSocketCommonProtocol, handshake
 
 try:
     # In case you use json heavily, we recommend installing
@@ -361,7 +359,7 @@ class WSProtocol(WebSocketCommonProtocol):
         self.subprotocol = subprotocol
 
     async def run(self):
-        ## See https://tools.ietf.org/html/rfc6455#page-45
+        # See https://tools.ietf.org/html/rfc6455#page-45
         try:
             await self.request.app.hook(
                 'websocket_connect', self.request, self)
@@ -536,7 +534,6 @@ class Roll(dict):
     Request = Request
     Response = Response
     Cookies = Cookies
-
 
     def __init__(self):
         self.routes = self.Routes()
