@@ -383,9 +383,10 @@ class WSProtocol(WebSocketCommonProtocol):
         else:
             # The handler finished gracefully.
             # We can close the socket in peace.
+            await self.close()
+        finally:
             await self.request.app.hook(
                 'websocket_disconnect', self.request, self)
-            await self.close()
 
 
 class HTTPProtocol(asyncio.Protocol):
