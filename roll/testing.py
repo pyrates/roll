@@ -84,9 +84,8 @@ class Client:
     # taste if needed.
     content_type = 'application/json; charset=utf-8'
 
-    def __init__(self, app, event_loop):
+    def __init__(self, app):
         self.app = app
-        self.loop = event_loop
 
     def handle_files(self, kwargs):
         kwargs.setdefault('headers', {})
@@ -186,7 +185,7 @@ class Client:
 def client(app, event_loop):
     app.loop = event_loop
     app.loop.run_until_complete(app.startup())
-    yield Client(app, event_loop)
+    yield Client(app)
     app.loop.run_until_complete(app.shutdown())
 
 
