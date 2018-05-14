@@ -11,7 +11,7 @@ A tutorial:
 
 ## Your first Roll application
 
-Make sure you [installed Roll first](how-to-guides.md#how-to-install-roll).
+Make sure you [installed Roll first](how-to/basic.md#how-to-install-roll).
 
 The tinyest application you can make is this one:
 
@@ -95,7 +95,7 @@ you gave during the previous part of the tutorial.
 Once it’s done, you can launch `py.test tests.py`.
 
 *Note: in case the `client` fixture is not found, you probably did not
-[install `Roll`](how-to-guides.md#how-to-install-roll) correctly.*
+[install `Roll`](how-to/basic.md#how-to-install-roll) correctly.*
 
 
 ## Your first Roll form

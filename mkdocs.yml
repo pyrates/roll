@@ -2,7 +2,10 @@ site_name: Roll - async, simple, fast.
 pages:
   - Home: index.md
   - Tutorials: tutorials.md
-  - How-to guides: how-to-guides.md
+  - How-to guides:
+    - Basic: how-to/basic.md
+    - Developing: how-to/developing.md
+    - Advanced: how-to/advanced.md
   - Discussions: discussions.md
   - Reference: reference.md
   - Changelog: changelog.md
