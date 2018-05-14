@@ -312,8 +312,8 @@ class Response:
 
 class WSProtocol(WebSocketCommonProtocol):
 
-    needs_upgrade = True
-    allowed_methods = {'GET'}
+    NEEDS_UPGRADE = True
+    ALLOWED_METHODS = {'GET'}
     timeout = 5
     max_size = 2 ** 20  # 1 megabytes
     max_queue = 64
@@ -361,8 +361,10 @@ class WSProtocol(WebSocketCommonProtocol):
         self.subprotocol = subprotocol
 
     async def run(self):
+        ## See https://tools.ietf.org/html/rfc6455#page-45
         try:
-            self.request.app.websockets.add(self)
+            await self.request.app.hook(
+                'websocket_connect', self.request, self)
             await self.request.route.payload['GET'](self.request, self)
         except ConnectionClosed:
             # The client closed the connection.
@@ -381,7 +383,8 @@ class WSProtocol(WebSocketCommonProtocol):
         else:
             # The handler finished gracefully.
             # We can close the socket in peace.
-            self.request.app.websockets.discard(self)
+            await self.request.app.hook(
+                'websocket_disconnect', self.request, self)
             await self.close()
 
 
@@ -394,8 +397,8 @@ class HTTPProtocol(asyncio.Protocol):
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
                           HTTPStatus.NOT_MODIFIED)
     RequestParser = HttpRequestParser
-    needs_upgrade = False
-    allowed_methods = None  # Means all.
+    NEEDS_UPGRADE = False
+    ALLOWED_METHODS = None  # Means all.
 
     def __init__(self, app):
         self.app = app
@@ -477,7 +480,7 @@ class HTTPProtocol(asyncio.Protocol):
         else:
             # No upgrade was requested
             payload = self.request.route.payload
-            if payload and payload['_protocol_class'].needs_upgrade:
+            if payload and payload['_protocol_class'].NEEDS_UPGRADE:
                 # The handler need and upgrade: we need to complain.
                 raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
             # No upgrade was required and the handler didn't need any.
@@ -536,8 +539,7 @@ class Roll(dict):
 
     def __init__(self):
         self.routes = self.Routes()
-        self.hooks = dict()
-        self.websockets = set()
+        self.hooks = {}
 
     async def startup(self):
         await self.hook('startup')
@@ -590,8 +592,8 @@ class Roll(dict):
         protocol = protocol.lower()
         klass = getattr(self, protocol.title() + 'Protocol')
         assert klass is not None
-        if klass.allowed_methods:
-            assert set(methods) <= set(klass.allowed_methods)
+        if klass.ALLOWED_METHODS:
+            assert set(methods) <= set(klass.ALLOWED_METHODS)
         # Computed at load time for perf.
         extras['protocol'] = protocol
         extras['_protocol_class'] = klass

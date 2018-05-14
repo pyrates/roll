@@ -191,3 +191,29 @@ async def hello(request, response):
     pass
 ```
 
+
+## How to work with Websockets pings and pongs
+
+While most clients will keep the connection alive and won't expect
+heartbeats (read ping), some can be more pedantic and ask for a regular
+keep-alive ping.
+
+```python
+import asyncio
+
+async def keep_me_alive(request, ws, **params):
+    while True:
+        try:
+            msg = await asyncio.wait_for(ws.recv(), timeout=20)
+        except asyncio.TimeoutError:
+            # No data in 20 seconds, check the connection.
+            try:
+                pong_waiter = await ws.ping()
+                await asyncio.wait_for(pong_waiter, timeout=10)
+            except asyncio.TimeoutError:
+                # No response to ping in 10 seconds, disconnect.
+                break
+        else:
+            # do something with msg
+            ...
+```

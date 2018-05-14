@@ -2,6 +2,9 @@ import pytest
 import asyncio
 import websockets
 from http import HTTPStatus
+from roll import Roll
+from roll.testing import LiveClient
+from roll.extensions import websockets_store
 
 
 @pytest.mark.asyncio
@@ -14,24 +17,26 @@ async def test_websocket_route(liveclient):
         ev.set()
 
     with liveclient as query:
+
         response = await query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-    assert ev.is_set()
-    assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert ev.is_set()
+        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    # With keep-alive in Connection
+
     with liveclient as query:
+        # With keep-alive in Connection
         response = await query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'keep-alive, upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-    assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
 
 @pytest.mark.asyncio
@@ -59,15 +64,17 @@ async def test_websocket_communication(liveclient):
 
 
 @pytest.mark.asyncio
-async def test_websocket_broadcasting(liveclient):
+async def test_websocket_broadcasting(app, liveclient):
 
-    @liveclient.app.route('/broadcast', protocol="websocket")
+    websockets_store(app)
+
+    @app.route('/broadcast', protocol="websocket")
     async def feed(request, ws, **params):
         while True:
             message = await ws.recv()
             await asyncio.wait([
                 socket.send(message) for socket
-                in request.app.websockets if socket != ws])
+                in request.app['websockets'] if socket != ws])
 
     # connecting
     connected = []

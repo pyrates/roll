@@ -145,7 +145,7 @@ class Client:
         headers = '\r\n'.join('{}: {}'.format(*h) for h in headers.items())
         data = b'%b %b HTTP/1.1\r\n%b\r\n\r\n%b' % (
             method.encode(), path.encode(), headers.encode(), body or b'')
-        print(data)
+
         self.protocol.data_received(data)
         if self.protocol.task:
             await self.protocol.task
@@ -199,9 +199,8 @@ def unused_port():
 
 class LiveClient:
 
-    def __init__(self, app, loop):
+    def __init__(self, app):
         self.app = app
-        self.loop = loop
         self.url = None
         self.wsl = None
 
@@ -209,7 +208,8 @@ class LiveClient:
         self.port = unused_port()
         self.app.loop.run_until_complete(self.app.startup())
         self.server = self.app.loop.run_until_complete(
-            self.loop.create_server(self.app.factory, '127.0.0.1', self.port))
+            self.app.loop.create_server(
+                self.app.factory, '127.0.0.1', self.port))
         self.url = 'http://127.0.0.1:{port}'.format(port=self.port)
         self.wsl = 'ws://127.0.0.1:{port}'.format(port=self.port)
 
@@ -229,7 +229,7 @@ class LiveClient:
             headers = {}
 
         requester = partial(self.execute_query, method.upper(), uri, headers)
-        response = await self.loop.run_in_executor(None, requester)
+        response = await self.app.loop.run_in_executor(None, requester)
         return response
 
     def __enter__(self):
@@ -244,7 +244,7 @@ class LiveClient:
 @pytest.fixture()
 def liveclient(app, event_loop):
     app.loop = event_loop
-    client = LiveClient(app, loop=event_loop)
+    client = LiveClient(app)
     client.start()
     yield client
     client.stop()

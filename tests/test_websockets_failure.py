@@ -13,32 +13,30 @@ async def test_websocket_upgrade_error(liveclient):
 
     # Wrong upgrade
     with liveclient as query:
-        response = await query('GET', '/ws', headers={
+        response = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'h2c',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
-            'Sec-WebSocket-Version': '13'})
+            'Sec-WebSocket-Version': '13',
+        })
+        assert response.status == HTTPStatus.NOT_IMPLEMENTED
+        assert response.reason == 'Not Implemented'
 
-    assert response.status == HTTPStatus.NOT_IMPLEMENTED
-    assert response.reason == 'Not Implemented'
-
-    # No upgrade
     with liveclient as query:
+        # No upgrade
         response = await query('GET', '/ws', headers={
             'Connection': 'keep-alive',
         })
+        assert response.status == HTTPStatus.UPGRADE_REQUIRED
+        assert response.reason == 'Upgrade Required'
 
-    assert response.status == HTTPStatus.UPGRADE_REQUIRED
-    assert response.reason == 'Upgrade Required'
-
-    # Connection upgrade with no upgrade header
     with liveclient as query:
+        # Connection upgrade with no upgrade header
         response = await query('GET', '/ws', headers={
             'Connection': 'upgrade',
         })
-
-    assert response.status == HTTPStatus.UPGRADE_REQUIRED
-    assert response.reason == 'Upgrade Required'
+        assert response.status == HTTPStatus.UPGRADE_REQUIRED
+        assert response.reason == 'Upgrade Required'
 
 
 @pytest.mark.asyncio
@@ -49,7 +47,7 @@ async def test_websocket_failure(liveclient):
         raise NotImplementedError('OUCH')
 
     websocket = await websockets.connect(liveclient.wsl + '/failure')
-
+    
     with pytest.raises(websockets.exceptions.ConnectionClosed) as exc:
         # The client has 5 second (set in the protocol) before the
         # closing handshake timeout and the brutal disconnection.

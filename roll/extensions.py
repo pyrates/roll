@@ -22,6 +22,21 @@ def cors(app, origin='*', methods=None, headers=None):
             response.headers['Access-Control-Allow-Headers'] = allow_headers
 
 
+def websockets_store(app):
+
+    if not 'websockets' in app:
+        app['websockets'] = set()
+    assert isinstance(app['websockets'], set)
+
+    @app.listen('websocket_connect')
+    async def store(request, ws):
+        request.app['websockets'].add(ws)
+
+    @app.listen('websocket_disconnect')
+    async def remove(request, ws):
+        request.app['websockets'].discard(ws)
+
+
 def logger(app, level=logging.DEBUG, handler=None):
 
     logger = logging.getLogger('roll')
