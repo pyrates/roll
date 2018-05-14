@@ -314,20 +314,20 @@ class WSProtocol(WebSocketCommonProtocol):
 
     NEEDS_UPGRADE = True
     ALLOWED_METHODS = {'GET'}
-    timeout = 5
-    max_size = 2 ** 20  # 1 megabytes
-    max_queue = 64
-    read_limit = 2 ** 16
-    write_limit = 2 ** 16
+    TIMEOUT = 5
+    MAX_SIZE = 2 ** 20  # 1 megabytes
+    MAX_QUEUE = 64
+    READ_LIMIT = 2 ** 16
+    WRITE_LIMIT = 2 ** 16
 
     def __init__(self, request):
         self.request = request
         super().__init__(
-            timeout=self.timeout,
-            max_size=self.max_size,
-            max_queue=self.max_queue,
-            read_limit=self.read_limit,
-            write_limit=self.write_limit)
+            timeout=self.TIMEOUT,
+            max_size=self.MAX_SIZE,
+            max_queue=self.MAX_QUEUE,
+            read_limit=self.READ_LIMIT,
+            write_limit=self.WRITE_LIMIT)
 
     def handshake(self, response):
         """Websocket handshake, handled by `websockets`
