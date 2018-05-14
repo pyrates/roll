@@ -590,9 +590,10 @@ class Roll(dict):
         if methods is None:
             methods = ['GET']
 
-        protocol = protocol.lower()
-        klass = getattr(self, protocol.title() + 'Protocol')
-        assert klass is not None
+        klass_attr = protocol.title() + 'Protocol'
+        klass = getattr(self, klass_attr, None)
+        assert klass, ('No class handler declared for {} protocol. Add a {} '
+                       'key to your Roll app.'.format(protocol, klass_attr))
         if klass.ALLOWED_METHODS:
             assert set(methods) <= set(klass.ALLOWED_METHODS)
         # Computed at load time for perf.
