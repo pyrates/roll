@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from io import BytesIO
 import pytest
-from roll import HttpError, Protocol, Request
+from roll import HttpError, Request
 from roll.testing import Transport
 
 pytestmark = pytest.mark.asyncio
@@ -10,7 +10,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture
 def protocol(app):
-    protocol = Protocol(app)
+    protocol = app.Protocol(app)
     protocol.connection_made(Transport())
     return protocol
 

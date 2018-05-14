@@ -1,5 +1,4 @@
 import pytest
-
 from roll import Roll
 from roll.extensions import traceback
 

@@ -1,10 +1,14 @@
+
+import http
 import json
 import mimetypes
+import pytest
+import socket
+
+from functools import partial
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
-
-import pytest
 
 
 def encode_multipart(data, charset='utf-8'):
@@ -62,12 +66,16 @@ class Transport:
 
     def __init__(self):
         self.data = b''
+        self._closing = False
+
+    def is_closing(self):
+        return self._closing
 
     def write(self, data):
         self.data += data
 
     def close(self):
-        ...
+        self._closing = True
 
 
 class Client:
@@ -76,8 +84,9 @@ class Client:
     # taste if needed.
     content_type = 'application/json; charset=utf-8'
 
-    def __init__(self, app):
+    def __init__(self, app, event_loop):
         self.app = app
+        self.loop = event_loop
 
     def handle_files(self, kwargs):
         kwargs.setdefault('headers', {})
@@ -176,5 +185,65 @@ class Client:
 def client(app, event_loop):
     app.loop = event_loop
     app.loop.run_until_complete(app.startup())
-    yield Client(app)
+    yield Client(app, event_loop)
     app.loop.run_until_complete(app.shutdown())
+
+
+def unused_port():
+    """Return a port that is unused on the current host."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
+class LiveClient:
+
+    def __init__(self, app, loop):
+        self.app = app
+        self.loop = loop
+        self.url = None
+        self.wsl = None
+
+    def start(self):
+        self.port = unused_port()
+        self.app.loop.run_until_complete(self.app.startup())
+        self.server = self.app.loop.run_until_complete(
+            self.loop.create_server(self.app.factory, '127.0.0.1', self.port))
+        self.url = 'http://127.0.0.1:{port}'.format(port=self.port)
+        self.wsl = 'ws://127.0.0.1:{port}'.format(port=self.port)
+
+    def stop(self):
+        self.server.close()
+        self.port = self.url = self.wsl = None
+        self.app.loop.run_until_complete(self.server.wait_closed())
+        self.app.loop.run_until_complete(self.app.shutdown())
+
+    def execute_query(self, method, uri, headers):
+        self.conn.request(method, uri, headers=headers)
+        response = self.conn.getresponse()
+        return response
+
+    async def query(self, method, uri, headers: dict=None):
+        if headers is None:
+            headers = {}
+
+        requester = partial(self.execute_query, method.upper(), uri, headers)
+        response = await self.loop.run_in_executor(None, requester)
+        return response
+
+    def __enter__(self):
+        assert self.url is not None
+        self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
+        return self.query
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.close()
+
+
+@pytest.fixture()
+def liveclient(app, event_loop):
+    app.loop = event_loop
+    client = LiveClient(app, loop=event_loop)
+    client.start()
+    yield client
+    client.stop()
