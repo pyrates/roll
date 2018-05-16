@@ -12,31 +12,29 @@ async def test_websocket_upgrade_error(liveclient):
         pass
 
     # Wrong upgrade
-    with liveclient as query:
-        response = await liveclient.query('GET', '/ws', headers={
+    with liveclient:
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'h2c',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13',
         })
-        assert response.status == HTTPStatus.NOT_IMPLEMENTED
-        assert response.reason == 'Not Implemented'
+        assert status == HTTPStatus.NOT_IMPLEMENTED
+        assert reason == 'Not Implemented'
 
-    with liveclient as query:
         # No upgrade
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Connection': 'keep-alive',
         })
-        assert response.status == HTTPStatus.UPGRADE_REQUIRED
-        assert response.reason == 'Upgrade Required'
+        assert status == HTTPStatus.UPGRADE_REQUIRED
+        assert reason == 'Upgrade Required'
 
-    with liveclient as query:
         # Connection upgrade with no upgrade header
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Connection': 'upgrade',
         })
-        assert response.status == HTTPStatus.UPGRADE_REQUIRED
-        assert response.reason == 'Upgrade Required'
+        assert status == HTTPStatus.UPGRADE_REQUIRED
+        assert reason == 'Upgrade Required'
 
 
 @pytest.mark.asyncio

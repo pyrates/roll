@@ -228,12 +228,13 @@ class LiveClient:
 
         requester = partial(self.execute_query, method.upper(), uri, headers)
         response = await self.app.loop.run_in_executor(None, requester)
-        return response
+        self.conn.close()
+        return response.status, response.reason
 
     def __enter__(self):
         assert self.url is not None
         self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
-        return self.query
+        return self.conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()

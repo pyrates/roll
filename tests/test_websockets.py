@@ -16,27 +16,25 @@ async def test_websocket_route(liveclient):
         assert ws.subprotocol is None
         ev.set()
 
-    with liveclient as query:
+    with liveclient:
 
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
         assert ev.is_set()
-        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert status == HTTPStatus.SWITCHING_PROTOCOLS
 
-
-    with liveclient as query:
         # With keep-alive in Connection
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'keep-alive, upgrade',
             'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
             'Sec-WebSocket-Version': '13'})
 
-        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert status == HTTPStatus.SWITCHING_PROTOCOLS
 
 
 @pytest.mark.asyncio
@@ -121,38 +119,35 @@ async def test_websocket_route_with_subprotocols(liveclient):
     async def handler(request, ws):
         results.append(ws.subprotocol)
 
-    with liveclient as query:
-        response = await query('GET', '/ws', headers={
+    with liveclient:
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Protocol': 'bar'})
-        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    with liveclient as query:
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Protocol': 'bar, foo'})
-        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    with liveclient as query:
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Protocol': 'baz'})
-        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    with liveclient as query:
-        response = await query('GET', '/ws', headers={
+        status, reason = await liveclient.query('GET', '/ws', headers={
             'Upgrade': 'websocket',
             'Connection': 'upgrade',
             'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
             'Sec-WebSocket-Version': '13'})
-        assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
+        assert status == HTTPStatus.SWITCHING_PROTOCOLS
         assert results == ['bar', 'bar', None, None]
