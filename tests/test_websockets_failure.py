@@ -12,29 +12,28 @@ async def test_websocket_upgrade_error(liveclient):
         pass
 
     # Wrong upgrade
-    with liveclient:
-        status, reason = await liveclient.query('GET', '/ws', headers={
-            'Upgrade': 'h2c',
-            'Connection': 'upgrade',
-            'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
-            'Sec-WebSocket-Version': '13',
-        })
-        assert status == HTTPStatus.NOT_IMPLEMENTED
-        assert reason == 'Not Implemented'
+    response = await liveclient.query('GET', '/ws', headers={
+        'Upgrade': 'h2c',
+        'Connection': 'upgrade',
+        'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
+        'Sec-WebSocket-Version': '13',
+    })
+    assert response.status == HTTPStatus.NOT_IMPLEMENTED
+    assert response.reason == 'Not Implemented'
 
-        # No upgrade
-        status, reason = await liveclient.query('GET', '/ws', headers={
-            'Connection': 'keep-alive',
-        })
-        assert status == HTTPStatus.UPGRADE_REQUIRED
-        assert reason == 'Upgrade Required'
+    # No upgrade
+    response = await liveclient.query('GET', '/ws', headers={
+        'Connection': 'keep-alive',
+    })
+    assert response.status == HTTPStatus.UPGRADE_REQUIRED
+    assert response.reason == 'Upgrade Required'
 
-        # Connection upgrade with no upgrade header
-        status, reason = await liveclient.query('GET', '/ws', headers={
-            'Connection': 'upgrade',
-        })
-        assert status == HTTPStatus.UPGRADE_REQUIRED
-        assert reason == 'Upgrade Required'
+    # Connection upgrade with no upgrade header
+    response = await liveclient.query('GET', '/ws', headers={
+        'Connection': 'upgrade',
+    })
+    assert response.status == HTTPStatus.UPGRADE_REQUIRED
+    assert response.reason == 'Upgrade Required'
 
 
 @pytest.mark.asyncio
