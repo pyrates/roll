@@ -8,6 +8,7 @@ If you do not understand why something is not working as expected,
 please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
+
 import asyncio
 from collections import namedtuple
 from http import HTTPStatus
@@ -17,8 +18,11 @@ from urllib.parse import parse_qs, unquote
 
 from autoroutes import Routes
 from biscuits import Cookie, parse
-from httptools import HttpParserError, HttpRequestParser, parse_url
+from httptools import (HttpParserError, HttpParserUpgrade, HttpRequestParser,
+                       parse_url)
 from multifruits import Parser, extract_filename, parse_content_disposition
+from websockets import ConnectionClosed  # exposed for convenience
+from websockets import InvalidHandshake, WebSocketCommonProtocol, handshake
 
 try:
     # In case you use json heavily, we recommend installing
@@ -187,13 +191,17 @@ class Request(dict):
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
-    __slots__ = ('app', 'url', 'path', 'query_string', '_query', 'method',
-                 'body', 'headers', 'route', '_cookies', '_form', '_files')
+    __slots__ = (
+        'app', 'url', 'path', 'query_string', '_query',
+        'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
+        'upgrade'
+    )
 
     def __init__(self, app):
         self.app = app
         self.headers = {}
         self.body = b''
+        self.upgrade = None
         self._cookies = None
         self._query = None
         self._form = None
@@ -272,7 +280,6 @@ class Response:
 
     def __init__(self, app):
         self.app = app
-        self._status = None
         self.body = b''
         self.status = HTTPStatus.OK
         self.headers = {}
@@ -301,33 +308,142 @@ class Response:
         return self._cookies
 
 
-class Protocol(asyncio.Protocol):
+class WSProtocol(WebSocketCommonProtocol):
+
+    NEEDS_UPGRADE = True
+    ALLOWED_METHODS = {'GET'}
+    TIMEOUT = 5
+    MAX_SIZE = 2 ** 20  # 1 megabytes
+    MAX_QUEUE = 64
+    READ_LIMIT = 2 ** 16
+    WRITE_LIMIT = 2 ** 16
+
+    def __init__(self, request):
+        self.request = request
+        super().__init__(
+            timeout=self.TIMEOUT,
+            max_size=self.MAX_SIZE,
+            max_queue=self.MAX_QUEUE,
+            read_limit=self.READ_LIMIT,
+            write_limit=self.WRITE_LIMIT)
+
+    def handshake(self, response):
+        """Websocket handshake, handled by `websockets`
+        """
+        def get_header(k):
+            return self.request.headers.get(k.upper(), '')
+
+        def set_header(k, v):
+            response.headers[k] = v
+
+        try:
+            key = handshake.check_request(get_header)
+            handshake.build_response(set_header, key)
+        except InvalidHandshake:
+            raise RuntimeError('Invalid websocket request')
+
+        subprotocol = None
+        ws_protocol = get_header('Sec-Websocket-Protocol')
+        subprotocols = self.request.route.payload.get('subprotocols')
+        if subprotocols and ws_protocol:
+            # select a subprotocol
+            client_subprotocols = tuple(
+                (p.strip() for p in ws_protocol.split(',')))
+            for p in client_subprotocols:
+                if p in subprotocols:
+                    subprotocol = p
+                    set_header('Sec-Websocket-Protocol', subprotocol)
+                    break
+
+        # Return the subprotocol agreed upon, if any
+        self.subprotocol = subprotocol
+
+    async def run(self):
+        # See https://tools.ietf.org/html/rfc6455#page-45
+        try:
+            await self.request.app.hook(
+                'websocket_connect', self.request, self)
+            await self.request.route.payload['GET'](self.request, self)
+        except ConnectionClosed:
+            # The client closed the connection.
+            # We cancel the future to be sure it's in order.
+            await self.close(1002, 'Connection closed untimely.')
+        except asyncio.CancelledError:
+            # The websocket task was cancelled
+            # We need to warn the client.
+            await self.close(1001, 'Handler cancelled.')
+        except Exception as exc:
+            # A more serious error happened.
+            # The websocket handler was untimely terminated
+            # by an unwarranted exception. Warn the client.
+            await self.close(1011, 'Handler died prematurely.')
+            raise
+        else:
+            # The handler finished gracefully.
+            # We can close the socket in peace.
+            await self.close()
+        finally:
+            await self.request.app.hook(
+                'websocket_disconnect', self.request, self)
+
+
+class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'writer')
+    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
                           HTTPStatus.NOT_MODIFIED)
     RequestParser = HttpRequestParser
+    NEEDS_UPGRADE = False
+    ALLOWED_METHODS = None  # Means all.
 
     def __init__(self, app):
         self.app = app
         self.parser = self.RequestParser(self)
+        self.task = None
+
+    def connection_made(self, transport):
+        self.transport = transport
 
     def data_received(self, data: bytes):
         try:
             self.parser.feed_data(data)
-        except HttpParserError:
+        except HttpParserUpgrade:
+            # The upgrade raise is done after all the on_x
+            # We acted upon the upgrade earlier, so we just pass.
+            pass
+        except HttpParserError as error:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
             self.response = self.app.Response(self.app)
-            self.response.status = HTTPStatus.BAD_REQUEST
-            self.response.body = b'Unparsable request'
+            # Original error stored by httptools.
+            if isinstance(error.__context__, HttpError):
+                error = error.__context__
+                self.response.status = error.status
+                self.response.body = error.message
+            else:
+                self.response.status = HTTPStatus.BAD_REQUEST
+                self.response.body = b'Unparsable request'
             self.write()
 
-    def connection_made(self, transport):
-        self.writer = transport
+    def upgrade(self):
+        handler_protocol = self.request.route.payload.get('protocol', 'http')
+
+        if self.request.upgrade != handler_protocol:
+            raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
+                            'Request cannot be upgraded.')
+
+        protocol_class = self.request.route.payload['_protocol_class']
+        new_protocol = protocol_class(self.request)
+        new_protocol.handshake(self.response)
+        self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
+        self.write()
+        new_protocol.connection_made(self.transport)
+        new_protocol.connection_open()
+        self.transport.set_protocol(new_protocol)
+        return new_protocol
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -339,19 +455,38 @@ class Protocol(asyncio.Protocol):
         self.request.body += body
 
     def on_url(self, url: bytes):
+        self.request.method = self.parser.get_method().decode().upper()
         self.request.url = url
         parsed = parse_url(url)
         self.request.path = unquote(parsed.path.decode())
         self.request.query_string = (parsed.query or b'').decode()
+        self.app.lookup(self.request)
 
     def on_message_begin(self):
         self.request = self.app.Request(self.app)
         self.response = self.app.Response(self.app)
 
     def on_message_complete(self):
-        self.request.method = self.parser.get_method().decode().upper()
-        task = self.app.loop.create_task(self.app(self.request, self.response))
-        task.add_done_callback(self.write)
+        if self.parser.should_upgrade():
+            # An upgrade has been requested
+            self.request.upgrade = self.request.headers['UPGRADE'].lower()
+            new_protocol = self.upgrade()
+            if new_protocol is not None:
+                # No error occured during the upgrade
+                # The protocol was found and the handler willing to comply
+                # We run the protocol task.
+                self.task = self.app.loop.create_task(new_protocol.run())
+        else:
+            # No upgrade was requested
+            payload = self.request.route.payload
+            if payload and payload['_protocol_class'].NEEDS_UPGRADE:
+                # The handler need and upgrade: we need to complain.
+                raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
+            # No upgrade was required and the handler didn't need any.
+            # We run the normal task.
+            self.task = self.app.loop.create_task(
+                self.app(self.request, self.response))
+            self.task.add_done_callback(self.write)
 
     # May or may not have "future" as arg.
     def write(self, *args):
@@ -376,21 +511,22 @@ class Protocol(asyncio.Protocol):
         payload += b'\r\n'
         if self.response.body and not bodyless:
             payload += self.response.body
-        self.writer.write(payload)
+        self.transport.write(payload)
         if not self.parser.should_keep_alive():
-            self.writer.close()
+            self.transport.close()
 
 
 Route = namedtuple('Route', ['payload', 'vars'])
 
 
-class Roll:
+class Roll(dict):
     """Deal with routes dispatching and events listening.
 
     You can subclass it to set your own `Protocol`, `Routes`, `Query`, `Form`,
     `Files`, `Request`, `Response` and/or `Cookies` class(es).
     """
-    Protocol = Protocol
+    HttpProtocol = HTTPProtocol
+    WebsocketProtocol = WSProtocol
     Routes = Routes
     Query = Query
     Form = Form
@@ -411,7 +547,6 @@ class Roll:
 
     async def __call__(self, request: Request, response: Response):
         try:
-            request.route = Route(*self.routes.match(request.path))
             if not await self.hook('request', request, response):
                 if not request.route.payload:
                     raise HttpError(HTTPStatus.NOT_FOUND, request.path)
@@ -442,11 +577,25 @@ class Roll:
             response.body = str(e)
 
     def factory(self):
-        return self.Protocol(self)
+        return self.HttpProtocol(self)
 
-    def route(self, path: str, methods: list=None, **extras: dict):
+    def lookup(self, request):
+        request.route = Route(*self.routes.match(request.path))
+
+    def route(self, path: str, methods: list=None,
+              protocol: str='http', **extras: dict):
         if methods is None:
             methods = ['GET']
+
+        klass_attr = protocol.title() + 'Protocol'
+        klass = getattr(self, klass_attr, None)
+        assert klass, ('No class handler declared for {} protocol. Add a {} '
+                       'key to your Roll app.'.format(protocol, klass_attr))
+        if klass.ALLOWED_METHODS:
+            assert set(methods) <= set(klass.ALLOWED_METHODS)
+        # Computed at load time for perf.
+        extras['protocol'] = protocol
+        extras['_protocol_class'] = klass
 
         def wrapper(func):
             payload = {method: func for method in methods}

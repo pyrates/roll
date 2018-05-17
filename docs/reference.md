@@ -196,6 +196,32 @@ A namedtuple to collect matched route data with attributes:
 * **vars** (`dict`): URL placeholders resolved for the current route.
 
 
+### Websocket
+
+Communication protocol using a socket between a client (usually the browser)
+and the server (a route endpoint).
+
+See [The Websocket Protocol RFC](https://tools.ietf.org/html/rfc6455)
+
+- **recv()**: receive the next message (async).
+- **send(data)**: send data to the client. Can handle `str` or `bytes`
+  arg (async).
+- **close(code: int, reason: str)**: close the websocket (async).
+- **ping(data)**: send a ping/heartbeat packet (async).
+  This method returns an `asyncio.Future` object.
+- **pong()**: send a pong packet in response to a ping (async).
+
+The websocket object can be used as an asynchronous iterator. Using it that
+way will yield a message at each iteration while keeping the websocket
+connection alive.
+
+```python
+async def myendpoint(request, ws, **params):
+    async for message in ws:
+         print(message)
+```
+
+
 ## Extensions
 
 Please read
