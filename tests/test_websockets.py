@@ -2,8 +2,6 @@ import pytest
 import asyncio
 import websockets
 from http import HTTPStatus
-from roll import Roll
-from roll.testing import LiveClient
 from roll.extensions import websockets_store
 
 

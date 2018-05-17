@@ -37,19 +37,20 @@ async def test_websocket_upgrade_error(liveclient):
 
 
 @pytest.mark.asyncio
-async def test_websocket_failure(liveclient):
+async def test_websocket_failure(liveclient, monkeypatch):
 
     @liveclient.app.route('/failure', protocol="websocket")
     async def failme(request, ws, **params):
         raise NotImplementedError('OUCH')
 
     websocket = await websockets.connect(liveclient.wsl + '/failure')
-    
-    with pytest.raises(websockets.exceptions.ConnectionClosed) as exc:
-        # The client has 5 second (set in the protocol) before the
+
+    monkeypatch.setattr('roll.WSProtocol.TIMEOUT', 1)
+    with pytest.raises(websockets.exceptions.ConnectionClosed):
+        # The client has 1 second timeout before the
         # closing handshake timeout and the brutal disconnection.
         # We wait beyond the closing frame timeout :
-        await asyncio.sleep(6)
+        await asyncio.sleep(2)
 
         # No, we try sending while the closing frame timespan has expired
         await websocket.send('first')
@@ -94,7 +95,7 @@ async def test_websocket_failure_receive(liveclient):
         raise NotImplementedError('OUCH')
 
     websocket = await websockets.connect(liveclient.wsl + '/failure')
-    with pytest.raises(websockets.exceptions.ConnectionClosed) as exc:
+    with pytest.raises(websockets.exceptions.ConnectionClosed):
         # Receiving, on the other hand, will raise immediatly an
         # error as the reader is closed. Only the writer is opened
         # as we are expected to send back the closing frame.
