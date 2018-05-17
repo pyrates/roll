@@ -12,6 +12,7 @@ performances and aesthetic in mind.
 * multipart parsing through [multifruits](https://github.com/pyrates/multifruits)
 * extensible system through events
 * decent HTTP errors
+* websockets
 * easy to test
 
 
