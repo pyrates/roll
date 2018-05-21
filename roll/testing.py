@@ -188,13 +188,6 @@ def client(app, event_loop):
     app.loop.run_until_complete(app.shutdown())
 
 
-def unused_port():
-    """Return a port that is unused on the current host."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('127.0.0.1', 0))
-        return s.getsockname()[1]
-
-
 class LiveClient:
 
     def __init__(self, app):
@@ -203,11 +196,10 @@ class LiveClient:
         self.wsl = None
 
     def start(self):
-        self.port = unused_port()
         self.app.loop.run_until_complete(self.app.startup())
         self.server = self.app.loop.run_until_complete(
-            self.app.loop.create_server(
-                self.app.factory, '127.0.0.1', self.port))
+            self.app.loop.create_server(self.app.factory, '127.0.0.1', 0))
+        self.port = self.server.sockets[0].getsockname()[1]
         self.url = 'http://127.0.0.1:{port}'.format(port=self.port)
         self.wsl = 'ws://127.0.0.1:{port}'.format(port=self.port)
 
