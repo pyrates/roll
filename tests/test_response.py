@@ -16,6 +16,16 @@ async def test_can_set_status_from_numeric_value(client, app):
     assert resp.status == HTTPStatus.ACCEPTED
 
 
+async def test_raises_a_500_if_code_is_unknown(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.status = 999
+
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
+
+
 async def test_can_set_status_from_httpstatus(client, app):
 
     @app.route('/test')

@@ -37,6 +37,14 @@ except ImportError:
 HttpCode = TypeVar('HttpCode', HTTPStatus, int)
 
 
+# Prevent creating new HTTPStatus instances when
+# dealing with integer statuses.
+STATUSES = {}
+
+for status in HTTPStatus:
+    STATUSES[status.value] = status
+
+
 class HttpError(Exception):
     """Exception meant to be raised when an error is occurring.
 
@@ -292,7 +300,7 @@ class Response:
     @status.setter
     def status(self, http_code: HttpCode):
         # Idempotent if `http_code` is already an `HTTPStatus` instance.
-        self._status = HTTPStatus(http_code)
+        self._status = STATUSES[http_code]
 
     def json(self, value: dict):
         # Shortcut from a dict to JSON with proper content type.
