@@ -6,3 +6,4 @@ build/
 dist/
 *.c
 *.so
+.pytest_cache/
