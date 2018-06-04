@@ -8,7 +8,7 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## In progress
+## 0.9.0 - 2018-06-04
 
 * **Breaking changes**:
     * `Request.route` is now always set, but `Request.route.payload` is `None`
@@ -17,8 +17,15 @@ A changelog:
       a 404 is still automatically raised.
       ([#45](https://github.com/pyrates/roll/pull/45))
 * Added `request.host` shortcut ([#43](https://github.com/pyrates/roll/pull/43))
-* Introduced protocol upgrade and protocol configuration for routes. Two protocols are shipped by default : HTTP and Websocket ([#54](https://github.com/pyrates/roll/pull/54)).
-* The route is now resolved as soon as the URL has been parsed. In addition, the route lookup method has been split up from the application `__call__`method, to allow easy override.
+* Introduced protocol upgrade and protocol configuration for routes. Two
+  protocols are shipped by default : HTTP and Websocket
+  ([#54](https://github.com/pyrates/roll/pull/54)).
+* The route is now resolved as soon as the URL has been parsed. In addition, the
+  route lookup method has been split up from the application `__call__`method,
+  to allow easy override
+  ([#54](https://github.com/pyrates/roll/pull/54)).
+* Testing: now build a proper request instead of calling callbacks by hand
+  ([#54](https://github.com/pyrates/roll/pull/54)).
 
 
 ## 0.8.0 - 2017-12-11
