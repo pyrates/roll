@@ -519,6 +519,10 @@ class HTTPProtocol(asyncio.Protocol):
         payload += b'\r\n'
         if self.response.body and not bodyless:
             payload += self.response.body
+        if self.transport.is_closing():
+            # Request has been aborted, thus socket as been closed, thus
+            # transport has been closed?
+            return
         self.transport.write(payload)
         if not self.parser.should_keep_alive():
             self.transport.close()
