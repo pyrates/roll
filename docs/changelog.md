@@ -8,6 +8,11 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.9.1 - 2018-06-11
+
+* Do not try to write on a closed transport
+  ([#58](https://github.com/pyrates/roll/pull/58))
+
 ## 0.9.0 - 2018-06-04
 
 * **Breaking changes**:
