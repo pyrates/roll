@@ -523,9 +523,14 @@ class HTTPProtocol(asyncio.Protocol):
             # Request has been aborted, thus socket as been closed, thus
             # transport has been closed?
             return
-        self.transport.write(payload)
-        if not self.parser.should_keep_alive():
-            self.transport.close()
+        try:
+            self.transport.write(payload)
+        except RuntimeError:  # transport may still be closed during write.
+            # TODO: Pass into error hook when write is async.
+            pass
+        else:
+            if not self.parser.should_keep_alive():
+                self.transport.close()
 
 
 Route = namedtuple('Route', ['payload', 'vars'])
