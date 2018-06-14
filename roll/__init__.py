@@ -15,6 +15,7 @@ from http import HTTPStatus
 from autoroutes import Routes
 
 from .http import Cookies, Files, Form, HttpError, HTTPProtocol, Query
+
 from .io import Request, Response
 from .websocket import ConnectionClosed  # noqa. Exposed for convenience.
 from .websocket import WSProtocol
@@ -82,8 +83,8 @@ class Roll(dict):
     def factory(self):
         return self.HttpProtocol(self)
 
-    def lookup(self, request):
-        request.route = Route(*self.routes.match(request.path))
+    async def lookup(self, request):
+        return Route(*self.routes.match(request.path))
 
     def route(self, path: str, methods: list=None,
               protocol: str='http', **extras: dict):
