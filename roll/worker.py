@@ -3,8 +3,11 @@ import os
 import socket
 import sys
 import uvloop
+from functools import partial
 
 from gunicorn.workers.base import Worker
+
+from .socket import request_handler
 
 
 class Worker(Worker):
@@ -37,12 +40,13 @@ class Worker(Worker):
 
     async def _run(self):
         sock = self.sockets[0]
+        app = partial(request_handler, self.wsgi)
         if hasattr(socket, 'AF_UNIX') and sock.family == socket.AF_UNIX:
-            self.server = await self.loop.create_unix_server(
-                self.wsgi.factory, sock=sock.sock)
+            self.server = await asyncio.start_unix_server(app, loop=self.loop,
+                                                          sock=sock.sock)
         else:
-            self.server = await self.loop.create_server(
-                self.wsgi.factory, sock=sock.sock)
+            self.server = await asyncio.start_server(app, sock=sock.sock,
+                                                     loop=self.loop)
 
         pid = os.getpid()
         try:
