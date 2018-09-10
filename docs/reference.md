@@ -245,7 +245,7 @@ extension in the same time.
 - **methods** (`list` of `str`; default: `None`): value of the
   `Access-Control-Allow-Methods` header; if `None` the header will not be set
 - **headers** (`list` of `str`; default: `None`): value of the
-  `Access-Control-Allow-Methods` header; if `None` the header will not be set
+  `Access-Control-Allow-Headers` header; if `None` the header will not be set
 
 
 ### logger
