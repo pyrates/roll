@@ -4,3 +4,5 @@ httptools==0.0.11
 multifruits==0.1.1
 uvloop==0.10.1
 websockets==5.0.1
+jwcrypto==0.5.0 
+cromlech.jwt==0.1

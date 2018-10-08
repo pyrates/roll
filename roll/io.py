@@ -23,12 +23,13 @@ class Request(dict):
     __slots__ = (
         'app', 'url', 'path', 'query_string', '_query',
         'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade'
+        'upgrade', 'session'
     )
 
     def __init__(self, app):
         self.app = app
         self.headers = {}
+        self.session = None
         self.body = b''
         self.upgrade = None
         self._cookies = None

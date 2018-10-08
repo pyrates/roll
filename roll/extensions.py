@@ -2,9 +2,21 @@ import asyncio
 import logging
 import mimetypes
 import sys
+import os
+from datetime import datetime
+from cromlech.jwt.components import JWTService, JWTHandler, ExpiredToken
 from http import HTTPStatus
 from pathlib import Path
 from traceback import print_exc
+
+try:
+    # In case you use json heavily, we recommend installing
+    # https://pypi.python.org/pypi/ujson for better performances.
+    import ujson as json
+    JSONDecodeError = ValueError
+except ImportError:
+    import json as json
+    from json.decoder import JSONDecodeError
 
 from . import HttpError
 
@@ -20,6 +32,54 @@ def cors(app, origin='*', methods=None, headers=None):
         if headers is not None:
             allow_headers = ','.join(headers)
             response.headers['Access-Control-Allow-Headers'] = allow_headers
+
+
+def session(
+        app,
+        key_path="/tmp/roll_session.key",
+        domain=None,
+        cookie_name='roll_session',
+        maxsize=4096,
+        TTL=60):
+
+    def get_key(path):
+        if not os.path.isfile(path):
+            with open(path, 'w+', encoding="utf-8") as keyfile:
+                key = JWTHandler.generate_key()
+                export = key.export()
+                keyfile.write(export)
+        else:
+            with open(path, 'r', encoding="utf-8") as keyfile:
+                from jwcrypto import jwk
+                data = json.loads(keyfile.read())
+                key = jwk.JWK(**data)
+        return key
+    
+    key = get_key(key_path)
+    app['jwt'] = JWTService(key, JWTHandler, lifetime=TTL)
+    
+    @app.listen('request')
+    async def extract_cookie_token(request, response):
+        token = request.cookies.get(cookie_name)        
+        if token is not None:
+            try:
+                request.session = request.app['jwt'].check_token(token)
+                return
+            except ExpiredToken:
+                # The token is expired.
+                # We'll return an empty session.
+                pass
+        request.session = {}
+        return
+
+    @app.listen('response')
+    async def write_token_cookie(request, response):
+        cookie_domain = domain or request.host.split(':', 1)[0]
+        token = request.app['jwt'].generate(request.session)
+        if len(token) > maxsize:
+            raise ValueError('Cookie exceeds the %i bytes limit' % maxsize)
+        response.cookies.set(
+            cookie_name, token, max_age=(TTL * 60), domain=cookie_domain)
 
 
 def websockets_store(app):
