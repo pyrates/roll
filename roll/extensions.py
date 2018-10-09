@@ -63,19 +63,19 @@ def session(
         token = request.cookies.get(cookie_name)        
         if token is not None:
             try:
-                request.session = request.app['jwt'].check_token(token)
+                request['session'] = request.app['jwt'].check_token(token)
                 return
             except ExpiredToken:
                 # The token is expired.
                 # We'll return an empty session.
                 pass
-        request.session = {}
+        request['session'] = {}
         return
 
     @app.listen('response')
     async def write_token_cookie(request, response):
         cookie_domain = domain or request.host.split(':', 1)[0]
-        token = request.app['jwt'].generate(request.session)
+        token = request.app['jwt'].generate(request.get('session', {}))
         if len(token) > maxsize:
             raise ValueError('Cookie exceeds the %i bytes limit' % maxsize)
         response.cookies.set(
