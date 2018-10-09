@@ -186,5 +186,5 @@ assert myparam is True
 If the parameter value cannot be casted, a `400` [HttpError](/reference.md#httperror)
 will be raised.
 
-See also [/how-to/advanced.md##how-to-subclass-roll-itself] to see how to make
-your own Query getters.
+See also "[how to subclass roll itself](/how-to/advanced.md#how-to-subclass-roll-itself)"
+to see how to make your own Query getters.
