@@ -47,6 +47,15 @@ async def test_custom_cors_methods(client, app):
     assert resp.headers['Access-Control-Allow-Methods'] == 'PATCH,PUT'
 
 
+async def test_wildcard_cors_methods(client, app):
+
+    extensions.cors(app, methods='*')
+
+    resp = await client.get('/test')
+    assert (resp.headers['Access-Control-Allow-Methods'] ==
+            ','.join(extensions.HTTP_METHODS))
+
+
 async def test_custom_cors_headers(client, app):
 
     extensions.cors(app, headers=['X-Powered-By', 'X-Requested-With'])
