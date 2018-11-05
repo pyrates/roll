@@ -30,6 +30,7 @@ class Request(dict):
         self.app = app
         self.headers = {}
         self.body = b''
+        self.method = None
         self.upgrade = None
         self._cookies = None
         self._query = None
