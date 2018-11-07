@@ -144,9 +144,16 @@ async def test_request_host_shortcut(protocol):
 
 
 async def test_invalid_request(protocol):
-    protocol.data_received(
-        b'INVALID HTTP/1.22\r\n')
+    protocol.data_received(b'INVALID HTTP/1.22\r\n')
     assert protocol.response.status == HTTPStatus.BAD_REQUEST
+
+
+async def test_invalid_request_method(protocol):
+    protocol.data_received(
+        b'SPAM /path HTTP/1.1\r\nContent-Length: 8\r\n\r\nblahblah')
+    assert protocol.response.status == HTTPStatus.BAD_REQUEST
+    protocol.write()  # should not fail.
+    assert protocol.request.method is None
 
 
 async def test_query_get_should_return_value(protocol):

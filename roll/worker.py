@@ -2,7 +2,12 @@ import asyncio
 import os
 import socket
 import sys
-import uvloop
+try:
+    import uvloop
+except ImportError:
+    uvloop = None
+    import warnings
+    warnings.warn("You should install uvloop for better performance")
 
 from gunicorn.workers.base import Worker
 
@@ -12,7 +17,8 @@ class Worker(Worker):
     def init_process(self):
         self.server = None
         asyncio.get_event_loop().close()
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        if uvloop:
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         super().init_process()

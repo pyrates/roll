@@ -8,8 +8,13 @@ from traceback import print_exc
 
 from . import HttpError
 
+HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'OPTIONS', 'CONNECT',
+                'PATCH']
 
 def cors(app, origin='*', methods=None, headers=None):
+
+    if methods == '*':
+        methods = HTTP_METHODS
 
     @app.listen('response')
     async def add_cors_headers(request, response):

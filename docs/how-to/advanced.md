@@ -119,6 +119,10 @@ with `app = Roll()`, then you need to issue this command line:
 See [gunicorn documentation](http://docs.gunicorn.org/en/stable/settings.html)
 for more details about the available arguments.
 
+Note: it's also recommended to install [uvloop](https://github.com/MagicStack/uvloop)
+as a faster `asyncio` event loop replacement:
+
+    pip install uvloop
 
 ## How to send custom events
 
