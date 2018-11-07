@@ -1,8 +1,7 @@
-import http
+import http.client
 import json
 import mimetypes
 import pytest
-import socket
 
 from functools import partial
 from io import BytesIO
