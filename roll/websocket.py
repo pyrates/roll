@@ -1,10 +1,9 @@
 import asyncio
-
+import websockets
 from websockets import ConnectionClosed  # exposed for convenience
-from websockets import InvalidHandshake, WebSocketCommonProtocol, handshake
 
 
-class WSProtocol(WebSocketCommonProtocol):
+class WSProtocol(websockets.WebSocketCommonProtocol):
 
     NEEDS_UPGRADE = True
     ALLOWED_METHODS = {'GET'}
@@ -26,20 +25,15 @@ class WSProtocol(WebSocketCommonProtocol):
     def handshake(self, response):
         """Websocket handshake, handled by `websockets`
         """
-        def get_header(k):
-            return self.request.headers.get(k.upper(), '')
-
-        def set_header(k, v):
-            response.headers[k] = v
-
         try:
-            key = handshake.check_request(get_header)
-            handshake.build_response(set_header, key)
-        except InvalidHandshake:
+            headers = websockets.http.Headers(**self.request.headers)
+            key = websockets.handshake.check_request(headers)
+            websockets.handshake.build_response(response.headers, key)
+        except websockets.InvalidHandshake:
             raise RuntimeError('Invalid websocket request')
 
         subprotocol = None
-        ws_protocol = get_header('Sec-Websocket-Protocol')
+        ws_protocol = ','.join(headers.get_all('Sec-Websocket-Protocol'))
         subprotocols = self.request.route.payload.get('subprotocols')
         if subprotocols and ws_protocol:
             # select a subprotocol
@@ -48,7 +42,7 @@ class WSProtocol(WebSocketCommonProtocol):
             for p in client_subprotocols:
                 if p in subprotocols:
                     subprotocol = p
-                    set_header('Sec-Websocket-Protocol', subprotocol)
+                    response.headers['Sec-Websocket-Protocol'] = subprotocol
                     break
 
         # Return the subprotocol agreed upon, if any
