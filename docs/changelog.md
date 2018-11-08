@@ -8,6 +8,18 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.10.0 - 2018-11-08
+
+- python 3.7 compatibility (bump websockets and biscuits packages)
+  ([#69](https://github.com/pyrates/roll/pull/69))
+- uvloop is not a dependency anymore (but you should still use it!): need was
+  to allow installing Roll without uvloop is some envs, and to let the users
+  define the uvloop version they want to use
+  ([#68](https://github.com/pyrates/roll/pull/68))
+- Request.method is None by default ([#67](https://github.com/pyrates/roll/pull/67))
+- allow to use `methods=*` in `cors` extension
+  ([#65](https://github.com/pyrates/roll/pull/65))
+
 ## 0.9.1 - 2018-06-11
 
 * Do not try to write on a closed transport
