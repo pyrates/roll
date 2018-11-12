@@ -208,7 +208,7 @@ class HTTPProtocol(asyncio.Protocol):
             else:
                 self.response.status = HTTPStatus.BAD_REQUEST
                 self.response.body = b'Unparsable request'
-            self.task = self.app.loop.create_task(self.write)
+            self.task = self.app.loop.create_task(self.write())
 
     def upgrade(self):
         handler_protocol = self.request.route.payload.get('protocol', 'http')

@@ -75,6 +75,12 @@ class Transport:
     def close(self):
         self._closing = True
 
+    def pause_reading(self):
+        pass
+
+    def resume_reading(self):
+        pass
+
 
 class Client:
 

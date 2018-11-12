@@ -23,7 +23,7 @@ class Request(dict):
     __slots__ = (
         'app', 'url', 'path', 'query_string', '_query',
         'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade', 'protocol'
+        'upgrade', 'protocol', '_json'
     )
 
     def __init__(self, app, protocol):
@@ -37,6 +37,7 @@ class Request(dict):
         self._query = None
         self._form = None
         self._files = None
+        self._json = None
 
     @property
     def cookies(self):
@@ -51,49 +52,54 @@ class Request(dict):
             self._query = self.app.Query(parsed_qs)
         return self._query
 
-    def _parse_multipart(self):
+    async def _parse_multipart(self):
         parser = Multipart(self.app)
         self._form, self._files = parser.initialize(self.content_type)
-        try:
-            parser.feed_data(self.body)
-        except ValueError:
-            raise HttpError(HTTPStatus.BAD_REQUEST,
-                            'Unparsable multipart body')
+        async for data in self:
+            try:
+                parser.feed_data(data)
+            except ValueError:
+                raise HttpError(HTTPStatus.BAD_REQUEST,
+                                'Unparsable multipart body')
 
-    def _parse_urlencoded(self):
+    async def _parse_urlencoded(self):
         try:
-            parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True,
-                                 strict_parsing=True)
+            parsed_qs = parse_qs((await self.read()).decode(),
+                                 keep_blank_values=True, strict_parsing=True)
+            print(parsed_qs)
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             'Unparsable urlencoded body')
         self._form = self.app.Form(parsed_qs)
 
     @property
-    def form(self):
+    async def form(self):
         if self._form is None:
             if 'multipart/form-data' in self.content_type:
-                self._parse_multipart()
+                await self._parse_multipart()
             elif 'application/x-www-form-urlencoded' in self.content_type:
-                self._parse_urlencoded()
+                await self._parse_urlencoded()
             else:
                 self._form = self.app.Form()
         return self._form
 
     @property
-    def files(self):
+    async def files(self):
         if self._files is None:
             if 'multipart/form-data' in self.content_type:
-                self._parse_multipart()
+                await self._parse_multipart()
             else:
                 self._files = self.app.Files()
         return self._files
 
+    @property
     async def json(self):
-        try:
-            return json.loads(await self.read())
-        except (UnicodeDecodeError, JSONDecodeError):
-            raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
+        if self._json is None:
+            try:
+                return json.loads(await self.read())
+            except (UnicodeDecodeError, JSONDecodeError):
+                raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
+        return self._json
 
     @property
     def content_type(self):

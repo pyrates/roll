@@ -109,8 +109,9 @@ async def test_request_parse_POST_body(protocol):
         b'Content-Length: 31\r\n'
         b'\r\n'
         b'{"link": "https://example.org"}')
+    await protocol.task
     assert protocol.request.method == 'POST'
-    assert protocol.request.body == b'{"link": "https://example.org"}'
+    assert await protocol.request.read() == b'{"link": "https://example.org"}'
 
 
 async def test_request_content_type_shortcut(protocol):
@@ -152,7 +153,7 @@ async def test_invalid_request_method(protocol):
     protocol.data_received(
         b'SPAM /path HTTP/1.1\r\nContent-Length: 8\r\n\r\nblahblah')
     assert protocol.response.status == HTTPStatus.BAD_REQUEST
-    protocol.write()  # should not fail.
+    await protocol.write()  # should not fail.
     assert protocol.request.method is None
 
 
@@ -365,7 +366,7 @@ async def test_request_get_unknown_cookie_key_raises_keyerror(protocol):
 
 
 async def test_can_store_arbitrary_keys_on_request():
-    request = Request(None)
+    request = Request(None, None)
     request['custom'] = 'value'
     assert 'custom' in request
     assert request['custom'] == 'value'
@@ -390,10 +391,10 @@ async def test_parse_multipart(protocol):
         b'Content-Disposition: form-data; name="text1"\r\n'
         b'\r\n'
         b'abc\r\n--foofoo--')
-    assert protocol.request.form.get('text1') == 'abc'
-    assert protocol.request.files.get('baz').filename == 'baz.png'
-    assert protocol.request.files.get('baz').content_type == b'image/png'
-    assert protocol.request.files.get('baz').read() == b'abcdef'
+    assert (await protocol.request.form).get('text1') == 'abc'
+    assert (await protocol.request.files).get('baz').filename == 'baz.png'
+    assert (await protocol.request.files).get('baz').content_type == b'image/png'
+    assert (await protocol.request.files).get('baz').read() == b'abcdef'
 
 
 async def test_parse_multipart_filename_star(protocol):
@@ -416,10 +417,10 @@ async def test_parse_multipart_filename_star(protocol):
         b'Content-Disposition: form-data; name="text1"\r\n'
         b'\r\n'
         b'abc\r\n--foofoo--')
-    assert protocol.request.form.get('text1') == 'abc'
-    assert protocol.request.files.get('baz').filename == 'baz-é.png'
-    assert protocol.request.files.get('baz').content_type == b'image/png'
-    assert protocol.request.files.get('baz').read() == b'abcdef'
+    assert (await protocol.request.form).get('text1') == 'abc'
+    assert (await protocol.request.files).get('baz').filename == 'baz-é.png'
+    assert (await protocol.request.files).get('baz').content_type == b'image/png'
+    assert (await protocol.request.files).get('baz').read() == b'abcdef'
 
 
 async def test_parse_unparsable_multipart(protocol):
@@ -434,7 +435,7 @@ async def test_parse_unparsable_multipart(protocol):
         b'\r\n'
         b'--foofoo--foofoo--')
     with pytest.raises(HttpError) as e:
-        assert protocol.request.form
+        assert await protocol.request.form
     assert e.value.message == 'Unparsable multipart body'
 
 
@@ -450,7 +451,7 @@ async def test_parse_unparsable_urlencoded(protocol):
         b'\r\n'
         b'foo')
     with pytest.raises(HttpError) as e:
-        assert protocol.request.form
+        assert await protocol.request.form
     assert e.value.message == 'Unparsable urlencoded body'
 
 
@@ -463,8 +464,8 @@ async def test_post_multipart(client, app, params):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert req.files.get('afile').filename == 'afile.txt'
-        resp.body = req.files.get('afile').read()
+        assert (await req.files).get('afile').filename == 'afile.txt'
+        resp.body = (await req.files).get('afile').read()
 
     client.content_type = 'multipart/form-data'
     resp = await client.post('/test', files={'afile': params})
@@ -476,7 +477,7 @@ async def test_post_urlencoded(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert req.form.get('foo') == 'bar'
+        assert (await req.form).get('foo') == 'bar'
         resp.body = b'done'
 
     client.content_type = 'application/x-www-form-urlencoded'
@@ -489,8 +490,8 @@ async def test_post_urlencoded_list(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert req.form.get('foo') == 'bar'
-        assert req.form.list('foo') == ['bar', 'baz']
+        assert (await req.form).get('foo') == 'bar'
+        assert (await req.form).list('foo') == ['bar', 'baz']
         resp.body = b'done'
 
     client.content_type = 'application/x-www-form-urlencoded'
@@ -503,7 +504,7 @@ async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert req.json == {'foo': 'bar'}
+        assert await req.json == {'foo': 'bar'}
         resp.body = b'done'
 
     resp = await client.post('/test', data={'foo': 'bar'})
@@ -515,7 +516,7 @@ async def test_post_unparsable_json(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert req.json
+        assert await req.json
 
     resp = await client.post('/test', data='{"foo')
     assert resp.status == HTTPStatus.BAD_REQUEST

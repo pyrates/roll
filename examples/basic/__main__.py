@@ -20,8 +20,8 @@ async def hello(request, response, parameter):
 
 @app.route('/hello/{parameter}', methods=['POST'])
 async def post_hello(request, response, parameter):
-    data = await request.read()
-    response.body = f'Hello {data}'
+    # data = await request.read()
+    response.body = await request.json
 
 
 @app.listen('startup')
