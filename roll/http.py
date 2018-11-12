@@ -199,7 +199,7 @@ class HTTPProtocol(asyncio.Protocol):
         except HttpParserError as error:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.response = self.app.Response(self.app)
+            self.response = self.app.Response(self.app, self)
             # Original error stored by httptools.
             if isinstance(error.__context__, HttpError):
                 error = error.__context__
@@ -208,7 +208,7 @@ class HTTPProtocol(asyncio.Protocol):
             else:
                 self.response.status = HTTPStatus.BAD_REQUEST
                 self.response.body = b'Unparsable request'
-            self.write()
+            self.task = self.app.loop.create_task(self.write)
 
     def upgrade(self):
         handler_protocol = self.request.route.payload.get('protocol', 'http')
@@ -232,9 +232,11 @@ class HTTPProtocol(asyncio.Protocol):
     def on_header(self, name: bytes, value: bytes):
         self.request.headers[name.decode().upper()] = value.decode()
 
-    def on_body(self, body: bytes):
-        # FIXME do not put all body in RAM blindly.
-        self.request.body += body
+    def on_body(self, data: bytes):
+        # Save the first chunk.
+        self.request._chunk = data
+        # And let the user decide if we should continue reading or not.
+        self.pause_reading()
 
     def on_url(self, url: bytes):
         self.request.method = self.parser.get_method().decode().upper()
@@ -245,10 +247,10 @@ class HTTPProtocol(asyncio.Protocol):
         self.app.lookup(self.request)
 
     def on_message_begin(self):
-        self.request = self.app.Request(self.app)
-        self.response = self.app.Response(self.app)
+        self.request = self.app.Request(self.app, self)
+        self.response = self.app.Response(self.app, self)
 
-    def on_message_complete(self):
+    def on_headers_complete(self):
         if self.parser.should_upgrade():
             # An upgrade has been requested
             self.request.upgrade = self.request.headers['UPGRADE'].lower()
@@ -266,12 +268,14 @@ class HTTPProtocol(asyncio.Protocol):
                 raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
             # No upgrade was required and the handler didn't need any.
             # We run the normal task.
-            self.task = self.app.loop.create_task(
-                self.app(self.request, self.response))
-            self.task.add_done_callback(self.write)
+            self.task = self.app.loop.create_task(self())
+
+    async def __call__(self):
+        await self.app(self.request, self.response)
+        await self.write()
 
     # May or may not have "future" as arg.
-    def write(self, *args):
+    async def write(self, *args):
         # Appends bytes for performances.
         payload = b'HTTP/1.1 %a %b\r\n' % (
             self.response.status.value, self.response.status.phrase.encode())
@@ -305,3 +309,9 @@ class HTTPProtocol(asyncio.Protocol):
         else:
             if not self.parser.should_keep_alive():
                 self.transport.close()
+
+    def pause_reading(self):
+        self.transport.pause_reading()
+
+    def resume_reading(self):
+        self.transport.resume_reading()

@@ -18,6 +18,12 @@ async def hello(request, response, parameter):
     response.body = f'Hello {parameter}'
 
 
+@app.route('/hello/{parameter}', methods=['POST'])
+async def post_hello(request, response, parameter):
+    data = await request.read()
+    response.body = f'Hello {data}'
+
+
 @app.listen('startup')
 async def on_startup():
     print('https://vimeo.com/34926862')

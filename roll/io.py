@@ -22,14 +22,15 @@ class Request(dict):
     """
     __slots__ = (
         'app', 'url', 'path', 'query_string', '_query',
-        'method', 'body', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade'
+        'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
+        'upgrade', 'protocol'
     )
 
-    def __init__(self, app):
+    def __init__(self, app, protocol):
         self.app = app
+        self.protocol = protocol
         self.headers = {}
-        self.body = b''
+        self._chunk = b''
         self.method = None
         self.upgrade = None
         self._cookies = None
@@ -88,10 +89,9 @@ class Request(dict):
                 self._files = self.app.Files()
         return self._files
 
-    @property
-    def json(self):
+    async def json(self):
         try:
-            return json.loads(self.body.decode())
+            return json.loads(await self.read())
         except (UnicodeDecodeError, JSONDecodeError):
             raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
 
@@ -103,13 +103,27 @@ class Request(dict):
     def host(self):
         return self.headers.get('HOST', '')
 
+    async def read(self):
+        data = b''
+        async for chunk in self:
+            data += chunk
+        return data
+
+    async def __aiter__(self):
+        data = self._chunk
+        if not data:
+            raise StopAsyncIteration
+        self.protocol.pause_reading()
+        yield data
+
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = ('app', '_status', 'headers', 'body', '_cookies')
+    __slots__ = ('app', '_status', 'headers', 'body', '_cookies', 'protocol')
 
-    def __init__(self, app):
+    def __init__(self, app, protocol):
         self.app = app
+        self.protocol = protocol
         self.body = b''
         self.status = HTTPStatus.OK
         self.headers = {}
