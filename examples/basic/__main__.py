@@ -14,14 +14,14 @@ traceback(app)
 
 
 @app.route('/hello/{parameter}')
-async def hello(request, response, parameter):
+async def hello(response, parameter):
     response.body = f'Hello {parameter}'
 
 
 @app.route('/hello/{parameter}', methods=['POST'])
-async def post_hello(request, response, parameter):
+async def post_hello(json, response, parameter):
     # data = await request.read()
-    response.body = await request.json
+    response.body = json
 
 
 @app.listen('startup')

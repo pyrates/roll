@@ -102,6 +102,10 @@ class Request(dict):
         return self._json
 
     @property
+    async def body(self):
+        return await self.read()
+
+    @property
     def content_type(self):
         return self.headers.get('CONTENT-TYPE', '')
 

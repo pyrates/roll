@@ -18,6 +18,8 @@ from .http import Cookies, Files, Form, HttpError, HTTPProtocol, Query
 from .io import Request, Response
 from .websocket import ConnectionClosed  # noqa. Exposed for convenience.
 from .websocket import WSProtocol
+from .ondemand import process
+
 
 Route = namedtuple('Route', ['payload', 'vars'])
 
@@ -57,7 +59,7 @@ class Roll(dict):
                 if request.method.upper() not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
                 handler = request.route.payload[request.method]
-                await handler(request, response, **request.route.vars)
+                await process(handler, request, response)
         except Exception as error:
             await self.on_error(request, response, error)
         try:
