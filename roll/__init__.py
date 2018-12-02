@@ -50,6 +50,19 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
+    def namespace(self, request, response):
+        return {
+            'app': self,
+            'request': request,
+            'response': response,
+            'cookies': request.cookies,
+            'form': request.form,
+            'query': request.query,
+            'json': request.json,
+            'route': request.route,
+            'routing_parameters': request.route.vars,
+        }
+
     async def __call__(self, request: Request, response: Response):
         try:
             if not await self.hook('request', request, response):
@@ -59,7 +72,7 @@ class Roll(dict):
                 if request.method.upper() not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
                 handler = request.route.payload[request.method]
-                await process(handler, request, response)
+                await process(handler, self.namespace(request, response))
         except Exception as error:
             await self.on_error(request, response, error)
         try:

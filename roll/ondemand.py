@@ -27,33 +27,32 @@ def before(*funcs):
     return persist_preprocessors
 
 
-AWAITABLE = frozenset({'body', 'form', 'query', 'json'})
+async def process(func, namespace: dict):
 
+    async def func_args(s, **params):
 
-async def process(func, request, response):
-
-    async def func_args(s, **route_params):
         for name, param in s.parameters.items():
             if param.kind != param.VAR_KEYWORD:
-                if name == 'request':
-                    yield name, request
-                elif name == 'response':
-                    yield name, response
-                elif name in AWAITABLE:
-                    # It is cached on the request itself.
-                    yield name, await getattr(request, name)
-                elif name in route_params:
-                    yield name, route_params.pop(name)
+                if name in namespace:
+                    value = namespace[name]
+                    if inspect.iscoroutine(value):
+                        yield name, await value
+                    else:
+                        yield name, value
+                elif name in params:
+                    yield name, params.pop(name)
             else:
-                for name, value in route_params.items():
+                for name, value in params.items():
                     yield name, value
+
+    route_params = namespace.get('routing_parameters', {})
 
     async def apply(func):
         s = signature(func)
-        args = dict([f async for f in func_args(s, **request.route.vars)])
+        args = dict([f async for f in func_args(s, **route_params)])
         bound = s.bind(**args)
         return await func(*bound.args, **bound.kwargs)
-    
+
     preprocs = preprocessors(func)
     if preprocs is not None:
         for preproc in preprocs:
