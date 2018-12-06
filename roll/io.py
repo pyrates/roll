@@ -26,6 +26,10 @@ class Request(dict):
         'upgrade', 'protocol', '_json'
     )
 
+    __namespace__ = (
+        'app', 'query', 'json', 'form', 'cookies', 'body', 'route'
+    )
+
     def __init__(self, app, protocol):
         self.app = app
         self.protocol = protocol
@@ -122,7 +126,7 @@ class Request(dict):
     async def __aiter__(self):
         data = self._chunk
         if not data:
-            raise StopAsyncIteration
+            return
         self.protocol.pause_reading()
         yield data
 

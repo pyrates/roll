@@ -38,10 +38,16 @@ async def cheer_for_streaming(response):
     response.headers['Content-Disposition'] = (
         f"attachment; filename={filename}")
 
+
 @app.route('/hello/{parameter}', methods=['POST'])
 async def post_hello(json, response, parameter):
-    # data = await request.read()
     response.body = json
+
+
+@app.route('/app', methods=['GET'])
+async def hello_app(response, app, query, form, body, **rest):
+    response.body = f"{app.__class__.__name__}\n"
+    print(rest, query, form, body)
 
 
 @app.listen('startup')

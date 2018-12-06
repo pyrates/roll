@@ -9,6 +9,7 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 
+import inspect
 from collections import namedtuple
 from http import HTTPStatus
 
@@ -50,19 +51,6 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
-    def namespace(self, request, response):
-        return {
-            'app': self,
-            'request': request,
-            'response': response,
-            'cookies': request.cookies,
-            'form': request.form,
-            'query': request.query,
-            'json': request.json,
-            'route': request.route,
-            'routing_parameters': request.route.vars,
-        }
-
     async def __call__(self, request: Request, response: Response):
         try:
             if not await self.hook('request', request, response):
@@ -72,7 +60,7 @@ class Roll(dict):
                 if request.method.upper() not in request.route.payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
                 handler = request.route.payload[request.method]
-                await process(handler, self.namespace(request, response))
+                await process(handler, request, response)
         except Exception as error:
             await self.on_error(request, response, error)
         try:
@@ -116,6 +104,7 @@ class Roll(dict):
         extras['_protocol_class'] = klass
 
         def wrapper(func):
+            func.__signature__ = inspect.signature(func)
             payload = {method: func for method in methods}
             payload.update(extras)
             self.routes.add(path, **payload)
