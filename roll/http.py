@@ -212,12 +212,6 @@ class HTTPProtocol(asyncio.Protocol):
             self.task = self.app.loop.create_task(self.write())
 
     async def upgraded(self):
-        handler_protocol = self.request.route.payload.get('protocol', 'http')
-
-        if self.request.upgrade != handler_protocol:
-            raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
-                            'Request cannot be upgraded.')
-
         protocol_class = self.request.route.payload['_protocol_class']
         new_protocol = protocol_class(self.request)
         new_protocol.handshake(self.response)
@@ -255,6 +249,11 @@ class HTTPProtocol(asyncio.Protocol):
         if self.parser.should_upgrade():
             # An upgrade has been requested
             self.request.upgrade = self.request.headers['UPGRADE'].lower()
+            handler_protocol = self.request.route.payload.get(
+                'protocol', 'http')
+            if self.request.upgrade != handler_protocol:
+                raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
+                                'Request cannot be upgraded.')
             self.task = self.app.loop.create_task(self.upgraded())
         else:
             # No upgrade was requested
