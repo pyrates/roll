@@ -17,12 +17,12 @@ async def test_request_hook_can_alter_response(client, app):
         return True  # Shortcut the response process.
 
     @app.route('/test')
-    async def get(req, resp):
-        resp.body = 'test response'
+    async def get(request, response):
+        response.body = 'test response'
 
-    resp = await client.get('/test')
-    assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == b'another response'
+    response = await client.get('/test')
+    assert response.status == HTTPStatus.BAD_REQUEST
+    assert response.body == b'another response'
 
 
 async def test_response_hook_can_alter_response(client, app):
@@ -34,12 +34,12 @@ async def test_response_hook_can_alter_response(client, app):
         response.status = 400
 
     @app.route('/test')
-    async def get(req, resp):
-        resp.body = 'test response'
+    async def get(request, response):
+        response.body = 'test response'
 
-    resp = await client.get('/test')
-    assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == b'another response'
+    response = await client.get('/test')
+    assert response.status == HTTPStatus.BAD_REQUEST
+    assert response.body == b'another response'
 
 
 async def test_error_with_json_format(client, app):
@@ -50,12 +50,12 @@ async def test_error_with_json_format(client, app):
         response.json = {'status': error.status, 'message': error.message}
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR, message='JSON error')
 
-    resp = await client.get('/test')
-    assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
-    error = json.loads(resp.body.decode())
+    response = await client.get('/test')
+    assert response.status == HTTPStatus.INTERNAL_SERVER_ERROR
+    error = json.loads(response.body.decode())
     assert error == {"status": 500, "message": "JSON error"}
 
 
@@ -78,6 +78,6 @@ async def test_request_hook_is_called_even_if_path_is_not_found(client, app):
             response.body = b'Really this is a bad request'
             return True  # Shortcuts the response process.
 
-    resp = await client.get('/not-found')
-    assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == b'Really this is a bad request'
+    response = await client.get('/not-found')
+    assert response.status == HTTPStatus.BAD_REQUEST
+    assert response.body == b'Really this is a bad request'

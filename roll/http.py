@@ -211,7 +211,7 @@ class HTTPProtocol(asyncio.Protocol):
                 self.response.body = b'Unparsable request'
             self.task = self.app.loop.create_task(self.write())
 
-    def upgrade(self):
+    async def upgraded(self):
         handler_protocol = self.request.route.payload.get('protocol', 'http')
 
         if self.request.upgrade != handler_protocol:
@@ -222,11 +222,11 @@ class HTTPProtocol(asyncio.Protocol):
         new_protocol = protocol_class(self.request)
         new_protocol.handshake(self.response)
         self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
-        self.write()
+        await self.write()
         new_protocol.connection_made(self.transport)
         new_protocol.connection_open()
         self.transport.set_protocol(new_protocol)
-        return new_protocol
+        await new_protocol.run()
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -255,12 +255,7 @@ class HTTPProtocol(asyncio.Protocol):
         if self.parser.should_upgrade():
             # An upgrade has been requested
             self.request.upgrade = self.request.headers['UPGRADE'].lower()
-            new_protocol = self.upgrade()
-            if new_protocol is not None:
-                # No error occured during the upgrade
-                # The protocol was found and the handler willing to comply
-                # We run the protocol task.
-                self.task = self.app.loop.create_task(new_protocol.run())
+            self.task = self.app.loop.create_task(self.upgraded())
         else:
             # No upgrade was requested
             payload = self.request.route.payload

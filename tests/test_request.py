@@ -463,9 +463,9 @@ async def test_parse_unparsable_urlencoded(protocol):
 async def test_post_multipart(client, app, params):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        assert (await req.files).get('afile').filename == 'afile.txt'
-        resp.body = (await req.files).get('afile').read()
+    async def post(files, response):
+        assert files.get('afile').filename == 'afile.txt'
+        response.body = files.get('afile').read()
 
     client.content_type = 'multipart/form-data'
     resp = await client.post('/test', files={'afile': params})
@@ -476,9 +476,9 @@ async def test_post_multipart(client, app, params):
 async def test_post_urlencoded(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        assert (await req.form).get('foo') == 'bar'
-        resp.body = b'done'
+    async def post(form, response):
+        assert form.get('foo') == 'bar'
+        response.body = b'done'
 
     client.content_type = 'application/x-www-form-urlencoded'
     resp = await client.post('/test', data={'foo': 'bar'})
@@ -489,35 +489,36 @@ async def test_post_urlencoded(client, app):
 async def test_post_urlencoded_list(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        assert (await req.form).get('foo') == 'bar'
-        assert (await req.form).list('foo') == ['bar', 'baz']
-        resp.body = b'done'
+    async def post(form, response):
+        assert form.get('foo') == 'bar'
+        assert form.list('foo') == ['bar', 'baz']
+        response.body = b'done'
 
     client.content_type = 'application/x-www-form-urlencoded'
-    resp = await client.post('/test', data=[('foo', 'bar'), ('foo', 'baz')])
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'done'
+    response = await client.post(
+        '/test', data=[('foo', 'bar'), ('foo', 'baz')])
+    assert response.status == HTTPStatus.OK
+    assert response.body == b'done'
 
 
 async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        assert await req.json == {'foo': 'bar'}
-        resp.body = b'done'
+    async def post(response, json):
+        json == {'foo': 'bar'}
+        response.body = b'done'
 
-    resp = await client.post('/test', data={'foo': 'bar'})
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'done'
+    response = await client.post('/test', data={'foo': 'bar'})
+    assert response.status == HTTPStatus.OK
+    assert response.body == b'done'
 
 
 async def test_post_unparsable_json(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        assert await req.json
+    async def post(json):
+        pass
 
-    resp = await client.post('/test', data='{"foo')
-    assert resp.status == HTTPStatus.BAD_REQUEST
-    assert resp.body == b'Unparsable JSON body'
+    response = await client.post('/test', data='{"foo')
+    assert response.status == HTTPStatus.BAD_REQUEST
+    assert response.body == b'Unparsable JSON body'

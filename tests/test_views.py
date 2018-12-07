@@ -8,82 +8,82 @@ pytestmark = pytest.mark.asyncio
 async def test_simple_get_request(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
-        resp.body = 'test response'
+    async def get(response):
+        response.body = 'test response'
 
-    resp = await client.get('/test')
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'test response'
+    response = await client.get('/test')
+    assert response.status == HTTPStatus.OK
+    assert response.body == b'test response'
 
 
-async def test_simple_non_200_response(client, app):
+async def test_simple_non_200_responseonse(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
-        resp.status = 204
+    async def get(response):
+        response.status = 204
 
-    resp = await client.get('/test')
-    assert resp.status == HTTPStatus.NO_CONTENT
-    assert resp.body == b''
+    response = await client.get('/test')
+    assert response.status == HTTPStatus.NO_CONTENT
+    assert response.body == b''
 
 
 async def test_not_found_path(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         ...
 
-    resp = await client.get('/testing')
-    assert resp.status == HTTPStatus.NOT_FOUND
+    response = await client.get('/testing')
+    assert response.status == HTTPStatus.NOT_FOUND
 
 
 async def test_invalid_method(client, app):
 
     @app.route('/test', methods=['GET'])
-    async def get(req, resp):
+    async def get(request, response):
         ...
 
-    resp = await client.post('/test', body=b'')
-    assert resp.status == HTTPStatus.METHOD_NOT_ALLOWED
+    response = await client.post('/test', body=b'')
+    assert response.status == HTTPStatus.METHOD_NOT_ALLOWED
 
 
 async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        resp.body = req.body
+    async def post(response, json):
+        response.body = json
 
-    resp = await client.post('/test', body={'key': 'value'})
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'{"key": "value"}'
+    response = await client.post('/test', body={'key': 'value'})
+    assert response.status == HTTPStatus.OK
+    assert response.body == b"{'key': 'value'}"
 
 
 async def test_post_urlencoded(client, app):
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        resp.body = req.body
+    async def post(response, form):
+        response.body = form
 
     client.content_type = 'application/x-www-form-urlencoded'
-    resp = await client.post('/test', body={'key': 'value'})
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'key=value'
+    response = await client.post('/test', body={'key': 'value'})
+    assert response.status == HTTPStatus.OK
+    assert response.body == b"{'key': ['value']}"
 
 
 async def test_can_define_twice_a_route_with_different_payloads(client, app):
 
     @app.route('/test', methods=['GET'])
-    async def get(req, resp):
-        resp.body = b'GET'
+    async def get(response):
+        response.body = b'GET'
 
     @app.route('/test', methods=['POST'])
-    async def post(req, resp):
-        resp.body = b'POST'
+    async def post(response):
+        response.body = b'POST'
 
-    resp = await client.get('/test')
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'GET'
+    response = await client.get('/test')
+    assert response.status == HTTPStatus.OK
+    assert response.body == b'GET'
 
-    resp = await client.post('/test', {})
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'POST'
+    response = await client.post('/test', {})
+    assert response.status == HTTPStatus.OK
+    assert response.body == b'POST'

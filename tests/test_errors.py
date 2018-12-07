@@ -9,7 +9,7 @@ pytestmark = pytest.mark.asyncio
 async def test_simple_error(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise HttpError(500, 'Oops.')
 
     resp = await client.get('/test')
@@ -20,7 +20,7 @@ async def test_simple_error(client, app):
 async def test_httpstatus_error(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise HttpError(HTTPStatus.BAD_REQUEST, 'Really bad.')
 
     resp = await client.get('/test')
@@ -31,7 +31,7 @@ async def test_httpstatus_error(client, app):
 async def test_error_only_with_status(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise HttpError(500)
 
     resp = await client.get('/test')
@@ -42,7 +42,7 @@ async def test_error_only_with_status(client, app):
 async def test_error_only_with_httpstatus(client, app):
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR)
 
     resp = await client.get('/test')
@@ -58,7 +58,7 @@ async def test_error_subclasses_with_super(client, app):
             self.message = '<h1>Oops.</h1>'
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise CustomHttpError(HTTPStatus.INTERNAL_SERVER_ERROR)
 
     resp = await client.get('/test')
@@ -74,7 +74,7 @@ async def test_error_subclasses_without_super(client, app):
             self.message = '<h1>Oops.</h1>'
 
     @app.route('/test')
-    async def get(req, resp):
+    async def get(request, response):
         raise CustomHttpError(HTTPStatus.INTERNAL_SERVER_ERROR)
 
     resp = await client.get('/test')
