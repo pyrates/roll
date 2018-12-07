@@ -296,8 +296,9 @@ class HTTPProtocol(asyncio.Protocol):
             if isinstance(self.response.body, AsyncGenerator):
                 if 'Transfer-Encoding' not in self.response.headers:
                     self.response.headers['Transfer-Encoding'] = 'chunked'
-            elif not isinstance(self.response.body, bytes):
-                self.response.body = str(self.response.body).encode()
+            else:
+                if not isinstance(self.response.body, bytes):
+                    self.response.body = str(self.response.body).encode()
                 if 'Content-Length' not in self.response.headers:
                     length = len(self.response.body)
                     self.response.headers['Content-Length'] = length
