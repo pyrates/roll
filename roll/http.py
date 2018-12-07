@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import AsyncGenerator
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
@@ -274,20 +275,38 @@ class HTTPProtocol(asyncio.Protocol):
         await self.app(self.request, self.response)
         await self.write()
 
+    async def write_body(self):
+        if isinstance(self.response.body, AsyncGenerator):
+            async for data in self.response.body:
+                # Writing the chunk.
+                self.transport.write(
+                    b"%x\r\n%b\r\n" % (len(data), data))
+            self.transport.write(b'0\r\n\r\n')
+        else:
+            self.transport.write(self.response.body)
+
     # May or may not have "future" as arg.
     async def write(self, *args):
         # Appends bytes for performances.
         payload = b'HTTP/1.1 %a %b\r\n' % (
             self.response.status.value, self.response.status.phrase.encode())
-        if not isinstance(self.response.body, bytes):
-            self.response.body = str(self.response.body).encode()
+
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
         bodyless = (self.response.status in self._BODYLESS_STATUSES or
                     (hasattr(self, 'request') and
                      self.request.method in self._BODYLESS_METHODS))
-        if 'Content-Length' not in self.response.headers and not bodyless:
-            length = len(self.response.body)
-            self.response.headers['Content-Length'] = length
+
+        if not bodyless:
+            if isinstance(self.response.body, AsyncGenerator):
+                if 'Transfer-Encoding' not in self.response.headers:
+                    self.response.headers['Transfer-Encoding'] = 'chunked'
+            else:
+                if not isinstance(self.response.body, bytes):
+                    self.response.body = str(self.response.body).encode()
+                if 'Content-Length' not in self.response.headers:
+                    length = len(self.response.body)
+                    self.response.headers['Content-Length'] = length
+
         if self.response._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
             for cookie in self.response.cookies.values():
@@ -295,14 +314,14 @@ class HTTPProtocol(asyncio.Protocol):
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n'
-        if self.response.body and not bodyless:
-            payload += self.response.body
         if self.transport.is_closing():
             # Request has been aborted, thus socket as been closed, thus
             # transport has been closed?
             return
         try:
             self.transport.write(payload)
+            if self.response.body and not bodyless:
+                await self.write_body()
         except RuntimeError:  # transport may still be closed during write.
             # TODO: Pass into error hook when write is async.
             pass

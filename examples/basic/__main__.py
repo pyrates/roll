@@ -1,8 +1,11 @@
+import os
 import asyncio
 
 import uvloop
+from aiofile import AIOFile, Reader
 from roll import Roll
 from roll.extensions import cors, igniter, logger, simple_server, traceback
+
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -13,15 +16,38 @@ igniter(app)
 traceback(app)
 
 
+cheering = os.path.join(os.path.dirname(__file__), 'crowd-cheering.mp3')
+
+
+async def file_iterator(path):
+    async with AIOFile(path, 'rb') as afp:
+        reader = Reader(afp, chunk_size=4096)
+        async for data in reader:
+            yield data
+
+
 @app.route('/hello/{parameter}')
-async def hello(request, response, parameter):
+async def hello(response, parameter):
     response.body = f'Hello {parameter}'
 
 
+@app.route('/cheer')
+async def cheer_for_streaming(response):
+    filename =  os.path.basename(cheering)
+    response.body = file_iterator(cheering)
+    response.headers['Content-Disposition'] = (
+        f"attachment; filename={filename}")
+
+
 @app.route('/hello/{parameter}', methods=['POST'])
-async def post_hello(request, response, parameter):
-    # data = await request.read()
-    response.body = await request.json
+async def post_hello(json, response, parameter):
+    response.body = json
+
+
+@app.route('/app', methods=['GET'])
+async def hello_app(response, app, query, form, body, **rest):
+    response.body = f"{app.__class__.__name__}\n"
+    print(rest, query, form, body)
 
 
 @app.listen('startup')
