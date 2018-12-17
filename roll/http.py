@@ -9,15 +9,8 @@ from httptools import (HttpParserError, HttpParserUpgrade, HttpRequestParser,
                        parse_url)
 from multifruits import Parser, extract_filename, parse_content_disposition
 
+
 HttpCode = TypeVar('HttpCode', HTTPStatus, int)
-
-
-# Prevent creating new HTTPStatus instances when
-# dealing with integer statuses.
-STATUSES = {}
-
-for status in HTTPStatus:
-    STATUSES[status.value] = status
 
 
 class HttpError(Exception):

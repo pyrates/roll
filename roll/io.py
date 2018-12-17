@@ -3,7 +3,7 @@ from urllib.parse import parse_qs
 
 from biscuits import parse
 
-from .http import STATUSES, HttpCode, HttpError, Multipart
+from .http import HttpCode, HttpError, Multipart
 
 try:
     # In case you use json heavily, we recommend installing
@@ -122,7 +122,7 @@ class Response:
     @status.setter
     def status(self, http_code: HttpCode):
         # Idempotent if `http_code` is already an `HTTPStatus` instance.
-        self._status = STATUSES[http_code]
+        self._status = HTTPStatus(http_code)
 
     def json(self, value: dict):
         # Shortcut from a dict to JSON with proper content type.
