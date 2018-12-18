@@ -3,7 +3,7 @@ import asyncio
 
 import uvloop
 from aiofile import AIOFile, Reader
-from roll import Roll
+from roll import Roll, HttpError
 from roll.extensions import cors, igniter, logger, simple_server, traceback
 
 
@@ -26,14 +26,21 @@ async def file_iterator(path):
             yield data
 
 
-@app.route('/hello/{parameter}')
+async def check_for_happiness(query):
+    if query.bool("happiness", True) is True:
+        print("Happy happiness!")
+    else:
+        raise HttpError(412, "Unhandled happiness issue!")
+
+
+@app.route('/hello/{parameter}', before=check_for_happiness)
 async def hello(response, parameter):
     response.body = f'Hello {parameter}'
 
 
 @app.route('/cheer')
 async def cheer_for_streaming(response):
-    filename =  os.path.basename(cheering)
+    filename = os.path.basename(cheering)
     response.body = file_iterator(cheering)
     response.headers['Content-Disposition'] = (
         f"attachment; filename={filename}")
