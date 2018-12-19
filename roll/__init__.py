@@ -53,8 +53,10 @@ class Roll(dict):
     def inspect(self, func):
         func.__signature__ = inspect.signature(func, follow_wrapped=True)
 
-    async def invoke(self, func, request, response):
+    async def invoke(self, func, **kwargs):
         params = {}
+        request = kwargs.get("request")
+        response = kwargs.get("response")
         for name, param in func.__signature__.parameters.items():
             if param.kind != param.VAR_KEYWORD:
                 if name == 'request':
@@ -69,6 +71,8 @@ class Roll(dict):
                         value = member
                 elif name in request.route.vars:
                     value = request.route.vars[name]
+                elif name in kwargs:
+                    value = kwargs[name]
                 else:
                     raise ValueError("Unknown param {name}".format(name=name))
                 params[name] = value
@@ -78,7 +82,8 @@ class Roll(dict):
 
     async def __call__(self, request: Request, response: Response):
         try:
-            if not await self.hook('request', request, response):
+            if not await self.hook('request', request=request,
+                                   response=response):
                 if not request.route.payload:
                     raise HttpError(HTTPStatus.NOT_FOUND, request.path)
                 # Uppercased in order to only consider HTTP verbs.
@@ -87,16 +92,18 @@ class Roll(dict):
                 handler, before = request.route.payload[request.method]
                 result = None
                 for func in before:
-                    result = await self.invoke(func, request, response)
+                    result = await self.invoke(func, request=request,
+                                               response=response)
                     if result:
                         break
                 if not result:
-                    await self.invoke(handler, request, response)
+                    await self.invoke(handler, request=request,
+                                      response=response)
         except Exception as error:
             await self.on_error(request, response, error)
         try:
             # Views exceptions should still pass by the response hooks.
-            await self.hook('response', request, response)
+            await self.hook('response', request=request, response=response)
         except Exception as error:
             await self.on_error(request, response, error)
         return response
@@ -108,7 +115,8 @@ class Roll(dict):
         response.status = error.status
         response.body = error.message
         try:
-            await self.hook('error', request, response, error)
+            await self.hook('error', request=request, response=response,
+                            error=error)
         except Exception as e:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(e)
@@ -149,6 +157,7 @@ class Roll(dict):
 
     def listen(self, name: str):
         def wrapper(func):
+            self.inspect(func)
             self.hooks.setdefault(name, [])
             self.hooks[name].append(func)
         return wrapper
@@ -156,7 +165,7 @@ class Roll(dict):
     async def hook(self, name: str, *args, **kwargs):
         try:
             for func in self.hooks[name]:
-                result = await func(*args, **kwargs)
+                result = await self.invoke(func, *args, **kwargs)
                 if result:  # Allows to shortcut the chain.
                     return result
         except KeyError:

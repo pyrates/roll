@@ -62,5 +62,10 @@ async def on_startup():
     print('https://vimeo.com/34926862')
 
 
+@app.listen('error')
+async def on_error(request, error):
+    print(f"Caught {error} from {request.url}")
+
+
 if __name__ == '__main__':
     simple_server(app)
