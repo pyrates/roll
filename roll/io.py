@@ -21,19 +21,16 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'url', 'path', 'query_string', '_query',
+        'app', 'url', 'path', 'query_string', '_query', '_body',
         'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
         'upgrade', 'protocol', '_json'
-    )
-
-    __namespace__ = (
-        'app', 'query', 'json', 'form', 'cookies', 'body', 'route'
     )
 
     def __init__(self, app, protocol):
         self.app = app
         self.protocol = protocol
         self.headers = {}
+        self._body = None
         self._chunk = b''
         self.method = None
         self.upgrade = None
@@ -56,58 +53,52 @@ class Request(dict):
             self._query = self.app.Query(parsed_qs)
         return self._query
 
-    async def _parse_multipart(self):
+    def _parse_multipart(self):
         parser = Multipart(self.app)
         self._form, self._files = parser.initialize(self.content_type)
-        async for data in self:
-            try:
-                parser.feed_data(data)
-            except ValueError:
-                raise HttpError(HTTPStatus.BAD_REQUEST,
-                                'Unparsable multipart body')
-
-    async def _parse_urlencoded(self):
         try:
-            parsed_qs = parse_qs((await self.read()).decode(),
-                                 keep_blank_values=True, strict_parsing=True)
-            print(parsed_qs)
+            parser.feed_data(self.body)
+        except ValueError:
+            raise HttpError(HTTPStatus.BAD_REQUEST,
+                            'Unparsable multipart body')
+
+    def _parse_urlencoded(self):
+        try:
+            parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True,
+                                 strict_parsing=True)
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             'Unparsable urlencoded body')
         self._form = self.app.Form(parsed_qs)
 
     @property
-    async def form(self):
+    def form(self):
         if self._form is None:
             if 'multipart/form-data' in self.content_type:
-                await self._parse_multipart()
+                self._parse_multipart()
             elif 'application/x-www-form-urlencoded' in self.content_type:
-                await self._parse_urlencoded()
+                self._parse_urlencoded()
             else:
                 self._form = self.app.Form()
         return self._form
 
     @property
-    async def files(self):
+    def files(self):
         if self._files is None:
             if 'multipart/form-data' in self.content_type:
-                await self._parse_multipart()
+                self._parse_multipart()
             else:
                 self._files = self.app.Files()
         return self._files
 
     @property
-    async def json(self):
+    def json(self):
         if self._json is None:
             try:
-                return json.loads(await self.read())
+                self._json = json.loads(self.body)
             except (UnicodeDecodeError, JSONDecodeError):
                 raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
         return self._json
-
-    @property
-    async def body(self):
-        return await self.read()
 
     @property
     def content_type(self):
@@ -117,18 +108,32 @@ class Request(dict):
     def host(self):
         return self.headers.get('HOST', '')
 
+    @property
+    def body(self):
+        if self._body is None:
+            raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
+                            "Trying to consume lazy body")
+        return self._body
+
+    @body.setter
+    def body(self, data):
+        self._body = data
+
     async def read(self):
         data = b''
         async for chunk in self:
             data += chunk
+        self.body = data
         return data
 
     async def __aiter__(self):
+        # TODO raise if already consumed?
         data = self._chunk
+        self._chunk = b''
         if not data:
             return
-        self.protocol.pause_reading()
         yield data
+        self.protocol.resume_reading()
 
 
 class Response:

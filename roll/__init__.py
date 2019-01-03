@@ -9,7 +9,6 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 
-import inspect
 from collections import namedtuple
 from http import HTTPStatus
 
@@ -50,60 +49,30 @@ class Roll(dict):
     async def shutdown(self):
         await self.hook('shutdown')
 
-    def inspect(self, func):
-        func.__signature__ = inspect.signature(func, follow_wrapped=True)
-
-    async def invoke(self, func, **kwargs):
-        params = {}
-        request = kwargs.get("request")
-        response = kwargs.get("response")
-        for name, param in func.__signature__.parameters.items():
-            if param.kind != param.VAR_KEYWORD:
-                if name == 'request':
-                    value = request
-                elif name == 'response':
-                    value = response
-                elif name in request.__namespace__:
-                    member = getattr(request, name)
-                    if inspect.iscoroutine(member):
-                        value = await member
-                    else:
-                        value = member
-                elif name in request.route.vars:
-                    value = request.route.vars[name]
-                elif name in kwargs:
-                    value = kwargs[name]
-                else:
-                    raise ValueError("Unknown param {name}".format(name=name))
-                params[name] = value
-
-        bound = func.__signature__.bind(**params)
-        return await func(*bound.args, **bound.kwargs)
-
     async def __call__(self, request: Request, response: Response):
-        try:
-            if not await self.hook('request', request=request,
-                                   response=response):
-                if not request.route.payload:
-                    raise HttpError(HTTPStatus.NOT_FOUND, request.path)
+        payload = request.route.payload
+        handler = None
+        if payload:
+            try:
                 # Uppercased in order to only consider HTTP verbs.
-                if request.method.upper() not in request.route.payload:
-                    raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-                handler, before = request.route.payload[request.method]
-                result = None
-                for func in before:
-                    result = await self.invoke(func, request=request,
-                                               response=response)
-                    if result:
-                        break
-                if not result:
-                    await self.invoke(handler, request=request,
-                                      response=response)
+                handler = request.route.payload[request.method.upper()]
+            except KeyError:
+                pass
+        try:
+            if not await self.request_hook(handler, 'headers', request, response):
+                if payload and not payload.get('lazy'):
+                    await request.read()
+                if not await self.request_hook(handler, 'request', request, response):
+                    if not payload:
+                        raise HttpError(HTTPStatus.NOT_FOUND, request.path)
+                    if not handler:
+                        raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
+                    await handler(request, response, **request.route.vars)
         except Exception as error:
             await self.on_error(request, response, error)
         try:
             # Views exceptions should still pass by the response hooks.
-            await self.hook('response', request=request, response=response)
+            await self.request_hook(handler, 'response', request, response)
         except Exception as error:
             await self.on_error(request, response, error)
         return response
@@ -115,8 +84,7 @@ class Roll(dict):
         response.status = error.status
         response.body = error.message
         try:
-            await self.hook('error', request=request, response=response,
-                            error=error)
+            await self.hook('error', request, response, error)
         except Exception as e:
             response.status = HTTPStatus.INTERNAL_SERVER_ERROR
             response.body = str(e)
@@ -128,14 +96,9 @@ class Roll(dict):
         request.route = Route(*self.routes.match(request.path))
 
     def route(self, path: str, methods: list=None,
-              protocol: str='http', before: list=None, **extras: dict):
+              protocol: str='http', **extras: dict):
         if methods is None:
             methods = ['GET']
-        before = before or []
-        if before and not isinstance(before, list):
-            before = [before]
-        for func in before:
-            self.inspect(func)
         klass_attr = protocol.title() + 'Protocol'
         klass = getattr(self, klass_attr, None)
         assert klass, ('No class handler declared for {} protocol. Add a {} '
@@ -147,27 +110,48 @@ class Roll(dict):
         extras['_protocol_class'] = klass
 
         def wrapper(func):
-            self.inspect(func)
-            payload = {method: (func, before) for method in methods}
+            payload = {method: func for method in methods}
             payload.update(extras)
             self.routes.add(path, **payload)
             return func
 
         return wrapper
 
-    def listen(self, name: str):
-        def wrapper(func):
-            self.inspect(func)
+    def listen(self, name: str, *handlers):
+        def add_middleware(func):
             self.hooks.setdefault(name, [])
             self.hooks[name].append(func)
-        return wrapper
+            return func
+
+        def add_decorator(func):
+            if not hasattr(func, '__hooks__'):
+                func.__hooks__ = {}
+            func.__hooks__.setdefault(name, [])
+            func.__hooks__[name].extend(handlers)
+            return func
+        return add_decorator if handlers else add_middleware
 
     async def hook(self, name: str, *args, **kwargs):
         try:
-            for func in self.hooks[name]:
-                result = await self.invoke(func, *args, **kwargs)
-                if result:  # Allows to shortcut the chain.
-                    return result
+            hooks = self.hooks[name]
         except KeyError:
             # Nobody registered to this event, let's roll anyway.
-            pass
+            hooks = []
+        for func in hooks:
+            responded = await func(*args, **kwargs)
+            if responded:  # Allows to shortcut the chain.
+                return responded
+
+    async def request_hook(self, handler, name, request, response):
+        responded = await self.hook(name, request, response)
+        if responded:
+            return responded
+        try:
+            hooks = handler.__hooks__[name]
+        except (KeyError, AttributeError):
+            # Nobody registered to this event, let's roll anyway.
+            hooks = []
+        for func in hooks:
+            responded = await func(request, response)
+            if responded:  # Allows to shortcut the chain.
+                return responded

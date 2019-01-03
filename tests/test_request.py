@@ -114,6 +114,24 @@ async def test_request_parse_POST_body(protocol):
     assert await protocol.request.read() == b'{"link": "https://example.org"}'
 
 
+async def test_request_parse_chunked_body(protocol):
+    protocol.data_received(
+        b'POST /feed HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: HTTPie/0.9.8\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Accept: application/json, */*\r\n'
+        b'Connection: keep-alive\r\n'
+        b'Content-Type: application/json\r\n'
+        b'Content-Length: 31\r\n'
+        b'\r\n'
+        b'{"link": "https://')
+    protocol.data_received(b'example.org"}')
+    await protocol.task
+    assert protocol.request.method == 'POST'
+    assert await protocol.request.read() == b'{"link": "https://example.org"}'
+
+
 async def test_request_content_type_shortcut(protocol):
     protocol.data_received(
         b'POST /feed HTTP/1.1\r\n'
@@ -391,10 +409,11 @@ async def test_parse_multipart(protocol):
         b'Content-Disposition: form-data; name="text1"\r\n'
         b'\r\n'
         b'abc\r\n--foofoo--')
-    assert (await protocol.request.form).get('text1') == 'abc'
-    assert (await protocol.request.files).get('baz').filename == 'baz.png'
-    assert (await protocol.request.files).get('baz').content_type == b'image/png'
-    assert (await protocol.request.files).get('baz').read() == b'abcdef'
+    await protocol.request.read()
+    assert protocol.request.form.get('text1') == 'abc'
+    assert protocol.request.files.get('baz').filename == 'baz.png'
+    assert protocol.request.files.get('baz').content_type == b'image/png'
+    assert protocol.request.files.get('baz').read() == b'abcdef'
 
 
 async def test_parse_multipart_filename_star(protocol):
@@ -417,10 +436,11 @@ async def test_parse_multipart_filename_star(protocol):
         b'Content-Disposition: form-data; name="text1"\r\n'
         b'\r\n'
         b'abc\r\n--foofoo--')
-    assert (await protocol.request.form).get('text1') == 'abc'
-    assert (await protocol.request.files).get('baz').filename == 'baz-é.png'
-    assert (await protocol.request.files).get('baz').content_type == b'image/png'
-    assert (await protocol.request.files).get('baz').read() == b'abcdef'
+    await protocol.request.read()
+    assert protocol.request.form.get('text1') == 'abc'
+    assert protocol.request.files.get('baz').filename == 'baz-é.png'
+    assert protocol.request.files.get('baz').content_type == b'image/png'
+    assert protocol.request.files.get('baz').read() == b'abcdef'
 
 
 async def test_parse_unparsable_multipart(protocol):
@@ -434,6 +454,7 @@ async def test_parse_unparsable_multipart(protocol):
         b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
         b'\r\n'
         b'--foofoo--foofoo--')
+    await protocol.request.read()
     with pytest.raises(HttpError) as e:
         assert await protocol.request.form
     assert e.value.message == 'Unparsable multipart body'
@@ -450,6 +471,7 @@ async def test_parse_unparsable_urlencoded(protocol):
         b'Content-Type: application/x-www-form-urlencoded\r\n'
         b'\r\n'
         b'foo')
+    await protocol.request.read()
     with pytest.raises(HttpError) as e:
         assert await protocol.request.form
     assert e.value.message == 'Unparsable urlencoded body'
@@ -464,8 +486,8 @@ async def test_post_multipart(client, app, params):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert (await req.files).get('afile').filename == 'afile.txt'
-        resp.body = (await req.files).get('afile').read()
+        assert req.files.get('afile').filename == 'afile.txt'
+        resp.body = req.files.get('afile').read()
 
     client.content_type = 'multipart/form-data'
     resp = await client.post('/test', files={'afile': params})
@@ -477,7 +499,7 @@ async def test_post_urlencoded(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert (await req.form).get('foo') == 'bar'
+        assert req.form.get('foo') == 'bar'
         resp.body = b'done'
 
     client.content_type = 'application/x-www-form-urlencoded'
@@ -490,8 +512,8 @@ async def test_post_urlencoded_list(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert (await req.form).get('foo') == 'bar'
-        assert (await req.form).list('foo') == ['bar', 'baz']
+        assert req.form.get('foo') == 'bar'
+        assert req.form.list('foo') == ['bar', 'baz']
         resp.body = b'done'
 
     client.content_type = 'application/x-www-form-urlencoded'
@@ -504,7 +526,7 @@ async def test_post_json(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert await req.json == {'foo': 'bar'}
+        assert req.json == {'foo': 'bar'}
         resp.body = b'done'
 
     resp = await client.post('/test', data={'foo': 'bar'})
@@ -516,8 +538,56 @@ async def test_post_unparsable_json(client, app):
 
     @app.route('/test', methods=['POST'])
     async def post(req, resp):
-        assert await req.json
+        assert req.json
 
     resp = await client.post('/test', data='{"foo')
     assert resp.status == HTTPStatus.BAD_REQUEST
     assert resp.body == b'Unparsable JSON body'
+
+
+async def test_cannot_consume_lazy_body(client, app):
+
+    @app.route('/test', methods=['POST'], lazy=True)
+    async def post(req, resp):
+        with pytest.raises(HttpError):
+            resp.body = req.body
+        resp.body = "OK"
+
+    resp = await client.post('/test', data='blah')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'OK'
+
+
+async def test_can_consume_lazy_body_if_manually_loaded(client, app):
+
+    @app.route('/test', methods=['POST'], lazy=True)
+    async def post(req, resp):
+        await req.read()
+        resp.body = req.body
+
+    resp = await client.post('/test', data='blah')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'
+
+
+async def test_can_consume_lazy_request_using_read(client, app):
+
+    @app.route('/test', methods=['POST'], lazy=True)
+    async def post(req, resp):
+        resp.body = await req.read()
+
+    resp = await client.post('/test', data='blah')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'
+
+
+async def test_can_consume_lazy_request_iterating(client, app):
+
+    @app.route('/test', methods=['POST'], lazy=True)
+    async def post(req, resp):
+        async for chunk in req:
+            resp.body = chunk
+
+    resp = await client.post('/test', data='blah'*1000)
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'*1000

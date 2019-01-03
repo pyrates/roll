@@ -26,20 +26,25 @@ async def file_iterator(path):
             yield data
 
 
-async def check_for_happiness(query):
-    if query.bool("happiness", True) is True:
-        print("Happy happiness!")
-    else:
-        raise HttpError(412, "Unhandled happiness issue!")
+@app.listen('headers')
+async def on_headers_middleware(request, response):
+    print('on headers middleware')
+    if request.query.bool('fail', False):
+        raise HttpError(400, 'You requested to fail!')
 
 
-@app.route('/hello/{parameter}', before=check_for_happiness)
-async def hello(response, parameter):
+async def on_headers(request, response):
+    print('on headers decorator')
+
+
+@app.route('/hello/{parameter}')
+@app.listen('headers', on_headers)
+async def hello(request, response, parameter):
     response.body = f'Hello {parameter}'
 
 
 @app.route('/cheer')
-async def cheer_for_streaming(response):
+async def cheer_for_streaming(request, response):
     filename = os.path.basename(cheering)
     response.body = file_iterator(cheering)
     response.headers['Content-Disposition'] = (
@@ -47,14 +52,9 @@ async def cheer_for_streaming(response):
 
 
 @app.route('/hello/{parameter}', methods=['POST'])
-async def post_hello(json, response, parameter):
-    response.body = json
-
-
-@app.route('/app', methods=['GET'])
-async def hello_app(response, app, query, form, body, **rest):
-    response.body = f"{app.__class__.__name__}\n"
-    print(rest, query, form, body)
+@app.listen('request', on_headers)
+async def post_hello(request, response, parameter):
+    response.json = request.json
 
 
 @app.listen('startup')
@@ -63,7 +63,7 @@ async def on_startup():
 
 
 @app.listen('error')
-async def on_error(request, error):
+async def on_error(request, response, error):
     print(f"Caught {error} from {request.url}")
 
 
