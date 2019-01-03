@@ -9,31 +9,31 @@ pytestmark = pytest.mark.asyncio
 async def test_can_set_status_from_numeric_value(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = 202
+    async def get(req, resp):
+        resp.status = 202
 
-    response = await client.get('/test')
-    assert response.status == HTTPStatus.ACCEPTED
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.ACCEPTED
 
 
 async def test_raises_a_500_if_code_is_unknown(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = 999
+    async def get(req, resp):
+        resp.status = 999
 
-    response = await client.get('/test')
-    assert response.status == HTTPStatus.INTERNAL_SERVER_ERROR
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 async def test_can_set_status_from_httpstatus(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.ACCEPTED
+    async def get(req, resp):
+        resp.status = HTTPStatus.ACCEPTED
 
-    response = await client.get('/test')
-    assert response.status == HTTPStatus.ACCEPTED
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.ACCEPTED
     assert client.protocol.transport.data == \
         b'HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\n\r\n'
 
@@ -41,9 +41,9 @@ async def test_can_set_status_from_httpstatus(client, app):
 async def test_write(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
 
     await client.get('/test')
     assert client.protocol.transport.data == \
@@ -53,8 +53,8 @@ async def test_write(client, app):
 async def test_write_get_204_no_content_type(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.NO_CONTENT
+    async def get(req, resp):
+        resp.status = HTTPStatus.NO_CONTENT
 
     await client.get('/test')
     assert client.protocol.transport.data == b'HTTP/1.1 204 No Content\r\n\r\n'
@@ -63,8 +63,8 @@ async def test_write_get_204_no_content_type(client, app):
 async def test_write_get_304_no_content_type(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.NOT_MODIFIED
+    async def get(req, resp):
+        resp.status = HTTPStatus.NOT_MODIFIED
 
     await client.get('/test')
     assert client.protocol.transport.data == b'HTTP/1.1 304 Not Modified\r\n\r\n'
@@ -73,8 +73,8 @@ async def test_write_get_304_no_content_type(client, app):
 async def test_write_get_1XX_no_content_type(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.CONTINUE
+    async def get(req, resp):
+        resp.status = HTTPStatus.CONTINUE
 
     await client.get('/test')
     assert client.protocol.transport.data == b'HTTP/1.1 100 Continue\r\n\r\n'
@@ -83,8 +83,8 @@ async def test_write_get_1XX_no_content_type(client, app):
 async def test_write_head_no_content_type(client, app):
 
     @app.route('/test', methods=['HEAD'])
-    async def head(response):
-        response.status = HTTPStatus.OK
+    async def head(req, resp):
+        resp.status = HTTPStatus.OK
 
     await client.head('/test')
     assert client.protocol.transport.data == b'HTTP/1.1 200 OK\r\n\r\n'
@@ -93,10 +93,10 @@ async def test_write_head_no_content_type(client, app):
 async def test_write_cookies(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set(name='name', value='value')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set(name='name', value='value')
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -106,11 +106,11 @@ async def test_write_cookies(client, app):
 async def test_write_multiple_cookies(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value')
-        response.cookies.set('other', 'value2')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value')
+        resp.cookies.set('other', 'value2')
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -121,10 +121,10 @@ async def test_write_multiple_cookies(client, app):
 async def test_write_cookies_with_path(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value', path='/foo')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', path='/foo')
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -134,11 +134,11 @@ async def test_write_cookies_with_path(client, app):
 async def test_write_cookies_with_expires(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value',
-                             expires=datetime(2027, 9, 21, 11, 22))
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value',
+                         expires=datetime(2027, 9, 21, 11, 22))
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -149,10 +149,10 @@ async def test_write_cookies_with_expires(client, app):
 async def test_write_cookies_with_max_age(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value', max_age=600)
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', max_age=600)
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -162,10 +162,10 @@ async def test_write_cookies_with_max_age(client, app):
 async def test_write_cookies_with_domain(client, app):
 
     @app.route('/test')
-    async def get(request, response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value', domain='www.example.com')
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', domain='www.example.com')
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -176,10 +176,10 @@ async def test_write_cookies_with_domain(client, app):
 async def test_write_cookies_with_http_only(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value', httponly=True)
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', httponly=True)
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -189,10 +189,10 @@ async def test_write_cookies_with_http_only(client, app):
 async def test_write_cookies_with_secure(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value', secure=True)
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', secure=True)
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -202,10 +202,10 @@ async def test_write_cookies_with_secure(client, app):
 async def test_write_cookies_with_multiple_attributes(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set('name', 'value', secure=True, max_age=300)
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set('name', 'value', secure=True, max_age=300)
 
     await client.get('/test')
     data = client.protocol.transport.data
@@ -216,13 +216,13 @@ async def test_write_cookies_with_multiple_attributes(client, app):
 async def test_delete_cookies(client, app):
 
     @app.route('/test')
-    async def get(response):
-        response.status = HTTPStatus.OK
-        response.body = 'body'
-        response.cookies.set(name='name', value='value')
-        del response.cookies['name']
+    async def get(req, resp):
+        resp.status = HTTPStatus.OK
+        resp.body = 'body'
+        resp.cookies.set(name='name', value='value')
+        del resp.cookies['name']
 
-    response = await client.get('/test')
-    assert response.status == HTTPStatus.OK
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.OK
     data = client.protocol.transport.data
     assert b'\r\nSet-Cookie: name=value\r\n' not in data

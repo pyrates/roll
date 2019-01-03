@@ -216,11 +216,11 @@ class HTTPProtocol(asyncio.Protocol):
         new_protocol = protocol_class(self.request)
         new_protocol.handshake(self.response)
         self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
-        await self.write()
+        self.write()
         new_protocol.connection_made(self.transport)
         new_protocol.connection_open()
         self.transport.set_protocol(new_protocol)
-        await new_protocol.run()
+        return new_protocol
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis

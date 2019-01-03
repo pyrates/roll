@@ -13,13 +13,13 @@ async def test_cors(client, app):
     extensions.cors(app)
 
     @app.route('/test')
-    async def get(request, response):
-        response.body = 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
-    response = await client.get('/test')
-    assert response.status == HTTPStatus.OK
-    assert response.body == b'test response'
-    assert response.headers['Access-Control-Allow-Origin'] == '*'
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'test response'
+    assert resp.headers['Access-Control-Allow-Origin'] == '*'
 
 
 async def test_custom_cors_origin(client, app):
@@ -27,12 +27,12 @@ async def test_custom_cors_origin(client, app):
     extensions.cors(app, origin='mydomain.org')
 
     @app.route('/test')
-    async def get(request, response):
-        response.body = 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
-    response = await client.get('/test')
-    assert response.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
-    assert 'Access-Control-Allow-Methods' not in response.headers
+    resp = await client.get('/test')
+    assert resp.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
+    assert 'Access-Control-Allow-Methods' not in resp.headers
 
 
 async def test_custom_cors_methods(client, app):
@@ -40,19 +40,19 @@ async def test_custom_cors_methods(client, app):
     extensions.cors(app, methods=['PATCH', 'PUT'])
 
     @app.route('/test')
-    async def get(request, response):
-        response.body = 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
-    response = await client.get('/test')
-    assert response.headers['Access-Control-Allow-Methods'] == 'PATCH,PUT'
+    resp = await client.get('/test')
+    assert resp.headers['Access-Control-Allow-Methods'] == 'PATCH,PUT'
 
 
 async def test_wildcard_cors_methods(client, app):
 
     extensions.cors(app, methods='*')
 
-    response = await client.get('/test')
-    assert (response.headers['Access-Control-Allow-Methods'] ==
+    resp = await client.get('/test')
+    assert (resp.headers['Access-Control-Allow-Methods'] ==
             ','.join(extensions.HTTP_METHODS))
 
 
@@ -61,11 +61,11 @@ async def test_custom_cors_headers(client, app):
     extensions.cors(app, headers=['X-Powered-By', 'X-Requested-With'])
 
     @app.route('/test')
-    async def get(request, response):
-        response.body = 'test response'
+    async def get(req, resp):
+        resp.body = 'test response'
 
-    response = await client.get('/test')
-    assert (response.headers['Access-Control-Allow-Headers'] ==
+    resp = await client.get('/test')
+    assert (resp.headers['Access-Control-Allow-Headers'] ==
             'X-Powered-By,X-Requested-With')
 
 
@@ -78,7 +78,7 @@ async def test_logger(client, app, capsys):
     await app.startup()
 
     @app.route('/test')
-    async def get(request, response):
+    async def get(req, resp):
         return 'test response'
 
     await client.get('/test')
@@ -89,26 +89,26 @@ async def test_logger(client, app, capsys):
 async def test_json_with_default_code(client, app):
 
     @app.route('/test')
-    async def get(request, response):
-        response.json = {'key': 'value'}
+    async def get(req, resp):
+        resp.json = {'key': 'value'}
 
-    response = await client.get('/test')
-    assert response.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert json.loads(response.body.decode()) == {'key': 'value'}
-    assert response.status == HTTPStatus.OK
+    resp = await client.get('/test')
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+    assert json.loads(resp.body.decode()) == {'key': 'value'}
+    assert resp.status == HTTPStatus.OK
 
 
 async def test_json_with_custom_code(client, app):
 
     @app.route('/test')
-    async def get(request, response):
-        response.json = {'key': 'value'}
-        response.status = 400
+    async def get(req, resp):
+        resp.json = {'key': 'value'}
+        resp.status = 400
 
-    response = await client.get('/test')
-    assert response.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert json.loads(response.body.decode()) == {'key': 'value'}
-    assert response.status == HTTPStatus.BAD_REQUEST
+    resp = await client.get('/test')
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+    assert json.loads(resp.body.decode()) == {'key': 'value'}
+    assert resp.status == HTTPStatus.BAD_REQUEST
 
 
 async def test_traceback(client, app, capsys):
@@ -116,12 +116,12 @@ async def test_traceback(client, app, capsys):
     extensions.traceback(app)
 
     @app.route('/test')
-    async def get(request, response):
+    async def get(req, resp):
         raise ValueError('Unhandled exception')
 
-    response = await client.get('/test')
+    resp = await client.get('/test')
     _, err = capsys.readouterr()
-    assert response.status == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
     assert 'Unhandled exception' in err
 
 
@@ -130,11 +130,11 @@ async def test_options(client, app):
     extensions.options(app)
 
     @app.route('/test')
-    async def get(request, response):
+    async def get(req, resp):
         raise  # Should not be called.
 
-    response = await client.options('/test')
-    assert response.status == HTTPStatus.OK
+    resp = await client.options('/test')
+    assert resp.status == HTTPStatus.OK
 
 
 async def test_static(client, app):
@@ -145,15 +145,15 @@ async def test_static(client, app):
     extensions.static(app, root=Path(__file__).parent / 'static')
     await app.startup()
 
-    response = await client.get('/static/index.html')
-    assert response.status == HTTPStatus.OK
-    assert b'Test' in response.body
-    assert response.headers['Content-Type'] == 'text/html'
+    resp = await client.get('/static/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Test' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
 
-    response = await client.get('/static/style.css')
-    assert response.status == HTTPStatus.OK
-    assert b'chocolate' in response.body
-    assert response.headers['Content-Type'] == 'text/css'
+    resp = await client.get('/static/style.css')
+    assert resp.status == HTTPStatus.OK
+    assert b'chocolate' in resp.body
+    assert resp.headers['Content-Type'] == 'text/css'
 
 
 async def test_static_raises_if_path_is_outside_root(client, app):
@@ -162,8 +162,8 @@ async def test_static_raises_if_path_is_outside_root(client, app):
     extensions.static(app, root=Path(__file__).parent / 'static')
     await app.startup()
 
-    response = await client.get('/static/../../README.md')
-    assert response.status == HTTPStatus.BAD_REQUEST
+    resp = await client.get('/static/../../README.md')
+    assert resp.status == HTTPStatus.BAD_REQUEST
 
 
 async def test_can_change_static_prefix(client, app):
@@ -173,9 +173,9 @@ async def test_can_change_static_prefix(client, app):
                       prefix='/foo')
     await app.startup()
 
-    response = await client.get('/foo/index.html')
-    assert response.status == HTTPStatus.OK
-    assert b'Test' in response.body
+    resp = await client.get('/foo/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Test' in resp.body
 
 
 async def test_get_accept_content_negociation(client, app):
@@ -183,14 +183,14 @@ async def test_get_accept_content_negociation(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', accepts=['text/html'])
-    async def get(request, response):
-        response.headers['Content-Type'] = 'text/html'
-        response.body = 'accepted'
+    async def get(req, resp):
+        resp.headers['Content-Type'] = 'text/html'
+        resp.body = 'accepted'
 
-    response = await client.get('/test', headers={'Accept': 'text/html'})
-    assert response.status == HTTPStatus.OK
-    assert response.body == b'accepted'
-    assert response.headers['Content-Type'] == 'text/html'
+    resp = await client.get('/test', headers={'Accept': 'text/html'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'accepted'
+    assert resp.headers['Content-Type'] == 'text/html'
 
 
 async def test_get_accept_content_negociation_if_many(client, app):
@@ -198,21 +198,21 @@ async def test_get_accept_content_negociation_if_many(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', accepts=['text/html', 'application/json'])
-    async def get(request, response):
-        if request.headers['ACCEPT'] == 'text/html':
-            response.headers['Content-Type'] = 'text/html'
-            response.body = '<h1>accepted</h1>'
-        elif request.headers['ACCEPT'] == 'application/json':
-            response.json = {'status': 'accepted'}
+    async def get(req, resp):
+        if req.headers['ACCEPT'] == 'text/html':
+            resp.headers['Content-Type'] = 'text/html'
+            resp.body = '<h1>accepted</h1>'
+        elif req.headers['ACCEPT'] == 'application/json':
+            resp.json = {'status': 'accepted'}
 
-    response = await client.get('/test', headers={'Accept': 'text/html'})
-    assert response.status == HTTPStatus.OK
-    assert response.body == b'<h1>accepted</h1>'
-    assert response.headers['Content-Type'] == 'text/html'
-    response = await client.get('/test', headers={'Accept': 'application/json'})
-    assert response.status == HTTPStatus.OK
-    assert json.loads(response.body.decode()) == {'status': 'accepted'}
-    assert response.headers['Content-Type'] == 'application/json; charset=utf-8'
+    resp = await client.get('/test', headers={'Accept': 'text/html'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'<h1>accepted</h1>'
+    assert resp.headers['Content-Type'] == 'text/html'
+    resp = await client.get('/test', headers={'Accept': 'application/json'})
+    assert resp.status == HTTPStatus.OK
+    assert json.loads(resp.body.decode()) == {'status': 'accepted'}
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
 
 
 async def test_get_reject_content_negociation(client, app):
@@ -220,11 +220,11 @@ async def test_get_reject_content_negociation(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', accepts=['text/html'])
-    async def get(request, response):
-        response.body = 'rejected'
+    async def get(req, resp):
+        resp.body = 'rejected'
 
-    response = await client.get('/test', headers={'Accept': 'text/css'})
-    assert response.status == HTTPStatus.NOT_ACCEPTABLE
+    resp = await client.get('/test', headers={'Accept': 'text/css'})
+    assert resp.status == HTTPStatus.NOT_ACCEPTABLE
 
 
 async def test_get_reject_content_negociation_if_no_accept_header(client, app):
@@ -232,11 +232,11 @@ async def test_get_reject_content_negociation_if_no_accept_header(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', accepts=['*/*'])
-    async def get(request, response):
-        response.body = 'rejected'
+    async def get(req, resp):
+        resp.body = 'rejected'
 
-    response = await client.get('/test')
-    assert response.status == HTTPStatus.NOT_ACCEPTABLE
+    resp = await client.get('/test')
+    assert resp.status == HTTPStatus.NOT_ACCEPTABLE
 
 
 async def test_get_accept_star_content_negociation(client, app):
@@ -244,11 +244,11 @@ async def test_get_accept_star_content_negociation(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', accepts=['text/css'])
-    async def get(request, response):
-        response.body = 'accepted'
+    async def get(req, resp):
+        resp.body = 'accepted'
 
-    response = await client.get('/test', headers={'Accept': 'text/*'})
-    assert response.status == HTTPStatus.OK
+    resp = await client.get('/test', headers={'Accept': 'text/*'})
+    assert resp.status == HTTPStatus.OK
 
 
 async def test_post_accept_content_negociation(client, app):
@@ -256,15 +256,15 @@ async def test_post_accept_content_negociation(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', methods=['POST'], accepts=['application/json'])
-    async def get(request, response):
-        response.json = {'status': 'accepted'}
+    async def get(req, resp):
+        resp.json = {'status': 'accepted'}
 
     client.content_type = 'application/x-www-form-urlencoded'
-    response = await client.post('/test', body={'key': 'value'},
+    resp = await client.post('/test', body={'key': 'value'},
                              headers={'Accept': 'application/json'})
-    assert response.status == HTTPStatus.OK
-    assert response.headers['Content-Type'] == 'application/json; charset=utf-8'
-    assert json.loads(response.body.decode()) == {'status': 'accepted'}
+    assert resp.status == HTTPStatus.OK
+    assert resp.headers['Content-Type'] == 'application/json; charset=utf-8'
+    assert json.loads(resp.body.decode()) == {'status': 'accepted'}
 
 
 async def test_post_reject_content_negociation(client, app):
@@ -272,10 +272,10 @@ async def test_post_reject_content_negociation(client, app):
     extensions.content_negociation(app)
 
     @app.route('/test', methods=['POST'], accepts=['text/html'])
-    async def get(request, response):
-        response.json = {'status': 'accepted'}
+    async def get(req, resp):
+        resp.json = {'status': 'accepted'}
 
     client.content_type = 'application/x-www-form-urlencoded'
-    response = await client.post('/test', body={'key': 'value'},
+    resp = await client.post('/test', body={'key': 'value'},
                              headers={'Accept': 'application/json'})
-    assert response.status == HTTPStatus.NOT_ACCEPTABLE
+    assert resp.status == HTTPStatus.NOT_ACCEPTABLE

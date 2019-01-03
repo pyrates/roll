@@ -27,7 +27,7 @@ class Request(dict):
     )
 
     __namespace__ = (
-        'app', 'query', 'json', 'form', 'cookies', 'body', 'route', 'files'
+        'app', 'query', 'json', 'form', 'cookies', 'body', 'route'
     )
 
     def __init__(self, app, protocol):
