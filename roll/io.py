@@ -1,3 +1,5 @@
+from asyncio import Event
+from queue import deque
 from http import HTTPStatus
 from urllib.parse import parse_qs
 
@@ -15,6 +17,48 @@ except ImportError:
     from json.decoder import JSONDecodeError
 
 
+class StreamQueue:
+
+    def __init__(self):
+        self.items = deque()
+        self.event = Event()
+        self.waiting = False
+        self.dirty = False
+        self.finished = False
+
+    async def get(self):
+        try:
+            return self.items.popleft()
+        except IndexError:
+            if self.finished is True:
+                return b''
+            else:
+                self.event.clear()
+                self.waiting = True
+                await self.event.wait()
+                self.event.clear()
+                self.waiting = False
+                return self.items.popleft()
+
+    def put(self, item):
+        self.dirty = True
+        self.items.append(item)
+        if self.waiting is True:
+            self.event.set()
+
+    def clear(self):
+        if self.dirty:
+            self.items.clear()
+            self.event.clear()
+            self.dirty = False
+        self.finished = False
+
+    def end(self):
+        if self.waiting:
+            self.put(None)
+        self.finished = True
+
+
 class Request(dict):
     """A container for the result of the parsing on each request.
 
@@ -23,12 +67,13 @@ class Request(dict):
     __slots__ = (
         'app', 'url', 'path', 'query_string', '_query', '_body',
         'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade', 'protocol', '_json'
+        'upgrade', 'protocol', '_json', 'queue'
     )
 
     def __init__(self, app, protocol):
         self.app = app
         self.protocol = protocol
+        self.queue = StreamQueue()
         self.headers = {}
         self._body = None
         self._chunk = b''
@@ -128,12 +173,13 @@ class Request(dict):
 
     async def __aiter__(self):
         # TODO raise if already consumed?
-        data = self._chunk
-        self._chunk = b''
-        if not data:
-            return
-        yield data
-        self.protocol.resume_reading()
+        while True:
+            self.protocol.resume_reading()
+            data = await self.queue.get()
+            if not data:
+                break
+            self.protocol.pause_reading()
+            yield data
 
 
 class Response:

@@ -214,17 +214,18 @@ class LiveClient:
         self.app.loop.run_until_complete(self.server.wait_closed())
         self.app.loop.run_until_complete(self.app.shutdown())
 
-    def execute_query(self, method, uri, headers):
-        self.conn.request(method, uri, headers=headers)
+    def execute_query(self, method, uri, headers, body=None):
+        self.conn.request(method, uri, headers=headers, body=body)
         response = self.conn.getresponse()
         return response
 
-    async def query(self, method, uri, headers: dict=None):
+    async def query(self, method, uri, headers: dict=None, body=None):
         if headers is None:
             headers = {}
 
         self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
-        requester = partial(self.execute_query, method.upper(), uri, headers)
+        requester = partial(self.execute_query, method.upper(), uri, headers,
+                            body)
         response = await self.app.loop.run_in_executor(None, requester)
         self.conn.close()
         return response

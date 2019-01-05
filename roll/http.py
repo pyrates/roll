@@ -229,7 +229,7 @@ class HTTPProtocol(asyncio.Protocol):
 
     def on_body(self, data: bytes):
         # Save the first chunk.
-        self.request._chunk += data
+        self.request.queue.put(data)
         # And let the user decide if we should continue reading or not.
         self.pause_reading()
 
@@ -244,6 +244,9 @@ class HTTPProtocol(asyncio.Protocol):
     def on_message_begin(self):
         self.request = self.app.Request(self.app, self)
         self.response = self.app.Response(self.app, self)
+
+    def on_message_complete(self):
+        self.request.queue.end()
 
     def on_headers_complete(self):
         if self.parser.should_upgrade():

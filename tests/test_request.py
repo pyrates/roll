@@ -450,7 +450,7 @@ async def test_parse_unparsable_multipart(protocol):
         b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
         b'Gecko/20100101 Firefox/54.0\r\n'
         b'Origin: http://localhost:7777\r\n'
-        b'Content-Length: 180\r\n'
+        b'Content-Length: 18\r\n'
         b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
         b'\r\n'
         b'--foofoo--foofoo--')
@@ -467,7 +467,7 @@ async def test_parse_unparsable_urlencoded(protocol):
         b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
         b'Gecko/20100101 Firefox/54.0\r\n'
         b'Origin: http://localhost:7777\r\n'
-        b'Content-Length: 180\r\n'
+        b'Content-Length: 3\r\n'
         b'Content-Type: application/x-www-form-urlencoded\r\n'
         b'\r\n'
         b'foo')
@@ -591,3 +591,21 @@ async def test_can_consume_lazy_request_iterating(client, app):
     resp = await client.post('/test', data='blah'*1000)
     assert resp.status == HTTPStatus.OK
     assert resp.body == b'blah'*1000
+
+
+async def test_can_pause_reading(liveclient, app):
+
+    @app.route('/test', methods=['POST'], lazy=True)
+    async def post(req, resp):
+        # Only first chunk should be read
+        assert len(req._chunk) != 400
+        print(len(req._chunk))
+        data = b''
+        async for chunk in req:
+            data += chunk
+        assert len(data) == 400
+
+    # Use an iterable so the request will be chunked.
+    body = (b'blah' for i in range(100))
+    resp = await liveclient.query('POST', '/test', body=body)
+    assert resp.status == HTTPStatus.OK
