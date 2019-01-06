@@ -9,7 +9,7 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from http import HTTPStatus
 
 from autoroutes import Routes
@@ -41,7 +41,7 @@ class Roll(dict):
 
     def __init__(self):
         self.routes = self.Routes()
-        self.hooks = {}
+        self.hooks = defaultdict(list)
 
     async def startup(self):
         await self.hook('startup')
@@ -110,6 +110,8 @@ class Roll(dict):
         extras['_protocol_class'] = klass
 
         def wrapper(func):
+            if not hasattr(func, '__hooks__'):
+                func.__hooks__ = defaultdict(list)
             payload = {method: func for method in methods}
             payload.update(extras)
             self.routes.add(path, **payload)
@@ -119,24 +121,18 @@ class Roll(dict):
 
     def listen(self, name: str, *handlers):
         def add_middleware(func):
-            self.hooks.setdefault(name, [])
             self.hooks[name].append(func)
             return func
 
         def add_decorator(func):
             if not hasattr(func, '__hooks__'):
-                func.__hooks__ = {}
-            func.__hooks__.setdefault(name, [])
+                func.__hooks__ = defaultdict(list)
             func.__hooks__[name].extend(handlers)
             return func
         return add_decorator if handlers else add_middleware
 
     async def hook(self, name: str, *args, **kwargs):
-        try:
-            hooks = self.hooks[name]
-        except KeyError:
-            # Nobody registered to this event, let's roll anyway.
-            hooks = []
+        hooks = self.hooks[name]
         for func in hooks:
             responded = await func(*args, **kwargs)
             if responded:  # Allows to shortcut the chain.
@@ -146,12 +142,9 @@ class Roll(dict):
         responded = await self.hook(name, request, response)
         if responded:
             return responded
-        try:
+        if handler:  # None when 404.
             hooks = handler.__hooks__[name]
-        except (KeyError, AttributeError):
-            # Nobody registered to this event, let's roll anyway.
-            hooks = []
-        for func in hooks:
-            responded = await func(request, response)
-            if responded:  # Allows to shortcut the chain.
-                return responded
+            for func in hooks:
+                responded = await func(request, response)
+                if responded:  # Allows to shortcut the chain.
+                    return responded

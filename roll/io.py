@@ -165,11 +165,11 @@ class Request(dict):
         self._body = data
 
     async def read(self):
-        data = b''
-        async for chunk in self:
-            data += chunk
-        self.body = data
-        return data
+        if not self._body:
+            self._body = b''
+            async for chunk in self:
+                self._body += chunk
+        return self._body
 
     async def __aiter__(self):
         # TODO raise if already consumed?
