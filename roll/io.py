@@ -17,46 +17,39 @@ except ImportError:
     from json.decoder import JSONDecodeError
 
 
-class StreamQueue:
 
-    def __init__(self):
-        self.items = deque()
-        self.event = Event()
-        self.waiting = False
-        self.dirty = False
-        self.finished = False
+class Body(deque):
+
+    def __init__(self, protocol):
+        super().__init__()
+        self.protocol = protocol
+        self.complete = Event()
+        self.unread = Event()
+
+    @property
+    def completed(self):
+        return self.complete.is_set()
+
+    def put(self, data: bytes):
+        self.append(data)
+        self.unread.set()
+        self.protocol.pause_reading()
 
     async def get(self):
-        try:
-            return self.items.popleft()
-        except IndexError:
-            if self.finished is True:
-                return b''
-            else:
-                self.event.clear()
-                self.waiting = True
-                await self.event.wait()
-                self.event.clear()
-                self.waiting = False
-                return self.items.popleft()
+        await asyncio.wait(self.unread.wait(), self.complete.wait())
+        if self.completed:
+            return None
+        chunk = self.popleft()
+        self.unread.clear()
+        self.protocol.resume_reading()
+        return chunk
 
-    def put(self, item):
-        self.dirty = True
-        self.items.append(item)
-        if self.waiting is True:
-            self.event.set()
-
-    def clear(self):
-        if self.dirty:
-            self.items.clear()
-            self.event.clear()
-            self.dirty = False
-        self.finished = False
-
-    def end(self):
-        if self.waiting:
-            self.put(None)
-        self.finished = True
+    async def __aiter__(self):
+        while True:
+            chunk = await self.get()
+            if chunk is None:
+                break
+            yield chunk
 
 
 class Request(dict):
@@ -65,18 +58,16 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'url', 'path', 'query_string', '_query', '_body',
-        'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
+        'app', 'url', 'path', 'query_string', '_query', 'body',
+        'method', 'headers', 'route', '_cookies', '_form', '_files',
         'upgrade', 'protocol', '_json', 'queue'
     )
 
     def __init__(self, app, protocol):
         self.app = app
         self.protocol = protocol
-        self.queue = StreamQueue()
         self.headers = {}
-        self._body = None
-        self._chunk = b''
+        self.body = Body(protocol)
         self.method = None
         self.upgrade = None
         self._cookies = None
@@ -102,7 +93,8 @@ class Request(dict):
         parser = Multipart(self.app)
         self._form, self._files = parser.initialize(self.content_type)
         try:
-            parser.feed_data(self.body)
+            for chunk in self:
+                parser.feed_data(chunk)
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             'Unparsable multipart body')
@@ -153,33 +145,13 @@ class Request(dict):
     def host(self):
         return self.headers.get('HOST', '')
 
-    @property
-    def body(self):
-        if self._body is None:
-            raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
-                            "Trying to consume lazy body")
-        return self._body
-
-    @body.setter
-    def body(self, data):
-        self._body = data
-
     async def read(self):
-        if not self._body:
-            self._body = b''
-            async for chunk in self:
-                self._body += chunk
-        return self._body
+        await self.body.complete.wait()
+        return ''.join(self.body)
 
     async def __aiter__(self):
-        # TODO raise if already consumed?
-        while True:
-            self.protocol.resume_reading()
-            data = await self.queue.get()
-            if not data:
-                break
-            self.protocol.pause_reading()
-            yield data
+        async for chunk in self.body:
+            yield chunk
 
 
 class Response:

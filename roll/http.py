@@ -207,6 +207,7 @@ class HTTPProtocol(asyncio.Protocol):
                 self.response.status = error.status
                 self.response.body = error.message
             else:
+                raise error
                 self.response.status = HTTPStatus.BAD_REQUEST
                 self.response.body = b'Unparsable request'
             self.task = self.app.loop.create_task(self.write())
@@ -228,10 +229,7 @@ class HTTPProtocol(asyncio.Protocol):
         self.request.headers[name.decode().upper()] = value.decode()
 
     def on_body(self, data: bytes):
-        # Save the first chunk.
-        self.request.queue.put(data)
-        # And let the user decide if we should continue reading or not.
-        self.pause_reading()
+        self.request.body.put(data)
 
     def on_url(self, url: bytes):
         self.request.method = self.parser.get_method().decode().upper()
@@ -246,7 +244,7 @@ class HTTPProtocol(asyncio.Protocol):
         self.response = self.app.Response(self.app, self)
 
     def on_message_complete(self):
-        self.request.queue.end()
+        self.request.body.complete.set()
 
     def on_headers_complete(self):
         if self.parser.should_upgrade():
