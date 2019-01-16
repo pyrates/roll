@@ -1,4 +1,4 @@
-from asyncio import Queue
+from asyncio import Event
 from queue import deque
 from http import HTTPStatus
 from urllib.parse import parse_qs
@@ -17,29 +17,36 @@ except ImportError:
     from json.decoder import JSONDecodeError
 
 
-class Stream(Queue):
+class Stream(deque):
 
     def __init__(self, protocol):
-        super().__init__(maxsize=1)
+        super().__init__()
         self.protocol = protocol
         self.completed = False
+        self.readable = Event()
 
-    async def put(self, data: bytes):
-        await Queue.put(self, data)
-        if data is not None:
-            self.protocol.pause_reading()
+    def put(self, data: bytes):
+        self.append(data)
+        self.readable.set()
 
     async def get(self):
         if self.completed:
             return None
-        if self.qsize:
-            chunk = await Queue.get(self)
-        else:
+        if not len(self):
             self.protocol.resume_reading()
-            chunk = await Queue.get(self)
+            await self.readable.wait()
+        chunk = self.popleft()
         if chunk is None:
+            self.readable.clear()
             self.completed = True
+        elif not len(self):
+            self.readable.clear()
         return chunk
+
+    def stop(self):
+        self.clear()
+        self.completed = True
+        self.readable.clear()
 
     async def __aiter__(self):
         while not self.completed:

@@ -600,8 +600,7 @@ async def test_can_pause_reading(liveclient, app):
         chunk = await req._stream.get()
         assert chunk == b'blah'
         chunk = await req._stream.get()
-        assert chunk == b'blah'
-        await req._stream.put(None)
+        req._stream.stop()
 
     # Use an iterable so the request will be chunked.
     body = (b'blah' for i in range(100))
