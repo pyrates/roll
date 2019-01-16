@@ -456,7 +456,7 @@ async def test_parse_unparsable_multipart(protocol):
         b'--foofoo--foofoo--')
     await protocol.request.read()
     with pytest.raises(HttpError) as e:
-        assert await protocol.request.form
+        assert protocol.request.form
     assert e.value.message == 'Unparsable multipart body'
 
 
@@ -549,7 +549,7 @@ async def test_cannot_consume_lazy_body(client, app):
 
     @app.route('/test', methods=['POST'], lazy=True)
     async def post(req, resp):
-        with pytest.raises(HttpError):
+        with pytest.raises(RuntimeError):
             resp.body = req.body
         resp.body = "OK"
 
@@ -597,13 +597,11 @@ async def test_can_pause_reading(liveclient, app):
 
     @app.route('/test', methods=['POST'], lazy=True)
     async def post(req, resp):
-        # Only first chunk should be read
-        assert len(req._chunk) != 400
-        print(len(req._chunk))
-        data = b''
-        async for chunk in req:
-            data += chunk
-        assert len(data) == 400
+        chunk = await req._stream.get()
+        assert chunk == b'blah'
+        chunk = await req._stream.get()
+        assert chunk == b'blah'
+        await req._stream.put(None)
 
     # Use an iterable so the request will be chunked.
     body = (b'blah' for i in range(100))

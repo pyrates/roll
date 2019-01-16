@@ -1,4 +1,4 @@
-from asyncio import Event
+from asyncio import Queue
 from queue import deque
 from http import HTTPStatus
 from urllib.parse import parse_qs
@@ -17,39 +17,35 @@ except ImportError:
     from json.decoder import JSONDecodeError
 
 
-
-class Body(deque):
+class Stream(Queue):
 
     def __init__(self, protocol):
-        super().__init__()
+        super().__init__(maxsize=1)
         self.protocol = protocol
-        self.complete = Event()
-        self.unread = Event()
+        self.completed = False
 
-    @property
-    def completed(self):
-        return self.complete.is_set()
-
-    def put(self, data: bytes):
-        self.append(data)
-        self.unread.set()
-        self.protocol.pause_reading()
+    async def put(self, data: bytes):
+        await Queue.put(self, data)
+        if data is not None:
+            self.protocol.pause_reading()
 
     async def get(self):
-        await asyncio.wait(self.unread.wait(), self.complete.wait())
         if self.completed:
             return None
-        chunk = self.popleft()
-        self.unread.clear()
-        self.protocol.resume_reading()
+        if self.qsize:
+            chunk = await Queue.get(self)
+        else:
+            self.protocol.resume_reading()
+            chunk = await Queue.get(self)
+        if chunk is None:
+            self.completed = True
         return chunk
 
     async def __aiter__(self):
-        while True:
+        while not self.completed:
             chunk = await self.get()
-            if chunk is None:
-                break
-            yield chunk
+            if chunk:
+                yield chunk
 
 
 class Request(dict):
@@ -58,16 +54,16 @@ class Request(dict):
     The default parsing is made by `httptools.HttpRequestParser`.
     """
     __slots__ = (
-        'app', 'url', 'path', 'query_string', '_query', 'body',
+        'app', 'url', 'path', 'query_string', '_query', '_stream',
         'method', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade', 'protocol', '_json', 'queue'
+        'upgrade', 'protocol', '_json', 'queue', '_body'
     )
 
     def __init__(self, app, protocol):
         self.app = app
         self.protocol = protocol
         self.headers = {}
-        self.body = Body(protocol)
+        self._stream = Stream(protocol)
         self.method = None
         self.upgrade = None
         self._cookies = None
@@ -75,6 +71,7 @@ class Request(dict):
         self._form = None
         self._files = None
         self._json = None
+        self._body = None
 
     @property
     def cookies(self):
@@ -93,15 +90,14 @@ class Request(dict):
         parser = Multipart(self.app)
         self._form, self._files = parser.initialize(self.content_type)
         try:
-            for chunk in self:
-                parser.feed_data(chunk)
+            parser.feed_data(self._body)
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
                             'Unparsable multipart body')
 
     def _parse_urlencoded(self):
         try:
-            parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True,
+            parsed_qs = parse_qs(self._body.decode(), keep_blank_values=True,
                                  strict_parsing=True)
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
@@ -132,7 +128,7 @@ class Request(dict):
     def json(self):
         if self._json is None:
             try:
-                self._json = json.loads(self.body)
+                self._json = json.loads(self._body)
             except (UnicodeDecodeError, JSONDecodeError):
                 raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
         return self._json
@@ -145,12 +141,21 @@ class Request(dict):
     def host(self):
         return self.headers.get('HOST', '')
 
+    @property
+    def body(self):
+        if self._body is None:
+            raise RuntimeError
+        return self._body
+
     async def read(self):
-        await self.body.complete.wait()
-        return ''.join(self.body)
+        if not self._body:
+            self._body = b''
+            async for chunk in self:
+                self._body += chunk
+        return self._body
 
     async def __aiter__(self):
-        async for chunk in self.body:
+        async for chunk in self._stream:
             yield chunk
 
 
