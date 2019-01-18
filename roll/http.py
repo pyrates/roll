@@ -207,8 +207,6 @@ class HTTPProtocol(asyncio.Protocol):
                 self.response.status = error.status
                 self.response.body = error.message
             else:
-                import pdb
-                pdb.set_trace()
                 self.response.status = HTTPStatus.BAD_REQUEST
                 self.response.body = b'Unparsable request'
             self.task = self.app.loop.create_task(self.write())
