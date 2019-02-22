@@ -114,7 +114,7 @@ application. For example, if you have created a module `core.py`
 in your package `mypackage`, where you create your application
 with `app = Roll()`, then you need to issue this command line:
 
-    gunicorn mypackage.core:app --worker roll.worker.Worker
+    gunicorn mypackage.core:app --worker-class roll.worker.Worker
 
 See [gunicorn documentation](http://docs.gunicorn.org/en/stable/settings.html)
 for more details about the available arguments.
