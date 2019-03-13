@@ -97,6 +97,8 @@ class Client:
     # Default content type for request body encoding, change it to your own
     # taste if needed.
     content_type = 'application/json; charset=utf-8'
+    # Default headers to use eg. for patching Auth in tests.
+    headers = {}
 
     def __init__(self, app):
         self.app = app
@@ -146,6 +148,8 @@ class Client:
     async def request(self, path, method='GET', body=b'', headers=None,
                       content_type=None):
         headers = headers or {}
+        for key, value in self.headers.items():
+            headers.setdefault(key, value)
         if content_type:
             headers['Content-Type'] = content_type
         body, headers = self.encode_body(body, headers)
