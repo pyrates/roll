@@ -111,12 +111,12 @@ class Roll(dict):
                     raise AttributeError("Can't use `methods` with class view")
                 payload = {}
                 for method in HTTP_METHODS:
-                    key = f"on_{method.lower()}"
+                    key = "on_{}".format(method.lower())
                     func = getattr(view, key, None)
                     if func:
                         payload[method] = func
                 if not payload:
-                    raise ValueError(f"Empty view: {view}")
+                    raise ValueError("Empty view: {}".format(view))
             else:
                 if methods is None:
                     methods = ['GET']
