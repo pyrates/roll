@@ -106,13 +106,13 @@ class Roll(dict):
         def add_route(view):
             nonlocal methods
             if inspect.isclass(view):
-                view = view()
+                inst = view()
                 if methods is not None:
                     raise AttributeError("Can't use `methods` with class view")
                 payload = {}
                 for method in HTTP_METHODS:
                     key = "on_{}".format(method.lower())
-                    func = getattr(view, key, None)
+                    func = getattr(inst, key, None)
                     if func:
                         payload[method] = func
                 if not payload:

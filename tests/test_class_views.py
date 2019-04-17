@@ -39,6 +39,10 @@ async def test_inherited_class_based_view(client, app):
     class Cucumber(View):
         CUSTOM = "cucumber"
 
+    @app.route("/gherkins")
+    class Gherkin(Cucumber):
+        CUSTOM = "gherkin"
+
     resp = await client.get("/tomatoes")
     assert resp.status == 200
     assert resp.body == b"tomato"
@@ -46,6 +50,10 @@ async def test_inherited_class_based_view(client, app):
     resp = await client.get("/cucumbers")
     assert resp.status == 200
     assert resp.body == b"cucumber"
+
+    resp = await client.get("/gherkins")
+    assert resp.status == 200
+    assert resp.body == b"gherkin"
 
 
 async def test_can_use_extra_payload_with_class(client, app):
