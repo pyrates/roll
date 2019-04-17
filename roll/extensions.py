@@ -6,10 +6,8 @@ from http import HTTPStatus
 from pathlib import Path
 from traceback import print_exc
 
-from . import HttpError
+from . import HttpError, HTTP_METHODS
 
-HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'OPTIONS', 'CONNECT',
-                'PATCH']
 
 def cors(app, origin='*', methods=None, headers=None):
 

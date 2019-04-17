@@ -9,6 +9,7 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 
+import inspect
 from collections import namedtuple
 from http import HTTPStatus
 
@@ -20,6 +21,8 @@ from .websocket import ConnectionClosed  # noqa. Exposed for convenience.
 from .websocket import WSProtocol
 
 Route = namedtuple('Route', ['payload', 'vars'])
+HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'OPTIONS', 'CONNECT',
+                'PATCH']
 
 
 class Roll(dict):
@@ -85,28 +88,46 @@ class Roll(dict):
     def lookup(self, request):
         request.route = Route(*self.routes.match(request.path))
 
-    def route(self, path: str, methods: list=None,
-              protocol: str='http', **extras: dict):
-        if methods is None:
-            methods = ['GET']
-
+    def _get_protocol_class(self, protocol):
         klass_attr = protocol.title() + 'Protocol'
         klass = getattr(self, klass_attr, None)
         assert klass, ('No class handler declared for {} protocol. Add a {} '
                        'key to your Roll app.'.format(protocol, klass_attr))
-        if klass.ALLOWED_METHODS:
-            assert set(methods) <= set(klass.ALLOWED_METHODS)
+        return klass
+
+    def route(self, path: str, methods: list=None,
+              protocol: str='http', **extras: dict):
+
+        protocol_class = self._get_protocol_class(protocol)
         # Computed at load time for perf.
         extras['protocol'] = protocol
-        extras['_protocol_class'] = klass
+        extras['_protocol_class'] = protocol_class
 
-        def wrapper(func):
-            payload = {method: func for method in methods}
+        def add_route(view):
+            nonlocal methods
+            if inspect.isclass(view):
+                view = view()
+                if methods is not None:
+                    raise AttributeError("Can't use `methods` with class view")
+                payload = {}
+                for method in HTTP_METHODS:
+                    key = f"on_{method.lower()}"
+                    func = getattr(view, key, None)
+                    if func:
+                        payload[method] = func
+                if not payload:
+                    raise ValueError(f"Empty view: {view}")
+            else:
+                if methods is None:
+                    methods = ['GET']
+                payload = {method: view for method in methods}
             payload.update(extras)
+            if protocol_class.ALLOWED_METHODS:
+                assert set(methods) <= set(protocol_class.ALLOWED_METHODS)
             self.routes.add(path, **payload)
-            return func
+            return view
 
-        return wrapper
+        return add_route
 
     def listen(self, name: str):
         def wrapper(func):
