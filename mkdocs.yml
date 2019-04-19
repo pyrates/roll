@@ -1,5 +1,5 @@
 site_name: Roll - async, simple, fast.
-pages:
+nav:
   - Home: index.md
   - Tutorials: tutorials.md
   - How-to guides:

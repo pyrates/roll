@@ -67,6 +67,17 @@ async def test_can_use_extra_payload_with_class(client, app):
     assert resp.body == b"tomato"
 
 
+async def test_can_use_placeholders_in_route(client, app):
+    @app.route("/test/{mystery}")
+    class MyHandler:
+        async def on_get(self, request, response, mystery):
+            response.body = mystery
+
+    resp = await client.get("/test/salad")
+    assert resp.status == 200
+    assert resp.body == b"salad"
+
+
 async def test_cannot_define_methods_on_class_view(app):
 
     with pytest.raises(AttributeError):
