@@ -190,12 +190,12 @@ See also "[how to subclass roll itself](/how-to/advanced.md#how-to-subclass-roll
 to see how to make your own Query getters.
 
 
-## How to use class based views
+## How to use class-based views
 
 In many situations, a `function` is sufficient to handle a request, but in some
 cases, using classes helps reducing code boilerplate and keeping things DRY.
 
-Using class based views with Roll is straightforward:
+Using class-based views with Roll is straightforward:
 
 
 ```python3
@@ -209,10 +209,10 @@ class MyView:
         do_something_on_post
 ```
 
-As you can guess, you need to provide an `on_xxx` method for each HTTP method
+As you may guess, you need to provide an `on_xxx` method for each HTTP method
 your view needs to support.
 
-Of course, class based views can inherit and have inheritance:
+Of course, class-based views can inherit and have inheritance:
 
 ```python3
 class View:
@@ -234,6 +234,6 @@ class Gherkin(Cucumber):
     CUSTOM = "gherkin"
 ```
 
-Note: Roll will instanciate the class once per thread (to avoid overhead at each
+Warning: Roll will instanciate the class once per thread (to avoid overhead at each
 request), so their state will be shared between requests, thus make sure not to
 set instance properties on them.

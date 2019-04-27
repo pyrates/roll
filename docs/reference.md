@@ -36,10 +36,10 @@ guide.
     can use on route paths.
 
     `methods` lists the HTTP methods accepted by this handler. If not defined,
-    the handler will accept only `GET`. When handler is a *class*, `methods` must
+    the handler will accept only `GET`. When the handler is a *class*, `methods` must
     not be used, as Roll will extrapolate them from the defined methods on the
-    *class* itself. See [How to use class based views](./how-to/basic.md#how-to-use-class-based-views)
-    for an example of class based view.
+    *class* itself. See [How to use class-based views](./how-to/basic.md#how-to-use-class-based-views)
+    for an example of class-based view.
 
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
