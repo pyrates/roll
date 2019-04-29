@@ -226,3 +226,21 @@ async def test_delete_cookies(client, app):
     assert resp.status == HTTPStatus.OK
     data = client.protocol.transport.data
     assert b'\r\nSet-Cookie: name=value\r\n' not in data
+
+
+async def test_write_chunks(client, app):
+
+    class MyIterable:
+
+        async def __aiter__(self):
+            for i in range(3):
+                yield ("chunk" + str(i)).encode()
+
+    @app.route('/test')
+    async def head(req, resp):
+        resp.body = (i async for i in MyIterable())
+
+    await client.get('/test')
+    assert client.protocol.transport.data == (
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n6\r\nchunk0"
+        b"\r\n6\r\nchunk1\r\n6\r\nchunk2\r\n0\r\n\r\n")

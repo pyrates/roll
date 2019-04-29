@@ -274,7 +274,7 @@ class HTTPProtocol(asyncio.Protocol):
         await self.write()
 
     async def write_body(self):
-        if isinstance(self.response.body, AsyncGenerator):
+        if hasattr(self.response.body, "__aiter__"):
             async for data in self.response.body:
                 # Writing the chunk.
                 self.transport.write(
@@ -295,7 +295,7 @@ class HTTPProtocol(asyncio.Protocol):
                      self.request.method in self._BODYLESS_METHODS))
 
         if not bodyless:
-            if isinstance(self.response.body, AsyncGenerator):
+            if hasattr(self.response.body, "__aiter__"):
                 if 'Transfer-Encoding' not in self.response.headers:
                     self.response.headers['Transfer-Encoding'] = 'chunked'
             else:
