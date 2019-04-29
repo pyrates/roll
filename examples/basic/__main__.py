@@ -32,7 +32,7 @@ async def hello(request, response, parameter):
 
 
 @app.route('/cheer')
-async def cheer_for_streaming(response):
+async def cheer_for_streaming(request, response):
     filename = os.path.basename(cheering)
     response.body = file_iterator(cheering)
     response.headers['Content-Disposition'] = (
