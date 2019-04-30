@@ -172,7 +172,8 @@ class Cookies(dict):
 class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task')
+    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task',
+                 'is_chunked')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
@@ -185,6 +186,7 @@ class HTTPProtocol(asyncio.Protocol):
         self.app = app
         self.parser = self.RequestParser(self)
         self.task = None
+        self.is_chunked = False
 
     def connection_made(self, transport):
         self.transport = transport
@@ -273,7 +275,7 @@ class HTTPProtocol(asyncio.Protocol):
         await self.write()
 
     async def write_body(self):
-        if hasattr(self.response.body, "__aiter__"):
+        if self.is_chunked:
             async for data in self.response.body:
                 # Writing the chunk.
                 self.transport.write(
@@ -294,7 +296,8 @@ class HTTPProtocol(asyncio.Protocol):
                      self.request.method in self._BODYLESS_METHODS))
 
         if not bodyless:
-            if hasattr(self.response.body, "__aiter__"):
+            self.is_chunked = hasattr(self.response.body, "__aiter__")
+            if self.is_chunked:
                 if 'Transfer-Encoding' not in self.response.headers:
                     self.response.headers['Transfer-Encoding'] = 'chunked'
             else:
