@@ -7,7 +7,7 @@ You can use extensions to achieve a lot of enhancements of the base
 framework.
 
 Basically, an extension is a function listening to
-[events](/reference.md#events), for instance:
+[events](../reference.md#events), for instance:
 
 ```python3
 def cors(app, value='*'):
@@ -22,13 +22,13 @@ It listens to the `response` event and for each of those add a custom
 header. The name of the inner function is not relevant but explicit is
 always a bonus. The `response` object is modified in place.
 
-*Note: more [extensions](/reference.md#events) are available by default.
+*Note: more [extensions](../reference.md#events) are available by default.
 Make sure to check these out!*
 
 
 ## How to deal with content negociation
 
-The [`content_negociation` extension](/reference.md#content_negociation)
+The [`content_negociation` extension](../reference.md#content_negociation)
 is made for this purpose, you can use it that way:
 
 ```python3
@@ -49,11 +49,11 @@ Requests with `Accept` header not matching `text/html` or
 
 ## How to subclass Roll itself
 
-Let’s say you want your own [Query](/reference.md#query) parser
+Let’s say you want your own [Query](../reference.md#query) parser
 to deal with GET parameters that should be converted as `datetime.date`
 objects.
 
-What you can do is subclass the [Roll](/reference.md#roll) class
+What you can do is subclass the [Roll](../reference.md#roll) class
 to set your custom Query class:
 
 ```python3

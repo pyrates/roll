@@ -18,8 +18,41 @@ You can subclass it to set your own [Protocol](#protocol), [Route](#route),
 [Query](#query), [Form](#form), [Files](#files), [Request](#request),
 [Response](#response) and/or [Cookies](#cookies) class(es).
 
-See [How to subclass Roll itself](/how-to/advanced.md#how-to-subclass-roll-itself)
+See [How to subclass Roll itself](./how-to/advanced.md#how-to-subclass-roll-itself)
 guide.
+
+
+#### Methods
+
+- **route(path: str, methods: list, protocol: str='http', \**extras: dict)**:
+  register a route handler. Usually used as a decorator:
+
+        @app.route('/path/with/{myvar}')
+        def my_handler(request, response, myvar):
+             do_something
+
+    By default, Roll routing is powered by [autoroutes](https://github.com/pyrates/autoroutes).
+    Check out its documentation to get more details on which placeholders you
+    can use on route paths.
+
+    `methods` lists the HTTP methods accepted by this handler. If not defined,
+    the handler will accept only `GET`. When the handler is a *class*, `methods` must
+    not be used, as Roll will extrapolate them from the defined methods on the
+    *class* itself. See [How to use class-based views](./how-to/basic.md#how-to-use-class-based-views)
+    for an example of class-based view.
+
+    Any `extra` passed will be stored on the route payload, and accessible through
+    `request.route.payload`.
+
+- **listen(name: str)**: listen the event `name`.
+
+        @app.listen('request')
+        def on_request(request, response):
+            do_something
+
+    See [Events](#events) for a list of available events in Roll core.
+
+
 
 ### HttpError
 
@@ -335,9 +368,7 @@ Launch a local server on `127.0.0.1:3579` by default.
 
 ## Events
 
-Please read
-[How to create an extension](how-to/advanced.md#how-to-create-an-extension)
-for usage.
+Please read [Using events](tutorials.md#using-events) for usage.
 
 ### startup
 
