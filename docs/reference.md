@@ -110,21 +110,24 @@ A container for `status`, `headers` and `body`.
 
 - **status** (`http.HTTPStatus`): the response status
 
-```python
-# you can set the `status` with the HTTP code directly
-response.status = 204
-# same as
-response.status = http.HTTPStatus.OK
-```
+        # you can set the `status` with the HTTP code directly
+        response.status = 204
+        # same as
+        response.status = http.HTTPStatus.OK
+
 - **headers** (`dict`): case sensitive HTTP headers
+
 - **cookies** (`Cookies`): a [Cookies instance](#cookies)
 
-```python
-response.cookies.set(name='cookie', value='value', path='/some/path')
-```
+        response.cookies.set(name='cookie', value='value', path='/some/path')
 
-- **body** (`bytes`): raw Response body; if `str` body is set, Roll will convert
-  to `bytes` on the fly
+- **body** (`bytes`): raw Response body; by default, Roll expects `body` to be
+  `bytes`. If it's not, there are two cases:
+    - if `body` is an [async generator](https://www.python.org/dev/peps/pep-0525/),
+      Roll will serve a chunked response (see
+      [How to serve a chunked response](how-to/advanced.md#how-to-serve-a-chunked-response))
+    - if it's anything else, Roll will convert it to `str` (by calling `str()`),
+      and then to `bytes` (by calling its `encode()` method)
 
 
 #### Shortcuts
@@ -132,11 +135,9 @@ response.cookies.set(name='cookie', value='value', path='/some/path')
 - **json**: takes any python object castable to `json` and set the body and the
   `Content-Type` header
 
-```python
-response.json = {'some': 'dict'}
-# Works also with a `list`:
-response.json = [{'some': 'dict'}, {'another': 'one'}]
-```
+        response.json = {'some': 'dict'}
+        # Works also with a `list`:
+        response.json = [{'some': 'dict'}, {'another': 'one'}]
 
 ### Multipart
 

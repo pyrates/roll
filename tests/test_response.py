@@ -230,15 +230,13 @@ async def test_delete_cookies(client, app):
 
 async def test_write_chunks(client, app):
 
-    class MyIterable:
-
-        async def __aiter__(self):
-            for i in range(3):
-                yield ("chunk" + str(i)).encode()
+    async def mygen():
+        for i in range(3):
+            yield ("chunk" + str(i)).encode()
 
     @app.route('/test')
     async def head(req, resp):
-        resp.body = (i async for i in MyIterable())
+        resp.body = mygen()
 
     await client.get('/test')
     assert client.protocol.transport.data == (

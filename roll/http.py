@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import AsyncGenerator
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
