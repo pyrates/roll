@@ -278,6 +278,8 @@ class HTTPProtocol(asyncio.Protocol):
         if self.is_chunked:
             async for data in self.response.body:
                 # Writing the chunk.
+                if not isinstance(data, bytes):
+                    data = str(data).encode()
                 self.transport.write(
                     b"%x\r\n%b\r\n" % (len(data), data))
             self.transport.write(b'0\r\n\r\n')
