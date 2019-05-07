@@ -8,6 +8,13 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.11.0 - 2019-05-07
+
+- **Breaking change**:
+    * Removed python 3.5 support ([#81](https://github.com/pyrates/roll/pull/81))
+- Added support for class-based views ([#80](https://github.com/pyrates/roll/pull/80))
+- Added support for chunked response ([#81](https://github.com/pyrates/roll/pull/81))
+
 ## 0.10.0 - 2018-11-08
 
 - python 3.7 compatibility (bump websockets and biscuits packages)
@@ -16,7 +23,7 @@ A changelog:
   to allow installing Roll without uvloop is some envs, and to let the users
   define the uvloop version they want to use
   ([#68](https://github.com/pyrates/roll/pull/68))
-- Request.method is None by default ([#67](https://github.com/pyrates/roll/pull/67))
+- `Request.method` is `None` by default ([#67](https://github.com/pyrates/roll/pull/67))
 - allow to use `methods=*` in `cors` extension
   ([#65](https://github.com/pyrates/roll/pull/65))
 
