@@ -221,3 +221,44 @@ async def keep_me_alive(request, ws, **params):
             # do something with msg
             ...
 ```
+
+
+## How to serve a chunked response
+
+In some situations, it's useful to send a chunked response, for example for an
+unknown sized response body, maybe a file generated on the fly, or to prevent
+loading a big file in memory.
+
+This is a good occasion to take advantage of using an async library: Roll will
+automatically serve a chunked response if `Response.body` is an
+[async generator](https://www.python.org/dev/peps/pep-0525/), or more specifically
+if it defines the `__aiter__` method.
+
+Here is a theoretical example:
+
+```python3
+@app.route('/path')
+async def my_handler(request, response):
+    response.body = my_async_generator
+```
+
+Now a more concrete example:
+
+```python3
+from aiofile import AIOFile, Reader
+
+async def serve_file(path):
+    async with AIOFile(path, 'rb') as afp:
+        reader = Reader(afp, chunk_size=4096)
+        async for data in reader:
+            yield data
+
+
+@app.route('/path')
+async def my_handler(request, response):
+    response.body = serve_file(path_to_file)
+    response.headers['Content-Disposition'] = "attachment; filename=filename.mp3"
+```
+
+Note: the header `Transfert-Encoding` will be set to `chunked`, and each chunk
+length will be calculated and added to the chunk body by Roll.

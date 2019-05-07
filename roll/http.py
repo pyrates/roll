@@ -172,7 +172,8 @@ class Cookies(dict):
 class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task')
+    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task',
+                 'is_chunked')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
@@ -185,6 +186,7 @@ class HTTPProtocol(asyncio.Protocol):
         self.app = app
         self.parser = self.RequestParser(self)
         self.task = None
+        self.is_chunked = False
 
     def connection_made(self, transport):
         self.transport = transport
@@ -207,10 +209,10 @@ class HTTPProtocol(asyncio.Protocol):
                 self.response.body = error.message
             else:
                 self.response.status = HTTPStatus.BAD_REQUEST
-                self.response.body = b'Unparsable request'
-            self.write()
+                self.response.body = b'Unparsable request:' + str(error.__context__).encode()
+            self.task = self.app.loop.create_task(self.write())
 
-    def upgrade(self):
+    async def upgraded(self):
         handler_protocol = self.request.route.payload.get('protocol', 'http')
 
         if self.request.upgrade != handler_protocol:
@@ -221,11 +223,11 @@ class HTTPProtocol(asyncio.Protocol):
         new_protocol = protocol_class(self.request)
         new_protocol.handshake(self.response)
         self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
-        self.write()
+        await self.write()
         new_protocol.connection_made(self.transport)
         new_protocol.connection_open()
         self.transport.set_protocol(new_protocol)
-        return new_protocol
+        await new_protocol.run()
 
     # All on_xxx methods are in use by httptools parser.
     # See https://github.com/MagicStack/httptools#apis
@@ -252,12 +254,12 @@ class HTTPProtocol(asyncio.Protocol):
         if self.parser.should_upgrade():
             # An upgrade has been requested
             self.request.upgrade = self.request.headers['UPGRADE'].lower()
-            new_protocol = self.upgrade()
-            if new_protocol is not None:
-                # No error occured during the upgrade
-                # The protocol was found and the handler willing to comply
-                # We run the protocol task.
-                self.task = self.app.loop.create_task(new_protocol.run())
+            handler_protocol = self.request.route.payload.get(
+                'protocol', 'http')
+            if self.request.upgrade != handler_protocol:
+                raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
+                                'Request cannot be upgraded.')
+            self.task = self.app.loop.create_task(self.upgraded())
         else:
             # No upgrade was requested
             payload = self.request.route.payload
@@ -266,24 +268,47 @@ class HTTPProtocol(asyncio.Protocol):
                 raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
             # No upgrade was required and the handler didn't need any.
             # We run the normal task.
-            self.task = self.app.loop.create_task(
-                self.app(self.request, self.response))
-            self.task.add_done_callback(self.write)
+            self.task = self.app.loop.create_task(self())
+
+    async def __call__(self):
+        await self.app(self.request, self.response)
+        await self.write()
+
+    async def write_body(self):
+        if self.is_chunked:
+            async for data in self.response.body:
+                # Writing the chunk.
+                if not isinstance(data, bytes):
+                    data = str(data).encode()
+                self.transport.write(
+                    b"%x\r\n%b\r\n" % (len(data), data))
+            self.transport.write(b'0\r\n\r\n')
+        else:
+            self.transport.write(self.response.body)
 
     # May or may not have "future" as arg.
-    def write(self, *args):
+    async def write(self, *args):
         # Appends bytes for performances.
         payload = b'HTTP/1.1 %a %b\r\n' % (
             self.response.status.value, self.response.status.phrase.encode())
-        if not isinstance(self.response.body, bytes):
-            self.response.body = str(self.response.body).encode()
+
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
         bodyless = (self.response.status in self._BODYLESS_STATUSES or
                     (hasattr(self, 'request') and
                      self.request.method in self._BODYLESS_METHODS))
-        if 'Content-Length' not in self.response.headers and not bodyless:
-            length = len(self.response.body)
-            self.response.headers['Content-Length'] = length
+
+        if not bodyless:
+            self.is_chunked = hasattr(self.response.body, "__aiter__")
+            if self.is_chunked:
+                if 'Transfer-Encoding' not in self.response.headers:
+                    self.response.headers['Transfer-Encoding'] = 'chunked'
+            else:
+                if not isinstance(self.response.body, bytes):
+                    self.response.body = str(self.response.body).encode()
+                if 'Content-Length' not in self.response.headers:
+                    length = len(self.response.body)
+                    self.response.headers['Content-Length'] = length
+
         if self.response._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
             for cookie in self.response.cookies.values():
@@ -291,14 +316,14 @@ class HTTPProtocol(asyncio.Protocol):
         for key, value in self.response.headers.items():
             payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
         payload += b'\r\n'
-        if self.response.body and not bodyless:
-            payload += self.response.body
         if self.transport.is_closing():
             # Request has been aborted, thus socket as been closed, thus
             # transport has been closed?
             return
         try:
             self.transport.write(payload)
+            if self.response.body and not bodyless:
+                await self.write_body()
         except RuntimeError:  # transport may still be closed during write.
             # TODO: Pass into error hook when write is async.
             pass
