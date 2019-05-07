@@ -50,8 +50,7 @@ class Multidict(dict):
             return self[key]
         except KeyError:
             if default is ... or default == [...]:
-                raise HttpError(HTTPStatus.BAD_REQUEST,
-                                "Missing '{}' key".format(key))
+                raise HttpError(HTTPStatus.BAD_REQUEST, f"Missing '{key}' key")
             return default
 
 
@@ -79,21 +78,21 @@ class Query(Multidict):
             return None
         raise HttpError(
             HTTPStatus.BAD_REQUEST,
-            "Wrong boolean value for '{}={}'".format(key, self.get(key)))
+            f"Wrong boolean value for '{key}={value}'")
 
     def int(self, key: str, default=...):
         try:
             return int(self.get(key, default))
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
-                            "Key '{}' must be castable to int".format(key))
+                            f"Key '{key}' must be castable to int")
 
     def float(self, key: str, default=...):
         try:
             return float(self.get(key, default))
         except ValueError:
             raise HttpError(HTTPStatus.BAD_REQUEST,
-                            "Key '{}' must be castable to float".format(key))
+                            f"Key '{key}' must be castable to float")
 
 
 class Form(Query):
