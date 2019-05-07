@@ -91,8 +91,8 @@ class Roll(dict):
     def _get_protocol_class(self, protocol):
         klass_attr = protocol.title() + 'Protocol'
         klass = getattr(self, klass_attr, None)
-        assert klass, ('No class handler declared for {} protocol. Add a {} '
-                       'key to your Roll app.'.format(protocol, klass_attr))
+        assert klass, (f'No class handler declared for {protocol} protocol. '
+                       f'Add a {klass_attr} key to your Roll app.')
         return klass
 
     def route(self, path: str, methods: list=None,
@@ -111,12 +111,12 @@ class Roll(dict):
                     raise AttributeError("Can't use `methods` with class view")
                 payload = {}
                 for method in HTTP_METHODS:
-                    key = "on_{}".format(method.lower())
+                    key = f"on_{method.lower()}"
                     func = getattr(inst, key, None)
                     if func:
                         payload[method] = func
                 if not payload:
-                    raise ValueError("Empty view: {}".format(view))
+                    raise ValueError(f"Empty view: {view}")
             else:
                 if methods is None:
                     methods = ['GET']

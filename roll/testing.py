@@ -11,7 +11,7 @@ from uuid import uuid4
 
 def encode_multipart(data, charset='utf-8'):
     # Ported from Werkzeug testing.
-    boundary = '---------------Boundary%s' % uuid4().hex
+    boundary = f'---------------Boundary{uuid4().hex}'
     body = BytesIO()
 
     def write(string):
@@ -24,8 +24,8 @@ def encode_multipart(data, charset='utf-8'):
         if not isinstance(values, (list, tuple)):
             values = [values]
         for value in values:
-            write('--%s\r\nContent-Disposition: form-data; name="%s"' %
-                  (boundary, key))
+            write(f'--{boundary}\r\n'
+                  f'Content-Disposition: form-data; name="{key}"')
             reader = getattr(value, 'read', None)
             if reader is not None:
                 filename = getattr(value, 'filename',
@@ -36,10 +36,10 @@ def encode_multipart(data, charset='utf-8'):
                         mimetypes.guess_type(filename)[0] or \
                         'application/octet-stream'
                 if filename is not None:
-                    write('; filename="%s"\r\n' % filename)
+                    write(f'; filename="{filename}"\r\n')
                 else:
                     write('\r\n')
-                write('Content-Type: %s\r\n\r\n' % content_type)
+                write(f'Content-Type: {content_type}\r\n\r\n')
                 while 1:
                     chunk = reader(16384)
                     if not chunk:
@@ -53,10 +53,10 @@ def encode_multipart(data, charset='utf-8'):
                 write('\r\n\r\n')
                 body.write(value)
             write('\r\n')
-    write('--%s--\r\n' % boundary)
+    write(f'--{boundary}--\r\n')
 
     body.seek(0)
-    content_type = 'multipart/form-data; boundary=%s' % boundary
+    content_type = f'multipart/form-data; boundary={boundary}'
     return body.read(), content_type
 
 
@@ -139,7 +139,7 @@ class Client:
             headers['Content-Length'] = len(body)
         self.protocol = self.app.factory()
         self.protocol.connection_made(Transport())
-        headers = '\r\n'.join('{}: {}'.format(*h) for h in headers.items())
+        headers = '\r\n'.join(f'{k}: {v}' for k, v in headers.items())
         data = b'%b %b HTTP/1.1\r\n%b\r\n\r\n%b' % (
             method.encode(), path.encode(), headers.encode(), body or b'')
 
@@ -199,8 +199,8 @@ class LiveClient:
         self.server = self.app.loop.run_until_complete(
             self.app.loop.create_server(self.app.factory, '127.0.0.1', 0))
         self.port = self.server.sockets[0].getsockname()[1]
-        self.url = 'http://127.0.0.1:{port}'.format(port=self.port)
-        self.wsl = 'ws://127.0.0.1:{port}'.format(port=self.port)
+        self.url = f'http://127.0.0.1:{self.port}'
+        self.wsl = f'ws://127.0.0.1:{self.port}'
 
     def stop(self):
         self.server.close()
