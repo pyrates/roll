@@ -16,4 +16,4 @@ async def test_hello_view(client, app):
 
     resp = await client.get('/hello/world')
     assert resp.status == HTTPStatus.OK
-    assert resp.body == 'Hello world'
+    assert resp.body == b'Hello world'

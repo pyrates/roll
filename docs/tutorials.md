@@ -86,7 +86,7 @@ async def test_hello_view(client, app):
 
     resp = await client.get('/hello/world')
     assert resp.status == HTTPStatus.OK
-    assert resp.body == 'Hello world'
+    assert resp.body == b'Hello world'
 ```
 
 You will have to adapt the import of your `app` given the filename
@@ -143,7 +143,7 @@ and your application.
 In a browser, using a websocket requires javascript.
 
 Server-side, your websocket endpoint is declared as a route.
-The main difference is that the route handler takes the websocket 
+The main difference is that the route handler takes the websocket
 instead of the response as an argument. This websocket object can send
 and receive.
 
