@@ -21,7 +21,7 @@ your code and it will work seamlessly (as opposed to using solutions like
 ## How to test forms
 
 In case of the login form from the
-[dedicated tutorial](tutorials#your-first-roll-form):
+[dedicated tutorial](../tutorials#your-first-roll-form):
 
 ```python3
 @app.route('/login', methods=['POST'])
