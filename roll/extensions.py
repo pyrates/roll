@@ -96,7 +96,7 @@ def igniter(app):
     @app.listen('startup')
     async def make_it_roll_like_it_never_rolled_before():
         logger = logging.getLogger('roll')
-        logger.debug('''
+        logger.debug(r'''
          _          _                        _ _
         | |        | |  ()                  | | |
         | |     ___| |_  / ___     ____ ___ | | |
