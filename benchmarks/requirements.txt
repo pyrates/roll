@@ -1,7 +1,7 @@
 aiohttp==2.2.4
 apistar==0.3.9
 falcon==1.2.0
-httpie==0.9.9
+httpie==1.0.3
 gunicorn==19.7.1
 sanic==0.6.0
 ujson==1.35
