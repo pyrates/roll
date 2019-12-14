@@ -1,6 +1,6 @@
 from http import HTTPStatus
-
 from io import BytesIO
+
 import pytest
 from roll import HttpError, Request
 from roll.testing import Transport
@@ -152,7 +152,7 @@ async def test_invalid_request_method(protocol):
     protocol.data_received(
         b'SPAM /path HTTP/1.1\r\nContent-Length: 8\r\n\r\nblahblah')
     assert protocol.response.status == HTTPStatus.BAD_REQUEST
-    protocol.write()  # should not fail.
+    await protocol.write()  # should not fail.
     assert protocol.request.method is None
 
 
