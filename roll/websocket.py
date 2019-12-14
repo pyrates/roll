@@ -1,4 +1,5 @@
 import asyncio
+
 import websockets
 from websockets import ConnectionClosed  # exposed for convenience
 
@@ -12,6 +13,9 @@ class WSProtocol(websockets.WebSocketCommonProtocol):
     MAX_QUEUE = 64
     READ_LIMIT = 2 ** 16
     WRITE_LIMIT = 2 ** 16
+
+    is_client = False
+    side = "server"  # Useful for websockets logging.
 
     def __init__(self, request):
         self.request = request
