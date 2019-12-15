@@ -536,6 +536,22 @@ async def test_post_json(client, app):
     assert resp.body == b'done'
 
 
+async def test_post_json_is_cached(client, app):
+
+    @app.route('/test', methods=['POST'])
+    async def post(req, resp):
+        assert req.body == b'{"foo": "bar"}'
+        assert req.json == {'foo': 'bar'}
+        # Even if we change the body, req.json is not reevaluated.
+        req.body = b'{"baz": "quux"}'
+        assert req.json == {'foo': 'bar'}
+        resp.body = b'done'
+
+    resp = await client.post('/test', data={'foo': 'bar'})
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'done'
+
+
 async def test_post_unparsable_json(client, app):
 
     @app.route('/test', methods=['POST'])
