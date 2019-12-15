@@ -111,7 +111,8 @@ async def test_request_parse_POST_body(protocol):
         b'{"link": "https://example.org"}')
     await protocol.task
     assert protocol.request.method == 'POST'
-    assert await protocol.request.read() == b'{"link": "https://example.org"}'
+    await protocol.request.load_body()
+    assert protocol.request.body == b'{"link": "https://example.org"}'
 
 
 async def test_request_parse_chunked_body(protocol):
@@ -129,7 +130,8 @@ async def test_request_parse_chunked_body(protocol):
     protocol.data_received(b'example.org"}')
     await protocol.task
     assert protocol.request.method == 'POST'
-    assert await protocol.request.read() == b'{"link": "https://example.org"}'
+    await protocol.request.load_body()
+    assert protocol.request.body == b'{"link": "https://example.org"}'
 
 
 async def test_request_content_type_shortcut(protocol):
@@ -409,7 +411,7 @@ async def test_parse_multipart(protocol):
         b'Content-Disposition: form-data; name="text1"\r\n'
         b'\r\n'
         b'abc\r\n--foofoo--')
-    await protocol.request.read()
+    await protocol.request.load_body()
     assert protocol.request.form.get('text1') == 'abc'
     assert protocol.request.files.get('baz').filename == 'baz.png'
     assert protocol.request.files.get('baz').content_type == b'image/png'
@@ -436,7 +438,7 @@ async def test_parse_multipart_filename_star(protocol):
         b'Content-Disposition: form-data; name="text1"\r\n'
         b'\r\n'
         b'abc\r\n--foofoo--')
-    await protocol.request.read()
+    await protocol.request.load_body()
     assert protocol.request.form.get('text1') == 'abc'
     assert protocol.request.files.get('baz').filename == 'baz-é.png'
     assert protocol.request.files.get('baz').content_type == b'image/png'
@@ -454,7 +456,7 @@ async def test_parse_unparsable_multipart(protocol):
         b'Content-Type: multipart/form-data; boundary=foofoo\r\n'
         b'\r\n'
         b'--foofoo--foofoo--')
-    await protocol.request.read()
+    await protocol.request.load_body()
     with pytest.raises(HttpError) as e:
         assert await protocol.request.form
     assert e.value.message == 'Unparsable multipart body'
@@ -471,7 +473,7 @@ async def test_parse_unparsable_urlencoded(protocol):
         b'Content-Type: application/x-www-form-urlencoded\r\n'
         b'\r\n'
         b'foo')
-    await protocol.request.read()
+    await protocol.request.load_body()
     with pytest.raises(HttpError) as e:
         assert await protocol.request.form
     assert e.value.message == 'Unparsable urlencoded body'
@@ -562,19 +564,8 @@ async def test_can_consume_lazy_body_if_manually_loaded(client, app):
 
     @app.route('/test', methods=['POST'], lazy=True)
     async def post(req, resp):
-        await req.read()
+        await req.load_body()
         resp.body = req.body
-
-    resp = await client.post('/test', data='blah')
-    assert resp.status == HTTPStatus.OK
-    assert resp.body == b'blah'
-
-
-async def test_can_consume_lazy_request_using_read(client, app):
-
-    @app.route('/test', methods=['POST'], lazy=True)
-    async def post(req, resp):
-        resp.body = await req.read()
 
     resp = await client.post('/test', data='blah')
     assert resp.status == HTTPStatus.OK

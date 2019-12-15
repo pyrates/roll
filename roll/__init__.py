@@ -61,7 +61,7 @@ class Roll(dict):
                 if request.method.upper() not in payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
                 if not payload.get('lazy'):
-                    await request.read()
+                    await request.load_body()
                 handler = payload[request.method]
                 await handler(request, response, **request.route.vars)
         except Exception as error:
