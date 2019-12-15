@@ -1,16 +1,23 @@
 stages:
-- python35
 - python36
-
-python35:
-  stage: python35
-  image: python:3.5
-  script:
-  - py.test
+- python37
+- python38
 
 python36:
   stage: python36
   image: python:3.6
+  script:
+  - py.test
+
+python37:
+  stage: python37
+  image: python:3.7
+  script:
+  - py.test
+
+python38:
+  stage: python38
+  image: python:3.8
   script:
   - py.test
 

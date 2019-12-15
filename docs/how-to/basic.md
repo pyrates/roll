@@ -11,7 +11,7 @@ A how-to guide:
 
 ## How to install Roll
 
-Roll requires Python 3.5+ to be installed.
+Roll requires Python 3.6+ to be installed.
 
 It is recommended to install it within
 [a pipenv or virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
