@@ -55,14 +55,14 @@ class Roll(dict):
         payload = request.route.payload
         try:
             if not await self.hook('request', request, response):
-                if payload and not payload.get('lazy'):
-                    await request.read()
-                if not request.route.payload:
+                if not payload:
                     raise HttpError(HTTPStatus.NOT_FOUND, request.path)
                 # Uppercased in order to only consider HTTP verbs.
-                if request.method.upper() not in request.route.payload:
+                if request.method.upper() not in payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
-                handler = request.route.payload[request.method]
+                if not payload.get('lazy'):
+                    await request.read()
+                handler = payload[request.method]
                 await handler(request, response, **request.route.vars)
         except Exception as error:
             await self.on_error(request, response, error)
