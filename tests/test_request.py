@@ -572,6 +572,19 @@ async def test_can_consume_lazy_body_if_manually_loaded(client, app):
     assert resp.body == b'blah'
 
 
+async def test_can_load_lazy_body_twice(client, app):
+
+    @app.route('/test', methods=['POST'], lazy_body=True)
+    async def post(req, resp):
+        await req.load_body()
+        await req.load_body()
+        resp.body = req.body
+
+    resp = await client.post('/test', data='blah')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'
+
+
 async def test_can_consume_lazy_request_iterating(client, app):
 
     @app.route('/test', methods=['POST'], lazy_body=True)
