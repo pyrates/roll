@@ -52,8 +52,11 @@ class Roll(dict):
         await self.hook('shutdown')
 
     async def __call__(self, request: Request, response: Response):
+        payload = request.route.payload
         try:
             if not await self.hook('request', request, response):
+                if payload and not payload.get('lazy'):
+                    await request.read()
                 if not request.route.payload:
                     raise HttpError(HTTPStatus.NOT_FOUND, request.path)
                 # Uppercased in order to only consider HTTP verbs.
