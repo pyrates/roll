@@ -299,8 +299,7 @@ class HTTPProtocol(asyncio.Protocol):
         if not bodyless:
             self.is_chunked = hasattr(self.response.body, "__aiter__")
             if self.is_chunked:
-                if 'Transfer-Encoding' not in self.response.headers:
-                    self.response.headers['Transfer-Encoding'] = 'chunked'
+                self.response.headers.setdefault('Transfer-Encoding', 'chunked')
             else:
                 if not isinstance(self.response.body, bytes):
                     self.response.body = str(self.response.body).encode()

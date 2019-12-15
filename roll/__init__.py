@@ -10,7 +10,7 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 
 import inspect
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from http import HTTPStatus
 
 from autoroutes import Routes
@@ -43,7 +43,7 @@ class Roll(dict):
 
     def __init__(self):
         self.routes = self.Routes()
-        self.hooks = {}
+        self.hooks = defaultdict(list)
 
     async def startup(self):
         await self.hook('startup')
@@ -131,16 +131,11 @@ class Roll(dict):
 
     def listen(self, name: str):
         def wrapper(func):
-            self.hooks.setdefault(name, [])
             self.hooks[name].append(func)
         return wrapper
 
     async def hook(self, name: str, *args, **kwargs):
-        try:
-            for func in self.hooks[name]:
-                result = await func(*args, **kwargs)
-                if result:  # Allows to shortcut the chain.
-                    return result
-        except KeyError:
-            # Nobody registered to this event, let's roll anyway.
-            pass
+        for func in self.hooks[name]:
+            result = await func(*args, **kwargs)
+            if result:  # Allows to shortcut the chain.
+                return result
