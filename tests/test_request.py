@@ -547,9 +547,9 @@ async def test_post_unparsable_json(client, app):
     assert resp.body == b'Unparsable JSON body'
 
 
-async def test_cannot_consume_lazy_body(client, app):
+async def test_cannot_consume_lazy_body_if_not_loaded(client, app):
 
-    @app.route('/test', methods=['POST'], lazy=True)
+    @app.route('/test', methods=['POST'], lazy_body=True)
     async def post(req, resp):
         with pytest.raises(HttpError):
             resp.body = req.body
@@ -562,7 +562,7 @@ async def test_cannot_consume_lazy_body(client, app):
 
 async def test_can_consume_lazy_body_if_manually_loaded(client, app):
 
-    @app.route('/test', methods=['POST'], lazy=True)
+    @app.route('/test', methods=['POST'], lazy_body=True)
     async def post(req, resp):
         await req.load_body()
         resp.body = req.body
@@ -574,7 +574,7 @@ async def test_can_consume_lazy_body_if_manually_loaded(client, app):
 
 async def test_can_consume_lazy_request_iterating(client, app):
 
-    @app.route('/test', methods=['POST'], lazy=True)
+    @app.route('/test', methods=['POST'], lazy_body=True)
     async def post(req, resp):
         async for chunk in req:
             resp.body = chunk
@@ -586,7 +586,7 @@ async def test_can_consume_lazy_request_iterating(client, app):
 
 async def test_can_pause_reading(liveclient, app):
 
-    @app.route('/test', methods=['POST'], lazy=True)
+    @app.route('/test', methods=['POST'], lazy_body=True)
     async def post(req, resp):
         # Only first chunk should be read
         assert len(req._chunk) != 400
