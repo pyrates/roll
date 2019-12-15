@@ -67,7 +67,7 @@ class Request(dict):
     __slots__ = (
         'app', 'url', 'path', 'query_string', '_query', '_body',
         'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade', 'protocol', 'queue'
+        'upgrade', 'protocol', 'queue', '_json'
     )
 
     def __init__(self, app, protocol):
@@ -83,6 +83,7 @@ class Request(dict):
         self._query = None
         self._form = None
         self._files = None
+        self._json = None
 
     @property
     def cookies(self):
@@ -137,10 +138,12 @@ class Request(dict):
 
     @property
     def json(self):
-        try:
-            return json.loads(self.body)
-        except (UnicodeDecodeError, JSONDecodeError):
-            raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
+        if self._json is None:
+            try:
+                self._json = json.loads(self.body)
+            except (UnicodeDecodeError, JSONDecodeError):
+                raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
+        return self._json
 
     @property
     def content_type(self):
