@@ -7,3 +7,4 @@ sanic==0.6.0
 ujson==1.35
 uvicorn==0.0.15
 uvloop==0.8.0
+trinket==0.1.4
