@@ -2,8 +2,6 @@ aiohttp==3.6.2
 falcon==2.0.0
 gunicorn==20.0.4
 httpie==1.0.3
-japronto==0.1.1
-responder==2.0.5
 sanic==19.9.0
 starlette==0.13.0
 ujson==1.35
