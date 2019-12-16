@@ -4,7 +4,7 @@ from starlette.routing import Route
 
 
 async def minimal(request):
-    return JSONResponse({'hello': 'world'})
+    return JSONResponse({'message': 'Hello, World!'})
 
 
 app = Starlette(debug=False, routes=[
