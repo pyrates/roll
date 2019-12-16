@@ -3,14 +3,13 @@ import logging
 import os
 
 import uvloop
-
 from sanic import Sanic
 from sanic.response import json
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 
-app = Sanic(log_config=None)
+app = Sanic()
 
 
 @app.route('/hello/minimal')
@@ -47,5 +46,5 @@ async def full(request, one, two):
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8000,
+    app.run(host='127.0.0.1', port=8000, access_log=False,
             workers=int(os.environ.get('WORKERS')))
