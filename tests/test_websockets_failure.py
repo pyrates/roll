@@ -1,14 +1,15 @@
-import pytest
 import asyncio
-import websockets
 from http import HTTPStatus
+
+import pytest
+import websockets
 
 
 @pytest.mark.asyncio
 async def test_websocket_upgrade_error(liveclient):
 
     @liveclient.app.route('/ws', protocol='websocket')
-    async def handler(request, ws, **params):
+    async def handler(request, ws):
         pass
 
     # Wrong upgrade
@@ -40,7 +41,7 @@ async def test_websocket_upgrade_error(liveclient):
 async def test_websocket_failure(liveclient, monkeypatch):
 
     @liveclient.app.route('/failure', protocol="websocket")
-    async def failme(request, ws, **params):
+    async def failme(request, ws):
         raise NotImplementedError('OUCH')
 
     websocket = await websockets.connect(liveclient.wsl + '/failure')
@@ -67,7 +68,7 @@ async def test_websocket_failure(liveclient, monkeypatch):
 async def test_websocket_failure_intime(liveclient):
 
     @liveclient.app.route('/failure', protocol="websocket")
-    async def failme(request, ws, **params):
+    async def failme(request, ws):
         raise NotImplementedError('OUCH')
 
     websocket = await websockets.connect(liveclient.wsl + '/failure')
@@ -91,7 +92,7 @@ async def test_websocket_failure_intime(liveclient):
 async def test_websocket_failure_receive(liveclient):
 
     @liveclient.app.route('/failure', protocol="websocket")
-    async def failme(request, ws, **params):
+    async def failme(request, ws):
         raise NotImplementedError('OUCH')
 
     websocket = await websockets.connect(liveclient.wsl + '/failure')
