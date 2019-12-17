@@ -2,6 +2,7 @@ import asyncio
 import os
 
 import uvloop
+from aiofile import AIOFile, Reader
 from roll import Roll
 from roll.extensions import cors, igniter, logger, simple_server, traceback
 
@@ -10,18 +11,12 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 app = Roll()
 cors(app)
 logger(app)
-igniter(app)
 traceback(app)
 
 
-@app.route("/hello/{parameter}")
-async def hello(request, response, parameter):
-    response.body = f"Hello {parameter}"
-
-
-@app.listen("startup")
-async def on_startup():
-    print("https://vimeo.com/34926862")
+@app.route("/fullasync", methods=["POST"], lazy_body=True)
+async def fullasync(request, response):
+    response.body = (chunk async for chunk in request)
 
 
 if __name__ == "__main__":

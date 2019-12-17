@@ -12,7 +12,8 @@ def app():
     return app_
 
 
-async def test_hello_view(client, app):
-    resp = await client.get("/hello/world")
+async def test_cheer_view(client, app):
+    resp = await client.get("/cheer")
     assert resp.status == HTTPStatus.OK
-    assert resp.body == b"Hello world"
+    # TODO
+    # assert isinstance(resp.body, async_generator)
