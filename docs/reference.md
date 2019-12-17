@@ -24,7 +24,7 @@ guide.
 
 #### Methods
 
-- **route(path: str, methods: list, protocol: str='http', \**extras: dict)**:
+- **route(path: str, methods: list, protocol: str='http', lazy_body: bool='False', \**extras: dict)**:
   register a route handler. Usually used as a decorator:
 
         @app.route('/path/with/{myvar}')
@@ -40,6 +40,8 @@ guide.
     not be used, as Roll will extrapolate them from the defined methods on the
     *class* itself. See [How to use class-based views](./how-to/basic.md#how-to-use-class-based-views)
     for an example of class-based view.
+
+    The `lazy_body` boolean parameter allows you to consume manually the body of the `Request`. It can be handy if you need to check for instance headers prior to load the whole body into RAM (think images upload for instance) or if you plan to accept a streaming incoming request. By default, the body of the request will be fully loaded.
 
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
@@ -77,7 +79,7 @@ especially useful for extensions.
 - **query_string** (`str`): extracted query string
 - **query** (`Query`): Query instance with parsed query string
 - **method** (`str`): HTTP verb
-- **body** (`bytes`): raw body as received by Roll
+- **body** (`bytes`): raw body as received by Roll by default. In case you activated the `lazy_body` option in the route, you will have to call the `load_body()` method *before* you access it
 - **form** (`Form`): a [Form instance](#form) with multipart or url-encoded
   key/values parsed
 - **files** (`Files`): a [Files instance](#files) with multipart files parsed
@@ -100,6 +102,10 @@ for example for session data.
 See
 [How to store custom data in the request](how-to/basic.md#how-to-store-custom-data-in-the-request)
 for an example of use.
+
+#### Iterating over Request’s data
+
+If you set the `lazy_body` parameter to `True` in your route, you will be able to iterate over the `Request` object itself to access the data (this is what is done under the hood when you `load_body()` by the way). Note that it is only relevant to iterate once across the data.
 
 
 ### Response
