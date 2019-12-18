@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import AsyncGenerator
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
@@ -200,7 +201,7 @@ class HTTPProtocol(asyncio.Protocol):
         except HttpParserError as error:
             # If the parsing failed before on_message_begin, we don't have a
             # response.
-            self.response = self.app.Response(self.app)
+            self.response = self.app.Response(self.app, self)
             # Original error stored by httptools.
             if isinstance(error.__context__, HttpError):
                 error = error.__context__
@@ -233,9 +234,11 @@ class HTTPProtocol(asyncio.Protocol):
     def on_header(self, name: bytes, value: bytes):
         self.request.headers[name.decode().upper()] = value.decode()
 
-    def on_body(self, body: bytes):
-        # FIXME do not put all body in RAM blindly.
-        self.request.body += body
+    def on_body(self, data: bytes):
+        # Save the first chunk.
+        self.request.queue.put(data)
+        # And let the user decide if we should continue reading or not.
+        self.pause_reading()
 
     def on_url(self, url: bytes):
         self.request.method = self.parser.get_method().decode().upper()
@@ -246,10 +249,13 @@ class HTTPProtocol(asyncio.Protocol):
         self.app.lookup(self.request)
 
     def on_message_begin(self):
-        self.request = self.app.Request(self.app)
-        self.response = self.app.Response(self.app)
+        self.request = self.app.Request(self.app, self)
+        self.response = self.app.Response(self.app, self)
 
     def on_message_complete(self):
+        self.request.queue.end()
+
+    def on_headers_complete(self):
         if self.parser.should_upgrade():
             # An upgrade has been requested
             self.request.upgrade = self.request.headers['UPGRADE'].lower()
@@ -328,3 +334,9 @@ class HTTPProtocol(asyncio.Protocol):
         else:
             if not self.parser.should_keep_alive():
                 self.transport.close()
+
+    def pause_reading(self):
+        self.transport.pause_reading()
+
+    def resume_reading(self):
+        self.transport.resume_reading()
