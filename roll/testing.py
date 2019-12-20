@@ -224,13 +224,18 @@ class LiveClient:
             headers = {}
 
         self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
-        requester = partial(self.execute_query, method.upper(), uri, headers, body)
+        requester = partial(
+            self.execute_query, method.upper(), uri, headers, body)
         response = await self.app.loop.run_in_executor(None, requester)
+        # We need to read the body straight away, since if it's chunked
+        # the server won't send until we read and will discard the body
+        # if the connection is closed, obviously.
+        content = response.read()
         self.conn.close()
-        return response
+        return response, content
 
 
-@pytest.fixture()
+@pytest.fixture
 def liveclient(app, event_loop):
     app.loop = event_loop
     client = LiveClient(app)

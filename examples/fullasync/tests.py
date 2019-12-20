@@ -15,7 +15,7 @@ def app():
 async def test_stream_from_request_to_response(liveclient, app):
     # Use an iterable so the request will be chunked.
     body = (b"blah" for i in range(100))
-    resp = await liveclient.query("POST", "/fullasync", body=body)
+    resp, content = await liveclient.query("POST", "/fullasync", body=body)
     assert resp.status == HTTPStatus.OK
-    async for chunk in resp:
-        assert chunk == b"blah"
+    assert resp.chunked == True
+    assert content == b"blah" * 100
