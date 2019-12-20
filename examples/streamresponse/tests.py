@@ -12,8 +12,6 @@ def app():
     return app_
 
 
-async def test_cheer_view(client, app):
-    resp = await client.get("/cheer")
+async def test_cheer_view(liveclient, app):
+    resp, content = await liveclient.query("GET", "/cheer")
     assert resp.status == HTTPStatus.OK
-    # TODO
-    # assert isinstance(resp.body, async_generator)

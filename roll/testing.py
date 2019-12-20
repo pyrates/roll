@@ -193,6 +193,30 @@ def client(app, event_loop):
     app.loop.run_until_complete(app.shutdown())
 
 
+def read_chunked_body(response):
+
+    def chunk_size():
+        size_str = response.read(2)
+        while size_str[-2:] != b"\r\n":
+            size_str += response.read(1)
+        return int(size_str[:-2], 16)
+
+    def chunk_data(chunk_size):
+        data = response.read(chunk_size)
+        response.read(2)
+        return data
+
+    body = b""
+    while True:
+        size = chunk_size()
+        if (size == 0):
+            break
+        else:
+            body += chunk_data(size)
+
+    return body
+            
+
 class LiveClient:
 
     def __init__(self, app):
@@ -217,7 +241,12 @@ class LiveClient:
     def execute_query(self, method, uri, headers, body=None):
         self.conn.request(method, uri, headers=headers, body=body)
         response = self.conn.getresponse()
-        return response
+        if response.chunked:
+            response.chunked = False
+            content = read_chunked_body(response)
+        else:
+            content = response.read()
+        return response, content
 
     async def query(self, method, uri, headers: dict=None, body=None):
         if headers is None:
@@ -226,11 +255,7 @@ class LiveClient:
         self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
         requester = partial(
             self.execute_query, method.upper(), uri, headers, body)
-        response = await self.app.loop.run_in_executor(None, requester)
-        # We need to read the body straight away, since if it's chunked
-        # the server won't send until we read and will discard the body
-        # if the connection is closed, obviously.
-        content = response.read()
+        response, content = await self.app.loop.run_in_executor(None, requester)
         self.conn.close()
         return response, content
 

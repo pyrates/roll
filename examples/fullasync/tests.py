@@ -17,5 +17,4 @@ async def test_stream_from_request_to_response(liveclient, app):
     body = (b"blah" for i in range(100))
     resp, content = await liveclient.query("POST", "/fullasync", body=body)
     assert resp.status == HTTPStatus.OK
-    assert resp.chunked == True
     assert content == b"blah" * 100
