@@ -14,7 +14,7 @@ async def test_websocket_route(liveclient):
         assert ws.subprotocol is None
         ev.set()
 
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
@@ -24,7 +24,7 @@ async def test_websocket_route(liveclient):
     assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
     # With keep-alive in Connection
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'keep-alive, upgrade',
         'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
@@ -115,7 +115,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
     async def handler(request, ws):
         results.append(ws.subprotocol)
 
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
@@ -123,7 +123,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
         'Sec-WebSocket-Protocol': 'bar'})
     assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
@@ -131,7 +131,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
         'Sec-WebSocket-Protocol': 'bar, foo'})
     assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
@@ -139,7 +139,7 @@ async def test_websocket_route_with_subprotocols(liveclient):
         'Sec-WebSocket-Protocol': 'baz'})
     assert response.status == HTTPStatus.SWITCHING_PROTOCOLS
 
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'websocket',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',

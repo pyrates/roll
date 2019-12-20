@@ -13,5 +13,9 @@ def app():
 
 
 async def test_cheer_view(liveclient, app):
-    resp, content = await liveclient.query("GET", "/cheer")
+    resp = await liveclient.query("GET", "/cheer")
     assert resp.status == HTTPStatus.OK
+    assert resp.chunks is not None
+    assert len(resp.chunks) == 109
+    assert resp.chunks[0] == 4096
+    assert sum(resp.chunks) == 443926

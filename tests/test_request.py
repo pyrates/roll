@@ -626,5 +626,5 @@ async def test_can_pause_reading(liveclient, app):
 
     # Use an iterable so the request will be chunked.
     body = (b'blah' for i in range(100))
-    resp, _ = await liveclient.query('POST', '/test', body=body)
+    resp = await liveclient.query('POST', '/test', body=body)
     assert resp.status == HTTPStatus.OK

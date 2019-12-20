@@ -13,7 +13,7 @@ async def test_websocket_upgrade_error(liveclient):
         pass
 
     # Wrong upgrade
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Upgrade': 'h2c',
         'Connection': 'upgrade',
         'Sec-WebSocket-Key': 'hojIvDoHedBucveephosh8==',
@@ -23,14 +23,14 @@ async def test_websocket_upgrade_error(liveclient):
     assert response.reason == 'Not Implemented'
 
     # No upgrade
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Connection': 'keep-alive',
     })
     assert response.status == HTTPStatus.UPGRADE_REQUIRED
     assert response.reason == 'Upgrade Required'
 
     # Connection upgrade with no upgrade header
-    response, _ = await liveclient.query('GET', '/ws', headers={
+    response = await liveclient.query('GET', '/ws', headers={
         'Connection': 'upgrade',
     })
     assert response.status == HTTPStatus.UPGRADE_REQUIRED
