@@ -2,6 +2,7 @@ import http.client
 import json
 import mimetypes
 from functools import partial
+from http import HTTPStatus
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -193,6 +194,56 @@ def client(app, event_loop):
     app.loop.run_until_complete(app.shutdown())
 
 
+def read_chunked_body(response):
+
+    def chunk_size():
+        size_str = response.read(2)
+        while size_str[-2:] != b"\r\n":
+            size_str += response.read(1)
+        return int(size_str[:-2], 16)
+
+    def chunk_data(chunk_size):
+        data = response.read(chunk_size)
+        response.read(2)
+        return data
+
+    while True:
+        size = chunk_size()
+        if (size == 0):
+            break
+        else:
+            yield chunk_data(size)
+
+
+class LiveResponse:
+
+    def __init__(self, status: int, reason: str):
+        self.status = HTTPStatus(status)
+        self.reason = reason
+        self.body = b''
+        self.chunks = None
+
+    def write(self, data):
+        self.body += data
+
+    def write_chunk(self, data):
+        self.body += data
+        if self.chunks is None:
+            self.chunks = []
+        self.chunks.append(data)
+
+    @classmethod
+    def from_query(cls, result):
+        response = cls(result.status, result.reason)
+        if result.chunked:
+            result.chunked = False
+            for data in read_chunked_body(result):
+                response.write_chunk(data)
+        else:
+            response.write(result.read())
+        return response
+
+
 class LiveClient:
 
     def __init__(self, app):
@@ -216,21 +267,22 @@ class LiveClient:
 
     def execute_query(self, method, uri, headers, body=None):
         self.conn.request(method, uri, headers=headers, body=body)
-        response = self.conn.getresponse()
-        return response
+        result = self.conn.getresponse()
+        return LiveResponse.from_query(result)
 
     async def query(self, method, uri, headers: dict=None, body=None):
         if headers is None:
             headers = {}
 
         self.conn = http.client.HTTPConnection('127.0.0.1', self.port)
-        requester = partial(self.execute_query, method.upper(), uri, headers, body)
+        requester = partial(
+            self.execute_query, method.upper(), uri, headers, body)
         response = await self.app.loop.run_in_executor(None, requester)
         self.conn.close()
         return response
 
 
-@pytest.fixture()
+@pytest.fixture
 def liveclient(app, event_loop):
     app.loop = event_loop
     client = LiveClient(app)
