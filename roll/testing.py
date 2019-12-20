@@ -2,10 +2,10 @@ import http.client
 import json
 import mimetypes
 from functools import partial
+from http import HTTPStatus
 from io import BytesIO
 from urllib.parse import urlencode
 from uuid import uuid4
-from http import HTTPStatus
 
 import pytest
 
@@ -212,7 +212,7 @@ def read_chunked_body(response):
         if (size == 0):
             break
         else:
-            yield chunk_data(size), size
+            yield chunk_data(size)
 
 
 class LiveResponse:
@@ -226,19 +226,19 @@ class LiveResponse:
     def write(self, data):
         self.body += data
 
-    def write_chunk(self, size, data):
+    def write_chunk(self, data):
         self.body += data
         if self.chunks is None:
             self.chunks = []
-        self.chunks.append(size)
+        self.chunks.append(data)
 
     @classmethod
     def from_query(cls, result):
         response = cls(result.status, result.reason)
         if result.chunked:
             result.chunked = False
-            for data, size in read_chunked_body(result):
-                response.write_chunk(size, data)
+            for data in read_chunked_body(result):
+                response.write_chunk(data)
         else:
             response.write(result.read())
         return response

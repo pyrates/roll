@@ -20,4 +20,5 @@ async def test_stream_from_request_to_response(liveclient, app):
     assert resp.body == b"blah" * 100
     assert resp.chunks is not None
     assert len(resp.chunks) == 100
-    assert resp.chunks == [4] * 100
+    for chunk in resp.chunks:
+        assert chunk == b"blah"

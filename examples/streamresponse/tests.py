@@ -17,5 +17,5 @@ async def test_cheer_view(liveclient, app):
     assert resp.status == HTTPStatus.OK
     assert resp.chunks is not None
     assert len(resp.chunks) == 109
-    assert resp.chunks[0] == 4096
-    assert sum(resp.chunks) == 443926
+    assert len(resp.chunks[0]) == 4096
+    assert sum(len(chunk) for chunk in resp.chunks) == 443926
