@@ -356,6 +356,7 @@ Serve static files. Should not be used in production.
 - **prefix** (`str`, default=`/static/`): URL prefix to serve the statics
 - **root** (`str` or `pathlib.Path`, default=current executable path):
   filesystem path to look for static files
+- **default_index** (`str`, default=empty string): filename, for instance `index.html`, useful to serve a static HTML website
 
 
 ### simple_server

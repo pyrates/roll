@@ -1,6 +1,6 @@
 import json
-from pathlib import Path
 from http import HTTPStatus
+from pathlib import Path
 
 import pytest
 from roll import extensions
@@ -150,10 +150,43 @@ async def test_static(client, app):
     assert b'Test' in resp.body
     assert resp.headers['Content-Type'] == 'text/html'
 
+    resp = await client.get('/static/sub/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Subtest' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
+
     resp = await client.get('/static/style.css')
     assert resp.status == HTTPStatus.OK
     assert b'chocolate' in resp.body
     assert resp.headers['Content-Type'] == 'text/css'
+
+
+async def test_static_with_default_index(client, app):
+
+    app.hooks['startup'] = []
+    extensions.static(app, root=Path(__file__).parent / 'static',
+                      default_index='index.html')
+    await app.startup()
+
+    resp = await client.get('/static/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Test' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
+
+    resp = await client.get('/static/')
+    assert resp.status == HTTPStatus.OK
+    assert b'Test' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
+
+    resp = await client.get('/static/sub/index.html')
+    assert resp.status == HTTPStatus.OK
+    assert b'Subtest' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
+
+    resp = await client.get('/static/sub/')
+    assert resp.status == HTTPStatus.OK
+    assert b'Subtest' in resp.body
+    assert resp.headers['Content-Type'] == 'text/html'
 
 
 async def test_static_raises_if_path_is_outside_root(client, app):
