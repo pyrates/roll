@@ -6,7 +6,7 @@ from http import HTTPStatus
 from pathlib import Path
 from traceback import print_exc
 
-from . import HttpError, HTTP_METHODS
+from . import HTTP_METHODS, HttpError
 
 
 def cors(app, origin='*', methods=None, headers=None):
@@ -125,7 +125,7 @@ def simple_server(app, port=3579, host='127.0.0.1', quiet=False):
         app.loop.close()
 
 
-def static(app, prefix='/static/', root=Path()):
+def static(app, prefix='/static/', root=Path(), default_index=''):
     """Serve static files. Never use in production."""
 
     root = Path(root).resolve()
@@ -136,6 +136,8 @@ def static(app, prefix='/static/', root=Path()):
 
     async def serve(request, response, path):
         abspath = (root / path).resolve()
+        if abspath.is_dir():
+            abspath /= default_index
         if root not in abspath.parents:
             raise HttpError(HTTPStatus.BAD_REQUEST, abspath)
         if not abspath.exists():
