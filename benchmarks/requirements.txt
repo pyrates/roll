@@ -6,5 +6,5 @@ sanic==19.9.0
 starlette==0.13.0
 trinket==0.1.5
 ujson==1.35
-uvicorn==0.10.8
+uvicorn==0.11.1
 uvloop==0.14.0
