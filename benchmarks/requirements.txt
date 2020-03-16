@@ -5,6 +5,6 @@ httpie==2.0.0
 sanic==19.12.2
 starlette==0.13.2
 trinket==0.1.5
-ujson==1.35
+ujson==2.0.2
 uvicorn==0.11.3
 uvloop==0.14.0
