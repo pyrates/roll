@@ -1,4 +1,4 @@
-autoroutes==0.3.3
+autoroutes==0.3.4
 biscuits==0.2.1
 httptools==0.1.1
 multifruits==0.1.4
