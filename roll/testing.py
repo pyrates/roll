@@ -4,7 +4,7 @@ import mimetypes
 from functools import partial
 from http import HTTPStatus
 from io import BytesIO
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 from uuid import uuid4
 
 import pytest
@@ -148,7 +148,7 @@ class Client:
         self.protocol.connection_made(Transport())
         headers = '\r\n'.join(f'{k}: {v}' for k, v in headers.items())
         data = b'%b %b HTTP/1.1\r\n%b\r\n\r\n%b' % (
-            method.encode(), path.encode(), headers.encode(), body or b'')
+            method.encode(), quote(path).encode(), headers.encode(), body or b'')
 
         self.protocol.data_received(data)
         if self.protocol.task:

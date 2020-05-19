@@ -87,3 +87,14 @@ async def test_can_define_twice_a_route_with_different_payloads(client, app):
     resp = await client.post('/test', {})
     assert resp.status == HTTPStatus.OK
     assert resp.body == b'POST'
+
+
+async def test_simple_get_request_with_accent(client, app):
+
+    @app.route('/testé')
+    async def get(req, resp):
+        resp.body = 'testé response'
+
+    resp = await client.get('/testé')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == 'testé response'.encode()
