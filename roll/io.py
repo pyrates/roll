@@ -165,7 +165,7 @@ class Request(dict):
         self._body = data
 
     async def load_body(self):
-        if not self._body:
+        if self._body is None:
             self._body = b''
             async for chunk in self:
                 self._body += chunk

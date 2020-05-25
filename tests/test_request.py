@@ -628,3 +628,16 @@ async def test_can_pause_reading(liveclient, app):
     body = (b'blah' for i in range(100))
     resp = await liveclient.query('POST', '/test', body=body)
     assert resp.status == HTTPStatus.OK
+
+
+async def test_can_read_empty_body(protocol):
+    protocol.data_received(
+        b'GET /foo%2Bbar HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: HTTPie/0.9.8\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Accept: */*\r\n'
+        b'Connection: keep-alive\r\n'
+        b'\r\n')
+    await protocol.request.load_body()
+    assert protocol.request.body == b''
