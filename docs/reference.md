@@ -145,6 +145,11 @@ A container for `status`, `headers` and `body`.
         # Works also with a `list`:
         response.json = [{'some': 'dict'}, {'another': 'one'}]
 
+- **redirect**: takes a `location, status` tuple, and set the Location header and
+  the status accordingly.
+
+        response.redirect = "https://example.org", 302
+
 ### Multipart
 
 Responsible of the parsing of multipart encoded `request.body`.
