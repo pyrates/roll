@@ -258,3 +258,14 @@ async def test_write_non_bytes_chunks(client, app):
     assert client.protocol.transport.data == (
         b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\n0\r\n1'
         b'\r\n1\r\n1\r\n2\r\n0\r\n\r\n')
+
+
+async def test_set_redirect(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.redirect = "https://example.org", 307
+
+    resp = await client.get('/test')
+    assert resp.status == 307
+    assert resp.headers["Location"] == "https://example.org"

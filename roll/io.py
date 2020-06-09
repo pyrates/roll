@@ -214,3 +214,14 @@ class Response:
         if self._cookies is None:
             self._cookies = self.app.Cookies()
         return self._cookies
+
+    @property
+    def redirect(self):
+        return self.headers.get("Location"), self.status
+
+    @redirect.setter
+    def redirect(self, to):
+        """Shortcut to set a redirect."""
+        location, status = to
+        self.headers["Location"] = location
+        self.status = status
