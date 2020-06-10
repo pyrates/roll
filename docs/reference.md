@@ -263,7 +263,7 @@ connection alive.
 ```python
 async def myendpoint(request, ws, **params):
     async for message in ws:
-         print(message)
+        print(message)
 ```
 
 

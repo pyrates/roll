@@ -8,6 +8,15 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## dev
+
+- Added `response.redirect` shortcut ([#134](https://github.com/pyrates/roll/pull/134))
+- Fixed URL not quoted in testing utility
+- Added `default_index` to `static` extension ([#95](https://github.com/pyrates/roll/pull/95))
+- Added support for streamed responses ([#89](https://github.com/pyrates/roll/pull/89))
+- Added support for async reading of request body ([#89](https://github.com/pyrates/roll/pull/89))
+- `Request.json` is now cached ([#90](https://github.com/pyrates/roll/pull/90))
+
 ## 0.11.0 - 2019-05-07
 
 - **Breaking change**:
