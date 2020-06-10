@@ -41,7 +41,7 @@ guide.
     *class* itself. See [How to use class-based views](./how-to/basic.md#how-to-use-class-based-views)
     for an example of class-based view.
 
-    The `lazy_body` boolean parameter allows you to consume manually the body of the `Request`. It can be handy if you need to check for instance headers prior to load the whole body into RAM (think images upload for instance) or if you plan to accept a streaming incoming request. By default, the body of the request will be fully loaded.
+    The `lazy_body` boolean parameter allows you to consume manually the body of the `Request`. It can be handy if you need to check for instance headers prior to load the whole body into RAM (think [images upload for instance](how-to/advanced.md#how-to-consume-a-request-body-the-asynchronous-way)) or if you plan to accept a streaming incoming request. By default, the body of the request will be fully loaded.
 
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
