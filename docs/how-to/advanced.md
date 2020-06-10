@@ -223,6 +223,24 @@ async def keep_me_alive(request, ws, **params):
 ```
 
 
+## How to consume a request body the asynchronous way
+
+Let’s say you are waiting for big file uploads. You might want to consume the request iteratively to keep your memory consumption low. Here is how to achieve that:
+
+```python3
+# lazy_body parameter will ask Roll not to load the body automatically
+@app.route('/path', lazy_body=True)
+async def my_handler(request, response):
+    # Prior to accept the upload you can check for headers:
+    if headers.get("Authorization") != "Dummy OK":
+        # raise, redirect, 401, whatever
+
+    # In case image is a file object you can write onto.
+    async for chunk in request:
+        image.write(chunk)
+```
+
+
 ## How to serve a chunked response
 
 In some situations, it's useful to send a chunked response, for example for an
