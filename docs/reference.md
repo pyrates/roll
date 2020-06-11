@@ -28,7 +28,7 @@ guide.
   register a route handler. Usually used as a decorator:
 
         @app.route('/path/with/{myvar}')
-        def my_handler(request, response, myvar):
+        async def my_handler(request, response, myvar):
              do_something
 
     By default, Roll routing is powered by [autoroutes](https://github.com/pyrates/autoroutes).
@@ -45,6 +45,29 @@ guide.
 
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
+
+- **url_for(name: str, \**kwargs: dict)**: build an URL for the view `name` and its
+   parameters. `name` can be defined when calling the `route` decorator, or it
+   will be computed with the function/class name.
+
+        # Define a route
+        @route("/mypath/{myvar}")
+        async def myroute(request, response, myvar):
+            do_something
+
+        # Now we can build the url
+        app.url_for("myroute", myvar="value")
+        # /mypath/value
+        app.url_for("mymodule.myroute", myvar="value")  # Works too.
+
+        # To control the route name, we can pass it as a route kwarg:
+        @route("/mypath/{myvar}", name="custom_name")
+        async def myroute(request, response, myvar):
+            do_something
+
+        # And then we can use it
+        app.url_for("custom_name", myvar="value")
+
 
 - **listen(name: str)**: listen the event `name`.
 
