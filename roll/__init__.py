@@ -35,7 +35,12 @@ HTTP_METHODS = [
 ]
 # Everything between the colon and the closing braket, including the colon but not the
 # braket.
-CLEAN_PATTERN = re.compile(r":[^}]+(?=})")
+CLEAN_PATH_PATTERN = re.compile(r":[^}]+(?=})")
+
+
+class NoURLMatch(ValueError):
+    """Raised when no match is found while using url_for helper."""
+    pass
 
 
 class Roll(dict):
@@ -150,8 +155,8 @@ class Roll(dict):
 
         return add_route
 
-    def _register_route_name(self, path, view, name=None):
-        cleaned = CLEAN_PATTERN.sub("", path)
+    def _register_route_name(self, path: str, view, name: str = None):
+        cleaned = CLEAN_PATH_PATTERN.sub("", path)
         if name:
             self._urls[name] = cleaned
         else:
@@ -161,12 +166,12 @@ class Roll(dict):
             name = f"{view.__module__.lower()}.{name}"
             self._urls[name] = cleaned
 
-    def url_for(self, name, **kwargs):
+    def url_for(self, name: str, **kwargs):
         try:
             return self._urls[name].format(**kwargs)
         except KeyError:
             # Should we raise a dedicated error ?
-            raise ValueError(f"No URL with name {name} and params {kwargs}")
+            raise NoURLMatch(f"No URL found with name {name} and params {kwargs}")
 
     def listen(self, name: str):
         def wrapper(func):

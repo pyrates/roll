@@ -2,6 +2,8 @@ import pytest
 
 pytestmark = pytest.mark.asyncio
 
+from roll import NoURLMatch
+
 
 async def test_named_url(app):
 
@@ -50,7 +52,7 @@ async def test_url_with_regex_param(app):
 
 
 async def test_missing_name(app):
-    with pytest.raises(ValueError):
+    with pytest.raises(NoURLMatch):
         app.url_for("missing")
 
 
@@ -60,7 +62,7 @@ async def test_missing_param(app):
     async def myroute(req, resp):
         pass
 
-    with pytest.raises(ValueError):
+    with pytest.raises(NoURLMatch):
         assert app.url_for("myroute", badparam=22)
 
 
