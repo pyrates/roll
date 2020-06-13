@@ -44,7 +44,7 @@ class NoRouteMatch(ValueError):
 
 
 class DuplicateRouteName(ValueError):
-    """Raised when two routes with the name are registred."""
+    """Raised when two routes with the name are registered."""
     pass
 
 
