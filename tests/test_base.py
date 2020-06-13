@@ -1,13 +1,12 @@
 import pytest
 
-pytestmark = pytest.mark.asyncio
+from roll import NoRouteMatch, DuplicateRouteName
 
-from roll import NoURLMatch
+pytestmark = pytest.mark.asyncio
 
 
 async def test_named_url(app):
-
-    @app.route('/test', name="myroute")
+    @app.route("/test", name="myroute")
     async def get(req, resp):
         pass
 
@@ -15,18 +14,15 @@ async def test_named_url(app):
 
 
 async def test_default_url_name(app):
-
-    @app.route('/test')
+    @app.route("/test")
     async def myroute(req, resp):
         pass
 
     assert app.url_for("myroute") == "/test"
-    assert app.url_for("test_base.myroute") == "/test"
 
 
 async def test_url_with_simple_params(app):
-
-    @app.route('/test/{param}')
+    @app.route("/test/{param}")
     async def myroute(req, resp):
         pass
 
@@ -34,8 +30,7 @@ async def test_url_with_simple_params(app):
 
 
 async def test_url_with_typed_param(app):
-
-    @app.route('/test/{param:int}')
+    @app.route("/test/{param:int}")
     async def myroute(req, resp):
         pass
 
@@ -43,8 +38,7 @@ async def test_url_with_typed_param(app):
 
 
 async def test_url_with_regex_param(app):
-
-    @app.route('/test/{param:[xyz]+}')
+    @app.route("/test/{param:[xyz]+}")
     async def myroute(req, resp):
         pass
 
@@ -52,17 +46,16 @@ async def test_url_with_regex_param(app):
 
 
 async def test_missing_name(app):
-    with pytest.raises(NoURLMatch):
+    with pytest.raises(NoRouteMatch):
         app.url_for("missing")
 
 
 async def test_missing_param(app):
-
-    @app.route('/test/{param}')
+    @app.route("/test/{param}")
     async def myroute(req, resp):
         pass
 
-    with pytest.raises(NoURLMatch):
+    with pytest.raises(NoRouteMatch):
         assert app.url_for("myroute", badparam=22)
 
 
@@ -73,4 +66,14 @@ async def test_with_class_based_view(app):
             pass
 
     assert app.url_for("myroute") == "/test"
-    assert app.url_for("test_base.myroute") == "/test"
+
+
+async def test_duplicate_name(app):
+    @app.route("/test")
+    async def myroute(req, resp):
+        pass
+
+    with pytest.raises(DuplicateRouteName):
+        @app.route("/something", name="myroute")
+        async def other(req, resp):
+            pass

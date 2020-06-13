@@ -38,8 +38,13 @@ HTTP_METHODS = [
 CLEAN_PATH_PATTERN = re.compile(r":[^}]+(?=})")
 
 
-class NoURLMatch(ValueError):
-    """Raised when no match is found while using url_for helper."""
+class NoRouteMatch(ValueError):
+    """Raised when no route is found while using url_for helper."""
+    pass
+
+
+class DuplicateRouteName(ValueError):
+    """Raised when two routes with the name are registred."""
     pass
 
 
@@ -157,21 +162,20 @@ class Roll(dict):
 
     def _register_route_name(self, path: str, view, name: str = None):
         cleaned = CLEAN_PATH_PATTERN.sub("", path)
-        if name:
-            self._urls[name] = cleaned
-        else:
+        if not name:
             name = view.__name__.lower()
-            self._urls[name] = cleaned
-            # Also register view with module namespace, to avoid names clash situations.
-            name = f"{view.__module__.lower()}.{name}"
-            self._urls[name] = cleaned
+        if name in self._urls:
+            _, view = self._urls[name]
+            ref = f"{view.__module__}.{view.__name__}"
+            raise DuplicateRouteName(f"Route with name {name} already exists: {ref}")
+        self._urls[name] = cleaned, view
 
     def url_for(self, name: str, **kwargs):
         try:
-            return self._urls[name].format(**kwargs)
+            path, _ = self._urls[name]
+            return path.format(**kwargs)  # Raises a KeyError too if some param misses
         except KeyError:
-            # Should we raise a dedicated error ?
-            raise NoURLMatch(f"No URL found with name {name} and params {kwargs}")
+            raise NoRouteMatch(f"No route found with name {name} and params {kwargs}")
 
     def listen(self, name: str):
         def wrapper(func):

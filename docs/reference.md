@@ -46,9 +46,12 @@ guide.
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
 
+    Raise `DuplicateRouteName` if two URLs with the same name are registred.
+
 - **url_for(name: str, \**kwargs: dict)**: build an URL for the view `name` and its
    parameters. `name` can be defined when calling the `route` decorator, or it
-   will be computed with the function/class name.
+   will be computed with the function/class name. Raise `NoRouteMatch` when `name`
+   is not found in the registry.
 
         # Define a route
         @route("/mypath/{myvar}")
@@ -58,7 +61,6 @@ guide.
         # Now we can build the url
         app.url_for("myroute", myvar="value")
         # /mypath/value
-        app.url_for("mymodule.myroute", myvar="value")  # Works too.
 
         # To control the route name, we can pass it as a route kwarg:
         @route("/mypath/{myvar}", name="custom_name")
