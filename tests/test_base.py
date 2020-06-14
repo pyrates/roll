@@ -1,7 +1,5 @@
 import pytest
 
-from roll import NoRouteMatch, DuplicateRouteName
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -46,7 +44,7 @@ async def test_url_with_regex_param(app):
 
 
 async def test_missing_name(app):
-    with pytest.raises(NoRouteMatch):
+    with pytest.raises(ValueError):
         app.url_for("missing")
 
 
@@ -55,7 +53,7 @@ async def test_missing_param(app):
     async def myroute(req, resp):
         pass
 
-    with pytest.raises(NoRouteMatch):
+    with pytest.raises(ValueError):
         assert app.url_for("myroute", badparam=22)
 
 
@@ -73,7 +71,7 @@ async def test_duplicate_name(app):
     async def myroute(req, resp):
         pass
 
-    with pytest.raises(DuplicateRouteName):
+    with pytest.raises(ValueError):
         @app.route("/something", name="myroute")
         async def other(req, resp):
             pass

@@ -46,11 +46,11 @@ guide.
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
 
-    Raise `DuplicateRouteName` if two URLs with the same name are registred.
+    Raise `ValueError` if two URLs with the same name are registred.
 
 - **url_for(name: str, \**kwargs: dict)**: build an URL for the view `name` and its
    parameters. `name` can be defined when calling the `route` decorator, or it
-   will be computed with the function/class name. Raise `NoRouteMatch` when `name`
+   will be computed with the function/class name. Raise `ValueError` when `name`
    is not found in the registry.
 
         # Define a route
