@@ -8,8 +8,9 @@ A changelog:
 
 *Analogy: git blame :p*
 
-## dev
+## 0.12.0 - 2020-06-14
 
+- Added `app.url_for` helper ([#136](https://github.com/pyrates/roll/pull/136))
 - Added `response.redirect` shortcut ([#134](https://github.com/pyrates/roll/pull/134))
 - Fixed URL not quoted in testing utility
 - Added `default_index` to `static` extension ([#95](https://github.com/pyrates/roll/pull/95))

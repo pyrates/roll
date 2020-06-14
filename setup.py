@@ -36,10 +36,10 @@ else:
     ]
     cmdclass = {'build_ext': build_ext}
 
-VERSION = (0, 11, 0)
+VERSION = (0, 12, 0)
 
 __author__ = 'Pyrates'
-__contact__ = "yohan.boniface@data.gouv.fr"
+__contact__ = "yohanboniface@free.fr"
 __homepage__ = "https://github.com/pyrates/roll"
 __version__ = ".".join(map(str, VERSION))
 
