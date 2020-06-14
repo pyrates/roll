@@ -13,6 +13,7 @@ import inspect
 import re
 from collections import defaultdict, namedtuple
 from http import HTTPStatus
+from typing import Callable
 
 from autoroutes import Routes
 
@@ -150,7 +151,7 @@ class Roll(dict):
 
         return add_route
 
-    def _register_route_name(self, path: str, view, name: str = None):
+    def _register_route_name(self, path: str, view: Callable, name: str = None):
         cleaned = CLEAN_PATH_PATTERN.sub("", path)
         if not name:
             name = view.__name__.lower()
