@@ -66,6 +66,7 @@ class Transport:
     def __init__(self):
         self.data = b''
         self._closing = False
+        self._reading = True
 
     def is_closing(self):
         return self._closing
@@ -77,9 +78,15 @@ class Transport:
         self._closing = True
 
     def pause_reading(self):
-        pass
+        self._reading = False
 
     def resume_reading(self):
+        self._reading = True
+
+    def is_reading(self):
+        return self._reading
+
+    def abort(self):
         pass
 
 

@@ -334,6 +334,10 @@ class HTTPProtocol(asyncio.Protocol):
         else:
             if not self.parser.should_keep_alive():
                 self.transport.close()
+        # Transport is not reading, we assume an error has raised before the request
+        # has been fully read (missing a call to transport.resume_reading).
+        if not self.transport.is_reading():
+            self.transport.abort()
 
     def pause_reading(self):
         self.transport.pause_reading()
