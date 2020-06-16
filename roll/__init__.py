@@ -10,7 +10,6 @@ a test failing): https://github.com/pyrates/roll/issues/new
 """
 
 import inspect
-import re
 from collections import defaultdict, namedtuple
 from http import HTTPStatus
 from textwrap import dedent
@@ -35,9 +34,6 @@ HTTP_METHODS = [
     "CONNECT",
     "PATCH",
 ]
-# Everything between the colon and the closing braket, including the colon but not the
-# braket.
-CLEAN_PATH_PATTERN = re.compile(r":[^}]+(?=})")
 
 
 class Roll(dict):
@@ -147,7 +143,8 @@ class Roll(dict):
             if protocol_class.ALLOWED_METHODS:
                 assert set(methods) <= set(protocol_class.ALLOWED_METHODS)
             self.routes.add(path, **payload)
-            self._register_route_name(path, view, extras.get("name"))
+            self.loop.create_task(self.hook("route:add", path, view, **extras))
+            # self._register_route_name(path, view, extras.get("name"))
             return view
 
         return add_route
@@ -182,8 +179,8 @@ class Roll(dict):
 
         return wrapper
 
-    async def hook(self, name: str, *args, **kwargs):
-        for func in self.hooks[name]:
+    async def hook(self, name_: str, *args, **kwargs):
+        for func in self.hooks[name_]:
             result = await func(*args, **kwargs)
             if result:  # Allows to shortcut the chain.
                 return result

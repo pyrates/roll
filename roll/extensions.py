@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import mimetypes
+import re
 import sys
 from http import HTTPStatus
 from pathlib import Path
@@ -151,3 +152,41 @@ def static(app, prefix='/static/', root=Path(), default_index='', name='static')
     @app.listen('startup')
     async def register_route():
         app.route(prefix, name=name)(serve)
+
+
+def named_url(app):
+
+    # Everything between the colon and the closing braket, including the colon but not the
+    # braket.
+    clean_path_pattern = re.compile(r":[^}]+(?=})")
+    registry = {}
+
+    @app.listen("route:add")
+    async def on_route_add(path, view, **extras):
+        print("on route add")
+        cleaned = clean_path_pattern.sub("", path)
+        name = extras.pop("name")
+        if not name:
+            name = view.__name__.lower()
+        if name in registry:
+            _, handler = registry[name]
+            if handler != view:
+                ref = f"{handler.__module__}.{handler.__name__}"
+                raise ValueError(
+                    f"""Route with name {name} already exists: {ref}.
+                    Hints:
+                    - use a `name` in your `@app.route` declaration
+                    - use functools.wraps or equivalent if you decorate your views
+                    - use a `name` if you use the `static` extension twice
+                    """)
+        registry[name] = cleaned, view
+
+    def url_for(name: str, **kwargs):
+        print("urlfor", name)
+        try:
+            path, _ = registry[name]
+            return path.format(**kwargs)  # Raises a KeyError too if some param misses
+        except KeyError:
+            raise ValueError(f"No route found with name {name} and params {kwargs}")
+
+    return url_for
