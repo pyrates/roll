@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import AsyncGenerator
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
@@ -173,7 +172,7 @@ class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
     __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task',
-                 'is_chunked')
+                 'is_chunked', 'draining')
     _BODYLESS_METHODS = ('HEAD', 'CONNECT')
     _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
                           HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
@@ -187,6 +186,7 @@ class HTTPProtocol(asyncio.Protocol):
         self.parser = self.RequestParser(self)
         self.task = None
         self.is_chunked = False
+        self.draining = False
 
     def connection_made(self, transport):
         self.transport = transport
@@ -235,6 +235,9 @@ class HTTPProtocol(asyncio.Protocol):
         self.request.headers[name.decode().upper()] = value.decode()
 
     def on_body(self, data: bytes):
+        if self.draining:
+            # Draining mode: do not load data at all.
+            return
         # Save the first chunk.
         self.request.queue.put(data)
         # And let the user decide if we should continue reading or not.
@@ -334,13 +337,19 @@ class HTTPProtocol(asyncio.Protocol):
         else:
             if not self.parser.should_keep_alive():
                 self.transport.close()
-        # Transport is not reading, we assume an error has raised before the request
-        # has been fully read (missing a call to transport.resume_reading).
-        if not self.transport.is_reading():
-            self.transport.abort()
+        # Drain request body, in case an error has raised before fully
+        # consuming it in the normal process, so the transport is free to handle
+        # a new request.
+        self.drain()
 
     def pause_reading(self):
         self.transport.pause_reading()
 
     def resume_reading(self):
         self.transport.resume_reading()
+
+    def drain(self):
+        # Consume the request body, but prevent on_body to load it in memory.
+        self.draining = True
+        self.resume_reading()
+        self.draining = False
