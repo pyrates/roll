@@ -1,6 +1,13 @@
 import pytest
 
+from roll.extensions import named_url
+
 pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture(autouse=True)
+def activate_named_url(app, client):
+    app.url_for = named_url(app)
 
 
 async def test_named_url(app):
@@ -8,7 +15,10 @@ async def test_named_url(app):
     async def get(req, resp):
         pass
 
-    assert app.url_for("myroute") == "/test"
+
+    @app.listen("route:add")
+    async def test_url_for_for_real(*args, **kwargs):
+        assert app.url_for("myroute") == "/test"
 
 
 async def test_default_url_name(app):
