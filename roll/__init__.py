@@ -156,9 +156,15 @@ class Roll(dict):
         if not name:
             name = view.__name__.lower()
         if name in self._urls:
-            _, view = self._urls[name]
-            ref = f"{view.__module__}.{view.__name__}"
-            raise ValueError(f"Route with name {name} already exists: {ref}")
+            _, handler = self._urls[name]
+            ref = f"{handler.__module__}.{handler.__name__}"
+            raise ValueError(
+                f"""Route with name {name} already exists: {ref}.
+                Hints:
+                - use a `name` in your `@app.route` declaration
+                - use functools.wraps or equivalent if you decorate your views
+                - use a `name` if you use the `static` extension twice
+                """)
         self._urls[name] = cleaned, view
 
     def url_for(self, name: str, **kwargs):
