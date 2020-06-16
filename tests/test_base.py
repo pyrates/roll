@@ -72,6 +72,16 @@ async def test_duplicate_name(app):
         pass
 
     with pytest.raises(ValueError):
+
         @app.route("/something", name="myroute")
         async def other(req, resp):
             pass
+
+
+async def test_can_decorate_twice_same_handler(app):
+    @app.route("/test")
+    @app.route("/alias-url", name="legacy")
+    async def myroute(req, resp):
+        pass
+
+    assert app.url_for("myroute") == "/test"

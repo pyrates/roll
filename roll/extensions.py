@@ -125,7 +125,7 @@ def simple_server(app, port=3579, host='127.0.0.1', quiet=False):
         app.loop.close()
 
 
-def static(app, prefix='/static/', root=Path(), default_index=''):
+def static(app, prefix='/static/', root=Path(), default_index='', name='static'):
     """Serve static files. Never use in production."""
 
     root = Path(root).resolve()
@@ -150,4 +150,4 @@ def static(app, prefix='/static/', root=Path(), default_index=''):
 
     @app.listen('startup')
     async def register_route():
-        app.route(prefix)(serve)
+        app.route(prefix, name=name)(serve)

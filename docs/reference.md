@@ -387,6 +387,7 @@ Serve static files. Should not be used in production.
 - **root** (`str` or `pathlib.Path`, default=current executable path):
   filesystem path to look for static files
 - **default_index** (`str`, default=empty string): filename, for instance `index.html`, useful to serve a static HTML website
+- **name** (`str`, default=`static`): optional name to be used when calling `url_for` helper
 
 
 ### simple_server

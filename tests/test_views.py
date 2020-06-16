@@ -98,3 +98,14 @@ async def test_simple_get_request_with_accent(client, app):
     resp = await client.get('/testé')
     assert resp.status == HTTPStatus.OK
     assert resp.body == 'testé response'.encode()
+
+
+async def test_route_with_different_signatures_on_same_handler(client, app):
+
+    @app.route("/test/", name="collection")
+    @app.route("/test/{id}", name="item")
+    async def myhandler(request, response, id="default"):
+        response.body = id
+
+    assert (await client.get("/test/")).body == b"default"
+    assert (await client.get("/test/other")).body == b"other"
