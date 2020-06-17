@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 
 from roll.extensions import named_url
@@ -16,7 +15,6 @@ async def test_named_url(app):
     async def get(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute") == "/test"
 
 
@@ -25,7 +23,6 @@ async def test_default_url_name(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute") == "/test"
 
 
@@ -34,7 +31,6 @@ async def test_url_with_simple_params(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute", param="foo") == "/test/foo"
 
 
@@ -43,7 +39,6 @@ async def test_url_with_typed_param(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute", param=22) == "/test/22"
 
 
@@ -52,7 +47,6 @@ async def test_url_with_regex_param(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute", param=22) == "/test/22"
 
 
@@ -66,7 +60,6 @@ async def test_missing_param(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     with pytest.raises(ValueError):
         assert app.url_for("myroute", badparam=22)
 
@@ -77,7 +70,6 @@ async def test_with_class_based_view(app):
         async def on_get(self, request, response):
             pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute") == "/test"
 
 
@@ -86,7 +78,6 @@ async def test_duplicate_name(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     with pytest.raises(ValueError):
 
         @app.route("/something", name="myroute")
@@ -100,5 +91,4 @@ async def test_can_decorate_twice_same_handler(app):
     async def myroute(req, resp):
         pass
 
-    await asyncio.sleep(0.1)
     assert app.url_for("myroute") == "/test"

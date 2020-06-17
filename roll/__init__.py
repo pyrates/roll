@@ -9,11 +9,10 @@ please submit an issue (or even better a pull-request with at least
 a test failing): https://github.com/pyrates/roll/issues/new
 """
 
+import asyncio
 import inspect
 from collections import defaultdict, namedtuple
 from http import HTTPStatus
-from textwrap import dedent
-from typing import Callable
 
 from autoroutes import Routes
 
@@ -147,17 +146,26 @@ class Roll(dict):
             if protocol_class.ALLOWED_METHODS:
                 assert set(methods) <= set(protocol_class.ALLOWED_METHODS)
             self.routes.add(path, **payload)
-            self.schedule(self.hook("route:add", path, view, **extras))
-            # self._register_route_name(path, view, extras.get("name"))
+            self._hook("route:add", path, view, **extras)
+            # asyncio.get_event_loop().create_task(self.hook("route:add", path, view, **extras))
             return view
 
         return add_route
 
     def listen(self, name: str):
         def wrapper(func):
+            func._is_async = inspect.iscoroutine(func)
             self.hooks[name].append(func)
 
         return wrapper
+
+    def _hook(self, name_: str, *args, **kwargs):
+        for func in self.hooks[name_]:
+            if func._is_async:
+                raise ValueError(f"{name_} hook cannot be async")
+            result = func(*args, **kwargs)
+            if result:  # Allows to shortcut the chain.
+                return result
 
     async def hook(self, name_: str, *args, **kwargs):
         for func in self.hooks[name_]:
