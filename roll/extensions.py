@@ -5,6 +5,7 @@ import re
 import sys
 from http import HTTPStatus
 from pathlib import Path
+from textwrap import dedent
 from traceback import print_exc
 
 from . import HTTP_METHODS, HttpError
@@ -162,7 +163,7 @@ def named_url(app):
     registry = {}
 
     @app.listen("route:add")
-    async def on_route_add(path, view, **extras):
+    def on_route_add(path, view, **extras):
         print("on route add")
         cleaned = clean_path_pattern.sub("", path)
         name = extras.pop("name", None)
@@ -172,13 +173,14 @@ def named_url(app):
             _, handler = registry[name]
             if handler != view:
                 ref = f"{handler.__module__}.{handler.__name__}"
-                raise ValueError(
-                    f"""Route with name {name} already exists: {ref}.
+                raise ValueError(dedent(
+                    f"""\
+                    Route with name {name} already exists: {ref}.
                     Hints:
                     - use a `name` in your `@app.route` declaration
                     - use functools.wraps or equivalent if you decorate your views
                     - use a `name` if you use the `static` extension twice
-                    """)
+                    """))
         registry[name] = cleaned, view
 
     def url_for(name: str, **kwargs):
