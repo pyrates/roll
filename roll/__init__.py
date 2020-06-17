@@ -57,8 +57,12 @@ class Roll(dict):
         self.routes = self.Routes()
         self.hooks = defaultdict(list)
         self._urls = {}
+        self.loop = None
+        self.scheduled = []
 
     async def startup(self):
+        for task in self.scheduled:
+            await task
         await self.hook("startup")
 
     async def shutdown(self):
@@ -143,7 +147,7 @@ class Roll(dict):
             if protocol_class.ALLOWED_METHODS:
                 assert set(methods) <= set(protocol_class.ALLOWED_METHODS)
             self.routes.add(path, **payload)
-            self.loop.create_task(self.hook("route:add", path, view, **extras))
+            self.schedule(self.hook("route:add", path, view, **extras))
             # self._register_route_name(path, view, extras.get("name"))
             return view
 
@@ -184,3 +188,9 @@ class Roll(dict):
             result = await func(*args, **kwargs)
             if result:  # Allows to shortcut the chain.
                 return result
+
+    def schedule(self, coro):
+        if self.loop:
+            self.loop.create_task(coro)
+        else:
+            self.scheduled.append(coro)

@@ -165,7 +165,7 @@ def named_url(app):
     async def on_route_add(path, view, **extras):
         print("on route add")
         cleaned = clean_path_pattern.sub("", path)
-        name = extras.pop("name")
+        name = extras.pop("name", None)
         if not name:
             name = view.__name__.lower()
         if name in registry:

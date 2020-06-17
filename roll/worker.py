@@ -18,7 +18,7 @@ class Worker(Worker):
         self.server = None
         asyncio.get_event_loop().close()
         if uvloop:
-            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+            uvloop.install()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         super().init_process()
