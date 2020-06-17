@@ -153,30 +153,6 @@ class Roll(dict):
 
         return add_route
 
-    def _register_route_name(self, path: str, view: Callable, name: str = None):
-        cleaned = CLEAN_PATH_PATTERN.sub("", path)
-        if not name:
-            name = view.__name__.lower()
-        if name in self._urls:
-            _, handler = self._urls[name]
-            ref = f"{handler.__module__}.{handler.__name__}"
-            raise ValueError(dedent(
-                f"""\
-                Route with name {name} already exists: {ref}.
-                Hints:
-                - use a `name` in your `@app.route` declaration
-                - use functools.wraps or equivalent if you decorate your views
-                - use a `name` if you use the `static` extension twice
-                """))
-        self._urls[name] = cleaned, view
-
-    def url_for(self, name: str, **kwargs):
-        try:
-            path, _ = self._urls[name]
-            return path.format(**kwargs)  # Raises a KeyError too if some param misses
-        except KeyError:
-            raise ValueError(f"No route found with name {name} and params {kwargs}")
-
     def listen(self, name: str):
         def wrapper(func):
             self.hooks[name].append(func)
