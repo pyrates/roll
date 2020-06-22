@@ -38,23 +38,23 @@ and you should be able to read it within the next half-hour.
 * [Using events](tutorials.md#using-events)
 
 
-## How-to guides
-
-- [basic](how-to/basic.md): all the basic stuff you'll certainly use
-- [developing](how-to/developing.md): snippets to make developing with Roll more fun
-- [advanced](how-to/advanced.md): more advanced guides
-
-
 ## Discussions
 
 * [Why Roll?](discussions.md#why-roll)
 
 
+## How-to guides
+
+* [basic](how-to/basic.md): all the basic stuff you'll certainly use
+* [developing](how-to/developing.md): snippets to make developing with Roll more fun
+* [advanced](how-to/advanced.md): more advanced guides
+
+
 ## Reference
 
-* [Core objects](reference.md#core-objects)
-* [Extensions](reference.md#extensions)
-* [Events](reference.md#events)
+* [Core objects](reference/core.md)
+* [Extensions](reference/extensions.md)
+* [Events](reference/events.md)
 
 
 ## Changelog

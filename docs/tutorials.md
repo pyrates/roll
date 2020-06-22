@@ -132,7 +132,7 @@ Username: `David` password: `123456`.
 
 Obviously we do not want to return that kind of information but you get
 the point! You also have access to optional `.files`, check out the
-dedicated [reference section](reference.md#request) to learn more.
+dedicated [reference section](reference/core.md#request) to learn more.
 
 
 ## Websockets
@@ -210,7 +210,7 @@ Another extension is very useful for debugging: `traceback`. Try to add
 it by yourself and raise any error *within* your view to see it in
 application (do not forget to restart your server!).
 
-See the [reference documentation](reference.md#extensions) for all
+See the [reference documentation](reference/extensions.md) for all
 built-in extensions.
 
 
@@ -247,5 +247,5 @@ if __name__ == '__main__':
 Now restart your server and you should see the message printed.
 Wonderful.
 
-See the [reference documentation](reference.md#events) for all available
+See the [reference documentation](reference/events.md) for all available
 events.
