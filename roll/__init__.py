@@ -141,7 +141,7 @@ class Roll(dict):
             if protocol_class.ALLOWED_METHODS:
                 assert set(methods) <= set(protocol_class.ALLOWED_METHODS)
             self.routes.add(path, **payload)
-            self._hook("route:add", path, view, **extras)
+            self._sync_hook("route:add", path, view, **extras)
             return view
 
         return add_route
@@ -153,10 +153,10 @@ class Roll(dict):
 
         return wrapper
 
-    def _hook(self, name_: str, *args, **kwargs):
+    def _sync_hook(self, name_: str, *args, **kwargs):
         for func in self.hooks[name_]:
             if func._is_async:
-                raise ValueError(f"{name_} hook cannot be async")
+                raise ValueError(f"{name_} hook cannot be async, got async func {func}")
             result = func(*args, **kwargs)
             if result:  # Allows to shortcut the chain.
                 return result
