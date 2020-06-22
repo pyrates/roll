@@ -148,15 +148,12 @@ class Roll(dict):
 
     def listen(self, name: str):
         def wrapper(func):
-            func._is_async = inspect.iscoroutinefunction(func)
             self.hooks[name].append(func)
 
         return wrapper
 
     def _sync_hook(self, name_: str, *args, **kwargs):
         for func in self.hooks[name_]:
-            if func._is_async:
-                raise ValueError(f"{name_} hook cannot be async, got async func {func}")
             result = func(*args, **kwargs)
             if result:  # Allows to shortcut the chain.
                 return result

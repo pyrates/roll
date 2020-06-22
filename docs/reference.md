@@ -48,29 +48,6 @@ guide.
 
     Raise `ValueError` if two URLs with the same name are registred.
 
-- **url_for(name: str, \**kwargs: dict)**: build an URL for the view `name` and its
-   parameters. `name` can be defined when calling the `route` decorator, or it
-   will be computed with the function/class name. Raise `ValueError` when `name`
-   is not found in the registry.
-
-        # Define a route
-        @route("/mypath/{myvar}")
-        async def myroute(request, response, myvar):
-            do_something
-
-        # Now we can build the url
-        app.url_for("myroute", myvar="value")
-        # /mypath/value
-
-        # To control the route name, we can pass it as a route kwarg:
-        @route("/mypath/{myvar}", name="custom_name")
-        async def myroute(request, response, myvar):
-            do_something
-
-        # And then we can use it
-        app.url_for("custom_name", myvar="value")
-
-
 - **listen(name: str)**: listen the event `name`.
 
         @app.listen('request')
@@ -403,6 +380,58 @@ Launch a local server on `127.0.0.1:3579` by default.
 - **host** (`str`; default=`127.0.0.1`): where to bind the server
 - **quiet** (`bool`; default=`False`): prevent the server to output startup
   debug infos
+
+### named_url
+
+Allow two things:
+
+- name the routes
+- build routes URL from these names and their optional parameters.
+
+When using this extension, you can then optionaly pass a `name` parameter to the
+`route` decorator. Otherwise, the name will be computed from the route handler
+name.
+
+
+#### Parameters
+
+- **app**: Roll app to register the extension against
+
+
+#### Usage
+
+```python
+from roll import Roll
+from roll.extensions import named_url
+
+app = Roll()
+
+# Registering the extension will return the `url_for` helper.
+url_for = named_url(app)
+
+
+# Define a route
+@app.route("/mypath/{myvar}")
+async def myroute(request, response, myvar):
+    pass
+
+# Now we can build the url
+url_for("myroute", myvar="value")
+# /mypath/value
+
+
+# To control the route name, we can pass it as a route kwarg:
+@app.route("/mypath/{myvar}", name="custom_name")
+async def otherroute(request, response, myvar):
+    pass
+
+# And then we can use it
+url_for("custom_name", myvar="value")
+```
+
+Hint: the helper can be attached to the `app`, to have it available everywhere:
+
+    app.url_for = named_url(app)
 
 
 ## Events
