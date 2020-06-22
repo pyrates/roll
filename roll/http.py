@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import AsyncGenerator
 from http import HTTPStatus
 from io import BytesIO
 from typing import TypeVar
@@ -31,9 +30,15 @@ class HttpError(Exception):
 
     __slots__ = ('status', 'message')
 
-    def __init__(self, http_code: HttpCode, message: str=None):
+    def __init__(self, http_code: HttpCode, message: str=None, context: Exception=None):
         # Idempotent if `http_code` is already an `HTTPStatus` instance.
         self.status = HTTPStatus(http_code)
+        if context:
+            # Keep track of the original error.
+            # Mimic what python does we we run "raise X from Y".
+            if not message:
+                message = str(context).encode()
+            self.__context__ = context
         self.message = message or self.status.phrase
 
 

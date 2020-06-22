@@ -92,7 +92,7 @@ class Roll(dict):
 
     async def on_error(self, request: Request, response: Response, error):
         if not isinstance(error, HttpError):
-            error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR, str(error).encode())
+            error = HttpError(HTTPStatus.INTERNAL_SERVER_ERROR, context=error)
         response.status = error.status
         response.body = error.message
         try:

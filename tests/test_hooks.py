@@ -81,3 +81,21 @@ async def test_request_hook_is_called_even_if_path_is_not_found(client, app):
     resp = await client.get('/not-found')
     assert resp.status == HTTPStatus.BAD_REQUEST
     assert resp.body == b'Really this is a bad request'
+
+
+async def test_can_retrieve_original_error_on_error_hook(client, app):
+    original_error = None
+
+    @app.listen('error')
+    async def listener(request, response, error):
+        nonlocal original_error
+        original_error = error.__context__
+
+    @app.route('/raise')
+    async def handler(request, response):
+        raise ValueError("Custom Error Message")
+
+    resp = await client.get('/raise')
+    assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert resp.body == b'Custom Error Message'
+    assert isinstance(original_error, ValueError)
