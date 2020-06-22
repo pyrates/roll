@@ -111,6 +111,18 @@ async def test_simple_get_request_with_query_string(client, app):
     assert resp.body == 'baré'.encode()
 
 
+async def test_simple_get_request_with_empty_query_string(client, app):
+
+    @app.route('/test')
+    async def get(req, resp):
+        assert req.query.get("q") == ""
+        resp.body = "Empty string"
+
+    resp = await client.get('/test?q=')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'Empty string'
+
+
 async def test_route_with_different_signatures_on_same_handler(client, app):
 
     @app.route("/test/", name="collection")
