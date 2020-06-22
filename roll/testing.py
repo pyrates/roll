@@ -4,7 +4,7 @@ import mimetypes
 from functools import partial
 from http import HTTPStatus
 from io import BytesIO
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode, quote, urlparse, parse_qsl
 from uuid import uuid4
 
 import pytest
@@ -59,6 +59,14 @@ def encode_multipart(data, charset='utf-8'):
     body.seek(0)
     content_type = f'multipart/form-data; boundary={boundary}'
     return body.read(), content_type
+
+
+def encode_path(path):
+    parsed = urlparse(path)
+    out = quote(parsed.path)
+    if parsed.query:
+        out += "?" + "&".join(f"{k}={quote(v)}" for k, v in parse_qsl(parsed.query))
+    return out.encode()
 
 
 class Transport:
@@ -148,7 +156,7 @@ class Client:
         self.protocol.connection_made(Transport())
         headers = '\r\n'.join(f'{k}: {v}' for k, v in headers.items())
         data = b'%b %b HTTP/1.1\r\n%b\r\n\r\n%b' % (
-            method.encode(), quote(path).encode(), headers.encode(), body or b'')
+            method.encode(), encode_path(path), headers.encode(), body or b'')
 
         self.protocol.data_received(data)
         if self.protocol.task:

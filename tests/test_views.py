@@ -100,6 +100,17 @@ async def test_simple_get_request_with_accent(client, app):
     assert resp.body == 'testé response'.encode()
 
 
+async def test_simple_get_request_with_query_string(client, app):
+
+    @app.route('/testé')
+    async def get(req, resp):
+        resp.body = req.query.get("q")
+
+    resp = await client.get('/testé?q=baré')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == 'baré'.encode()
+
+
 async def test_route_with_different_signatures_on_same_handler(client, app):
 
     @app.route("/test/", name="collection")
