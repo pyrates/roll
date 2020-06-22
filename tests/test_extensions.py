@@ -143,6 +143,7 @@ async def test_static(client, app):
     # yet, so let's simulate a new startup.
     app.hooks['startup'] = []
     extensions.static(app, root=Path(__file__).parent / 'static')
+    url_for = extensions.named_url(app)
     await app.startup()
 
     resp = await client.get('/static/index.html')
@@ -160,7 +161,7 @@ async def test_static(client, app):
     assert b'chocolate' in resp.body
     assert resp.headers['Content-Type'] == 'text/css'
 
-    assert app.url_for("static", path="path/myfile.png") == "/static/path/myfile.png"
+    assert url_for("static", path="path/myfile.png") == "/static/path/myfile.png"
 
 
 async def test_static_with_default_index(client, app):
@@ -327,6 +328,7 @@ async def test_can_call_static_twice(client, app):
     extensions.static(
         app, root=Path(__file__).parent / "medias", prefix="/medias/", name="medias"
     )
+    url_for = extensions.named_url(app)
     await app.startup()
-    assert app.url_for("statics", path="myfile.png") == "/static/myfile.png"
-    assert app.url_for("medias", path="myfile.mp3") == "/medias/myfile.mp3"
+    assert url_for("statics", path="myfile.png") == "/static/myfile.png"
+    assert url_for("medias", path="myfile.mp3") == "/medias/myfile.mp3"
