@@ -8,6 +8,10 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.12.2 - 2020-06-22
+
+- Fixed URL quoting in testing utility ([#149](https://github.com/pyrates/roll/pull/149), [#150](https://github.com/pyrates/roll/pull/150))
+
 ## 0.12.1 - 2020-06-22
 
 - Fixed request not properly drained in case of error ([#138](https://github.com/pyrates/roll/pull/138))
