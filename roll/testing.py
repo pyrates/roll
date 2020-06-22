@@ -65,7 +65,8 @@ def encode_path(path):
     parsed = urlparse(path)
     out = quote(parsed.path)
     if parsed.query:
-        out += "?" + "&".join(f"{k}={quote(v)}" for k, v in parse_qsl(parsed.query))
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        out += "?" + "&".join(f"{k}={quote(v)}" for k, v in query)
     return out.encode()
 
 
