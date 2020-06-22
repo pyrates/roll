@@ -88,6 +88,8 @@ especially useful for extensions.
 - **json** (`dict` or `list`): body parsed as JSON
 - **content_type** (`str`): shortcut to the `Content-Type` header
 - **host** (`str`): shortcut to the `Host` header
+- **referrer** (`str`): shortcut to the `Referer` header
+- **origin** (`str`): shortcut to the `Origin` header
 - **headers** (`dict`): HTTP headers normalized in upper case
 - **cookies** (`Cookies`): a [Cookies instance](#cookies) with request cookies
 - **route** (`Route`): a [Route instance](#Route) storing results from URL matching

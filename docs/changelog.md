@@ -8,6 +8,12 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.12.1 - 2020-06-22
+
+- Fixed request not properly drained in case of error ([#138](https://github.com/pyrates/roll/pull/138))
+- Moved `app.url_for` helper to a dedicated extension: `named_url` ([#143](https://github.com/pyrates/roll/pull/143))
+- Added `request.referrer` and `request.origin` shortcuts ([#147](https://github.com/pyrates/roll/pull/147))
+
 ## 0.12.0 - 2020-06-14
 
 - Added `app.url_for` helper ([#136](https://github.com/pyrates/roll/pull/136))
