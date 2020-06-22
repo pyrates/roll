@@ -154,6 +154,17 @@ class Request(dict):
         return self.headers.get('HOST', '')
 
     @property
+    def referrer(self):
+        # https://en.wikipedia.org/wiki/HTTP_referer#Etymology
+        return self.headers.get('REFERER', '')
+
+    referer = referrer
+
+    @property
+    def origin(self):
+        return self.headers.get('ORIGIN', '')
+
+    @property
     def body(self):
         if self._body is None:
             raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
