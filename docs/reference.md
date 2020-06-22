@@ -443,3 +443,8 @@ Fired in case of error, can be at each request.
 Use it to customize HTTP error formatting for instance.
 
 Receives `request`, `response` and `error` parameters.
+
+If an unexpected error is raised during code execution, Roll will catch it and
+return a 500 response. In this case, `error.__context__` is set to the original
+error, so one can adapt the behaviour in the error chain management, including
+the `error` event.
