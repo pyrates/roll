@@ -158,6 +158,8 @@ class Request(dict):
         # https://en.wikipedia.org/wiki/HTTP_referer#Etymology
         return self.headers.get('REFERER', '')
 
+    referer = referrer
+
     @property
     def origin(self):
         return self.headers.get('ORIGIN', '')

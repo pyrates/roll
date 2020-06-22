@@ -58,6 +58,24 @@ async def test_request_headers_are_uppercased(protocol):
     assert protocol.request.headers.get('accept') is None
 
 
+async def test_request_referrer(protocol):
+    protocol.data_received(
+        b'GET /feeds HTTP/1.1\r\n'
+        b'Host: localhost:1707\r\n'
+        b'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:54.0) '
+        b'Gecko/20100101 Firefox/54.0\r\n'
+        b'Accept: */*\r\n'
+        b'Accept-Language: en-US,en;q=0.5\r\n'
+        b'Accept-Encoding: gzip, deflate\r\n'
+        b'Origin: http://localhost:7777\r\n'
+        b'Referer: http://localhost:7777/\r\n'
+        b'DNT: 1\r\n'
+        b'Connection: keep-alive\r\n'
+        b'\r\n')
+    assert protocol.request.referrer == 'http://localhost:7777/'
+    assert protocol.request.referer == 'http://localhost:7777/'
+
+
 async def test_request_path_is_unquoted(protocol):
     protocol.data_received(
         b'GET /foo%2Bbar HTTP/1.1\r\n'
