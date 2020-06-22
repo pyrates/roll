@@ -164,7 +164,6 @@ def named_url(app):
 
     @app.listen("route:add")
     def on_route_add(path, view, **extras):
-        print("on route add")
         cleaned = clean_path_pattern.sub("", path)
         name = extras.pop("name", None)
         if not name:
@@ -184,7 +183,6 @@ def named_url(app):
         registry[name] = cleaned, view
 
     def url_for(name: str, **kwargs):
-        print("urlfor", name)
         try:
             path, _ = registry[name]
             return path.format(**kwargs)  # Raises a KeyError too if some param misses
