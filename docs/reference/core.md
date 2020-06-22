@@ -1,16 +1,6 @@
-# Reference
+# Core objects
 
-A reference guide:
-
-* is information-oriented
-* describes the machinery
-* is accurate and complete
-
-*Analogy: a reference encyclopaedia article*
-
-## Core objects
-
-### Roll
+## Roll
 
 Roll provides an asyncio protocol.
 
@@ -18,11 +8,11 @@ You can subclass it to set your own [Protocol](#protocol), [Route](#route),
 [Query](#query), [Form](#form), [Files](#files), [Request](#request),
 [Response](#response) and/or [Cookies](#cookies) class(es).
 
-See [How to subclass Roll itself](./how-to/advanced.md#how-to-subclass-roll-itself)
+See [How to subclass Roll itself](./../how-to/advanced.md#how-to-subclass-roll-itself)
 guide.
 
 
-#### Methods
+### Methods
 
 - **route(path: str, methods: list, protocol: str='http', lazy_body: bool='False', \**extras: dict)**:
   register a route handler. Usually used as a decorator:
@@ -38,10 +28,10 @@ guide.
     `methods` lists the HTTP methods accepted by this handler. If not defined,
     the handler will accept only `GET`. When the handler is a *class*, `methods` must
     not be used, as Roll will extrapolate them from the defined methods on the
-    *class* itself. See [How to use class-based views](./how-to/basic.md#how-to-use-class-based-views)
+    *class* itself. See [How to use class-based views](./../how-to/basic.md#how-to-use-class-based-views)
     for an example of class-based view.
 
-    The `lazy_body` boolean parameter allows you to consume manually the body of the `Request`. It can be handy if you need to check for instance headers prior to load the whole body into RAM (think [images upload for instance](how-to/advanced.md#how-to-consume-a-request-body-the-asynchronous-way)) or if you plan to accept a streaming incoming request. By default, the body of the request will be fully loaded.
+    The `lazy_body` boolean parameter allows you to consume manually the body of the `Request`. It can be handy if you need to check for instance headers prior to load the whole body into RAM (think [images upload for instance](../how-to/advanced.md#how-to-consume-a-request-body-the-asynchronous-way)) or if you plan to accept a streaming incoming request. By default, the body of the request will be fully loaded.
 
     Any `extra` passed will be stored on the route payload, and accessible through
     `request.route.payload`.
@@ -58,14 +48,14 @@ guide.
 
 
 
-### HttpError
+## HttpError
 
 The object to raise when an error must be returned.
 Accepts a `status` and a `message`.
 The `status` can be either a `http.HTTPStatus` instance or an integer.
 
 
-### Request
+## Request
 
 A container for the result of the parsing on each request.
 The default parsing is made by `httptools.HttpRequestParser`.
@@ -74,7 +64,7 @@ You can use the empty `kwargs` dict to attach whatever you want,
 especially useful for extensions.
 
 
-#### Properties
+### Properties
 
 - **url** (`bytes`): raw URL as received by Roll
 - **path** (`str`): path element of the URL
@@ -97,26 +87,26 @@ especially useful for extensions.
 In case of errors during the parsing of `form`, `files` or `json`,
 an [HttpError](#httperror) is raised with a `400` (Bad request) status code.
 
-#### Custom properties
+### Custom properties
 
 While `Request` cannot accept arbitrary attributes, it's a `dict` like object,
 which keys are never used by Roll itself, they are dedicated to external use,
 for example for session data.
 
 See
-[How to store custom data in the request](how-to/basic.md#how-to-store-custom-data-in-the-request)
+[How to store custom data in the request](../how-to/basic.md#how-to-store-custom-data-in-the-request)
 for an example of use.
 
-#### Iterating over Request’s data
+### Iterating over Request’s data
 
 If you set the `lazy_body` parameter to `True` in your route, you will be able to iterate over the `Request` object itself to access the data (this is what is done under the hood when you `load_body()` by the way). Note that it is only relevant to iterate once across the data.
 
 
-### Response
+## Response
 
 A container for `status`, `headers` and `body`.
 
-#### Properties
+### Properties
 
 - **status** (`http.HTTPStatus`): the response status
 
@@ -135,12 +125,12 @@ A container for `status`, `headers` and `body`.
   `bytes`. If it's not, there are two cases:
     - if `body` is an [async generator](https://www.python.org/dev/peps/pep-0525/),
       Roll will serve a chunked response (see
-      [How to serve a chunked response](how-to/advanced.md#how-to-serve-a-chunked-response))
+      [How to serve a chunked response](../how-to/advanced.md#how-to-serve-a-chunked-response))
     - if it's anything else, Roll will convert it to `str` (by calling `str()`),
       and then to `bytes` (by calling its `encode()` method)
 
 
-#### Shortcuts
+### Shortcuts
 
 - **json**: takes any python object castable to `json` and set the body and the
   `Content-Type` header
@@ -154,11 +144,11 @@ A container for `status`, `headers` and `body`.
 
         response.redirect = "https://example.org", 302
 
-### Multipart
+## Multipart
 
 Responsible of the parsing of multipart encoded `request.body`.
 
-#### Methods
+### Methods
 
 - **initialize(content_type: str)**: returns a tuple
   ([Form](#form) instance, [Files](#files) instance) filled with data
@@ -167,12 +157,12 @@ Responsible of the parsing of multipart encoded `request.body`.
   [Files](#files) objects with bytes from the body
 
 
-### Multidict
+## Multidict
 
 Data structure to deal with several values for the same key.
 Useful for query string parameters or form-like POSTed ones.
 
-#### Methods
+### Methods
 
 - **get(key: str, default=...)**: returns a single value for the given `key`,
   raises an `HttpError(BAD_REQUEST)` if the `key` is missing and no `default` is
@@ -182,12 +172,12 @@ Useful for query string parameters or form-like POSTed ones.
   given
 
 
-### Query
+## Query
 
 Handy parsing of GET HTTP parameters.
 Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
 
-#### Methods
+### Methods
 
 - **bool(key: str, default=...)**: same as `get` but try to cast the value as
   `boolean`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
@@ -197,45 +187,45 @@ Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
   `float`; raises an `HttpError(BAD_REQUEST)` if the value is not castable
 
 
-### Form
+## Form
 
 Allow to access casted POST parameters from `request.body`.
 Inherits from [Query](#query) with all the `get`/`list` + casting goodies.
 
 
-### Files
+## Files
 
 Allow to access POSTed files from `request.body`.
 Inherits from [Multidict](#multidict) with all the `get`/`list` goodies.
 
 
-### Cookies
+## Cookies
 
 A Cookies management class, built on top of
 [biscuits](https://github.com/pyrates/biscuits).
 
-#### Methods
+### Methods
 
 - **set(name, value, max_age=None, expires=None, secure=False, httponly=False,
   path=None, domain=None)**: set a new cookie
 
-See [How to deal with cookies](how-to/basic.md#how-to-deal-with-cookies) for
+See [How to deal with cookies](../how-to/basic.md#how-to-deal-with-cookies) for
 examples.
 
 
-### Protocol
+## Protocol
 
 Responsible of parsing the request and writing the response.
 
 
-### Routes
+## Routes
 
 Responsible for URL-pattern matching. Allows to switch to your own
 parser. Default routes use [autoroutes](https://github.com/pyrates/autoroutes),
 please refers to that documentation for available patterns.
 
 
-### Route
+## Route
 
 A namedtuple to collect matched route data with attributes:
 
@@ -245,7 +235,7 @@ A namedtuple to collect matched route data with attributes:
 * **vars** (`dict`): URL placeholders resolved for the current route.
 
 
-### Websocket
+## Websocket
 
 Communication protocol using a socket between a client (usually the browser)
 and the server (a route endpoint).
@@ -269,213 +259,3 @@ async def myendpoint(request, ws, **params):
     async for message in ws:
         print(message)
 ```
-
-
-## Extensions
-
-Please read
-[How to create an extension](how-to/advanced.md#how-to-create-an-extension)
-for usage.
-
-All built-in extensions are imported from `roll.extensions`:
-
-    from roll.extensions import cors, logger, …
-
-### cors
-
-Add [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)-related headers.
-Especially useful for APIs. You generally want to also use the `options`
-extension in the same time.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-- **origin** (`str`; default: `*`): value of the `Access-Control-Allow-Origin` header
-- **methods** (`list` of `str`; default: `None`): value of the
-  `Access-Control-Allow-Methods` header; if `None` the header will not be set
-- **headers** (`list` of `str`; default: `None`): value of the
-  `Access-Control-Allow-Headers` header; if `None` the header will not be set
-
-
-### logger
-
-Log each and every request by default.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-- **level** (default: `logging.DEBUG`): `logging` level
-- **handler** (default: `logging.StreamHandler`): `logging` handler
-
-
-### options
-
-Performant return in case of `OPTIONS` HTTP request.
-Combine it with the `cors` extension to handle the preflight request.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-
-
-### content_negociation
-
-Deal with content negociation declared during routes definition.
-Will return a `406 Not Acceptable` response in case of mismatch between
-the `Accept` header from the client and the `accepts` parameter set in
-routes. Useful to reject requests which are not expecting the available
-response.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-
-
-#### Requirements
-
-- mimetype-match>=1.0.4
-
-
-### traceback
-
-Print the traceback on the server side if any. Handy for debugging.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-
-
-### igniter
-
-Display a BIG message when running the server.
-Quite useless, hence so essential!
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-
-
-### static
-
-Serve static files. Should not be used in production.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-- **prefix** (`str`, default=`/static/`): URL prefix to serve the statics
-- **root** (`str` or `pathlib.Path`, default=current executable path):
-  filesystem path to look for static files
-- **default_index** (`str`, default=empty string): filename, for instance `index.html`, useful to serve a static HTML website
-- **name** (`str`, default=`static`): optional name to be used when calling `url_for` helper
-
-
-### simple_server
-
-Special extension that does not rely on the events’ mechanism.
-
-Launch a local server on `127.0.0.1:3579` by default.
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-- **port** (`int`; default=`3579`): the port to listen
-- **host** (`str`; default=`127.0.0.1`): where to bind the server
-- **quiet** (`bool`; default=`False`): prevent the server to output startup
-  debug infos
-
-### named_url
-
-Allow two things:
-
-- name the routes
-- build routes URL from these names and their optional parameters.
-
-When using this extension, you can then optionaly pass a `name` parameter to the
-`route` decorator. Otherwise, the name will be computed from the route handler
-name.
-
-
-#### Parameters
-
-- **app**: Roll app to register the extension against
-
-
-#### Usage
-
-```python
-from roll import Roll
-from roll.extensions import named_url
-
-app = Roll()
-
-# Registering the extension will return the `url_for` helper.
-url_for = named_url(app)
-
-
-# Define a route
-@app.route("/mypath/{myvar}")
-async def myroute(request, response, myvar):
-    pass
-
-# Now we can build the url
-url_for("myroute", myvar="value")
-# /mypath/value
-
-
-# To control the route name, we can pass it as a route kwarg:
-@app.route("/mypath/{myvar}", name="custom_name")
-async def otherroute(request, response, myvar):
-    pass
-
-# And then we can use it
-url_for("custom_name", myvar="value")
-```
-
-Hint: the helper can be attached to the `app`, to have it available everywhere:
-
-    app.url_for = named_url(app)
-
-
-## Events
-
-Please read [Using events](tutorials.md#using-events) for usage.
-
-### startup
-
-Fired once when launching the server.
-
-
-### shutdown
-
-Fired once when shutting down the server.
-
-
-### request
-
-Fired at each request before any dispatching/route matching.
-
-Receives `request` and `response` parameters.
-
-Returning `True` allows to shortcut everything and return the current
-response object directly, see the [options extension](#extensions) for
-an example.
-
-
-### response
-
-Fired at each request after all processing.
-
-Receives `request` and `response` parameters.
-
-
-### error
-
-Fired in case of error, can be at each request.
-Use it to customize HTTP error formatting for instance.
-
-Receives `request`, `response` and `error` parameters.
-
-If an unexpected error is raised during code execution, Roll will catch it and
-return a 500 response. In this case, `error.__context__` is set to the original
-error, so one can adapt the behaviour in the error chain management, including
-the `error` event.

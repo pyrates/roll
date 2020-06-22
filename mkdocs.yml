@@ -2,11 +2,14 @@ site_name: Roll - async, simple, fast.
 nav:
   - Home: index.md
   - Tutorials: tutorials.md
+  - Discussions: discussions.md
   - How-to guides:
     - Basic: how-to/basic.md
     - Developing: how-to/developing.md
     - Advanced: how-to/advanced.md
-  - Discussions: discussions.md
-  - Reference: reference.md
+  - Reference:
+    - Core: reference/core.md
+    - Extensions: reference/extensions.md
+    - Events: reference/events.md
   - Changelog: changelog.md
 theme: readthedocs
