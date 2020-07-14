@@ -11,7 +11,7 @@ from traceback import print_exc
 from . import HTTP_METHODS, HttpError
 
 
-def cors(app, origin='*', methods=None, headers=None):
+def cors(app, origin='*', methods=None, headers=None, credentials=False):
 
     if methods == '*':
         methods = HTTP_METHODS
@@ -25,6 +25,8 @@ def cors(app, origin='*', methods=None, headers=None):
         if headers is not None:
             allow_headers = ','.join(headers)
             response.headers['Access-Control-Allow-Headers'] = allow_headers
+        if credentials:
+            response.headers["Access-Control-Allow-Credentials"] = "true"
 
 
 def websockets_store(app):

@@ -22,6 +22,8 @@ extension in the same time.
   `Access-Control-Allow-Methods` header; if `None` the header will not be set
 - **headers** (`list` of `str`; default: `None`): value of the
   `Access-Control-Allow-Headers` header; if `None` the header will not be set
+- **credentials** (default: `False`): if `True`, `Access-Control-Allow-Credentials`
+  header will be set to `true`
 
 
 ## logger
