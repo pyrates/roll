@@ -141,10 +141,7 @@ You can add cookies to response using the `response.cookies` attribute:
 response.cookies.set(name='name', value='value', path='/foo')
 ```
 
-See the [reference](/reference.md#cookies) for all the available `set` kwargs.
-
-
-See also the [advanced guides](/how-to/advanced.md).
+See the [reference](/reference/core/#cookies) for all the available `set` kwargs.
 
 
 ## How to consume query parameters
@@ -172,9 +169,9 @@ assert myparam == ['bar', 'foo']
 
 If you don't pass a default value, Roll will assume that you are getting a required
 parameter, and so if this parameter is not present in the query,
-a `400` [HttpError](/reference.md#httperror) will be raised.
+a `400` [HttpError](/reference/core/#httperror) will be raised.
 
-The [Query](/reference.md#query) class has three getters to cast the value for
+The [Query](/reference/core/#query) class has three getters to cast the value for
 you: `bool`, `int` and `float`.
 
 ```python3
@@ -183,7 +180,7 @@ myparam = request.query.bool('myparam', False)
 assert myparam is True
 ```
 
-If the parameter value cannot be casted, a `400` [HttpError](/reference.md#httperror)
+If the parameter value cannot be casted, a `400` [HttpError](/reference/core/#httperror)
 will be raised.
 
 See also "[how to subclass roll itself](/how-to/advanced.md#how-to-subclass-roll-itself)"
@@ -237,3 +234,6 @@ class Gherkin(Cucumber):
 Warning: Roll will instanciate the class once per thread (to avoid overhead at each
 request), so their state will be shared between requests, thus make sure not to
 set instance properties on them.
+
+
+See also the [advanced guides](/how-to/advanced.md).
