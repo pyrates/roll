@@ -33,6 +33,7 @@ async def test_custom_cors_origin(client, app):
     resp = await client.get('/test')
     assert resp.headers['Access-Control-Allow-Origin'] == 'mydomain.org'
     assert 'Access-Control-Allow-Methods' not in resp.headers
+    assert 'Access-Control-Allow-Credentials' not in resp.headers
 
 
 async def test_custom_cors_methods(client, app):
@@ -67,6 +68,18 @@ async def test_custom_cors_headers(client, app):
     resp = await client.get('/test')
     assert (resp.headers['Access-Control-Allow-Headers'] ==
             'X-Powered-By,X-Requested-With')
+
+
+async def test_cors_credentials(client, app):
+
+    extensions.cors(app, credentials=True)
+
+    @app.route('/test')
+    async def get(req, resp):
+        resp.body = 'test response'
+
+    resp = await client.get('/test')
+    assert resp.headers['Access-Control-Allow-Credentials'] == "true"
 
 
 async def test_logger(client, app, capsys):
