@@ -98,7 +98,7 @@ class Client:
     # taste if needed.
     content_type = 'application/json; charset=utf-8'
     # Default headers to use eg. for patching Auth in tests.
-    headers = {}
+    default_headers = {}
 
     def __init__(self, app):
         self.app = app
@@ -148,7 +148,7 @@ class Client:
     async def request(self, path, method='GET', body=b'', headers=None,
                       content_type=None):
         headers = headers or {}
-        for key, value in self.headers.items():
+        for key, value in self.default_headers.items():
             headers.setdefault(key, value)
         if content_type:
             headers['Content-Type'] = content_type
