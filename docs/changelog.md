@@ -8,6 +8,11 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.12.3 - 2020-07-21
+
+- Added `credentials` parameter to `cors` extension, to deal with `Access-Control-Allow-Credentials` header
+  ([#155](https://github.com/pyrates/roll/pull/155))
+
 ## 0.12.2 - 2020-06-22
 
 - Fixed URL quoting in testing utility ([#149](https://github.com/pyrates/roll/pull/149), [#150](https://github.com/pyrates/roll/pull/150))
