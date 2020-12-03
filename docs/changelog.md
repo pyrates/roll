@@ -8,6 +8,10 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## 0.12.4 - 2020-12-03
+
+- Python 3.9 support
+
 ## 0.12.3 - 2020-07-21
 
 - Added `credentials` parameter to `cors` extension, to deal with `Access-Control-Allow-Credentials` header
