@@ -2,7 +2,7 @@ aiohttp==3.6.2
 falcon==2.0.0
 gunicorn==20.0.4
 httpie==2.2.0
-sanic==20.3.0
+sanic==20.12.1
 starlette==0.13.4
 trinket==0.1.5
 ujson==2.0.3
