@@ -7,4 +7,4 @@ starlette==0.13.4
 trinket==0.1.5
 ujson==2.0.3
 uvicorn==0.11.7
-uvloop==0.14.0
+uvloop==0.15.0
