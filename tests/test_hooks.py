@@ -69,9 +69,9 @@ async def test_third_parties_can_call_hook_their_way(client, app):
     assert await app.hook('custom', 'arg') == 'arg'
 
 
-async def test_request_hook_is_called_even_if_path_is_not_found(client, app):
+async def test_headers_hook_is_called_even_if_path_is_not_found(client, app):
 
-    @app.listen('request')
+    @app.listen('headers')
     async def listener(request, response):
         if not request.route.payload:
             response.status = 400
@@ -81,6 +81,54 @@ async def test_request_hook_is_called_even_if_path_is_not_found(client, app):
     resp = await client.get('/not-found')
     assert resp.status == HTTPStatus.BAD_REQUEST
     assert resp.body == b'Really this is a bad request'
+
+
+async def test_headers_hook_cannot_consume_request_body(client, app):
+
+    @app.listen('headers')
+    async def listener(request, response):
+        if not request.route.payload:
+            try:
+                request.body
+            except HttpError:
+                response.status = 200
+                response.body = b'raised as expected'
+                return True  # Shortcuts the response process.
+
+    resp = await client.get('/not-found')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'raised as expected'
+
+
+async def test_headers_hook_can_consume_request_body_explicitly(client, app):
+
+    @app.listen('headers')
+    async def listener(request, response):
+        response.status = 200
+        await request.load_body()
+        response.body = request.body
+        return True  # Shortcuts the response process.
+
+    resp = await client.post('/test', "blah")
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'
+
+
+async def test_request_hook_can_consume_request_body(client, app):
+
+    @app.route('/test', methods=["POST"])
+    async def get(req, resp):
+        pass
+
+    @app.listen('request')
+    async def listener(request, response):
+        response.status = 200
+        response.body = request.body
+        return True  # Shortcuts the response process.
+
+    resp = await client.post('/test', "blah")
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'
 
 
 async def test_can_retrieve_original_error_on_error_hook(client, app):

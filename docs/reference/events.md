@@ -12,15 +12,27 @@ Fired once when launching the server.
 Fired once when shutting down the server.
 
 
-## request
+## headers
 
-Fired at each request before any dispatching/route matching.
+Fired at each request after request headers have been read, but before consuming
+the body.
 
 Receives `request` and `response` parameters.
 
 Returning `True` allows to shortcut everything and return the current
 response object directly, see the [options extension](#extensions) for
 an example.
+
+
+## request
+
+Fired at each request after route matching, HTTP verb check and after body has
+been eventually consumed.
+
+Receives `request` and `response` parameters.
+
+Returning `True` allows to shortcut everything and return the current
+response object directly.
 
 
 ## response
