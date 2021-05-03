@@ -7,32 +7,12 @@ updates:
     time: "11:00"
   open-pull-requests-limit: 10
   ignore:
-  - dependency-name: sanic
-    versions:
-    - 20.12.1
-    - 20.12.2
-    - 21.3.1
-    - 21.3.2
-  - dependency-name: aiofile
-    versions:
-    - 3.3.3
-    - 3.4.0
-  - dependency-name: uvloop
-    versions:
-    - 0.15.0
-    - 0.15.1
-  - dependency-name: pytest
-    versions:
-    - 6.2.2
-  - dependency-name: uvicorn
-    versions:
-    - 0.13.3
   - dependency-name: aiohttp
-    versions:
-    - 3.7.3
-  - dependency-name: starlette
-    versions:
-    - 0.14.1
+  - dependency-name: falcon
+  - dependency-name: gunicorn
   - dependency-name: httpie
-    versions:
-    - 2.3.0
+  - dependency-name: sanic
+  - dependency-name: starlette
+  - dependency-name: trinket
+  - dependency-name: uvicorn
+  - dependency-name: uvloop
