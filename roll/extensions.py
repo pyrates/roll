@@ -65,7 +65,7 @@ def logger(app, level=logging.DEBUG, handler=None):
 
 def options(app):
 
-    @app.listen('request')
+    @app.listen('headers')
     async def handle_options(request, response):
         # Shortcut the request handling for OPTIONS requests.
         return request.method == 'OPTIONS'

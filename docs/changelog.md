@@ -8,6 +8,14 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## dev
+
+- **Breaking change**:
+  - `request` event is now sent *after* the URL matching and the HTTP verb check,
+  please use new `headers` event for those use cases
+- Added new `headers` event, to hook after request headers have been read, but
+  before the request body has been consumed.
+
 ## 0.12.4 - 2020-12-03
 
 - Python 3.9 support
