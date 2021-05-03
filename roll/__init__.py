@@ -68,7 +68,7 @@ class Roll(dict):
             if not await self.hook("headers", request, response):
                 if not payload:
                     raise HttpError(HTTPStatus.NOT_FOUND, request.path)
-                    # Uppercased in order to only consider HTTP verbs.
+                # Uppercased in order to only consider HTTP verbs.
                 if request.method.upper() not in payload:
                     raise HttpError(HTTPStatus.METHOD_NOT_ALLOWED)
                 if not payload.get("lazy_body"):
