@@ -12,7 +12,7 @@ A changelog:
 
 - **Breaking change**:
   - `request` event is now sent *after* the URL matching and the HTTP verb check,
-  please use new `headers` event for those use cases
+  please use the new `headers` event for these use cases.
 - Added new `headers` event, to hook after request headers have been read, but
   before the request body has been consumed.
 
