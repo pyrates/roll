@@ -87,6 +87,11 @@ especially useful for extensions.
 In case of errors during the parsing of `form`, `files` or `json`,
 an [HttpError](#httperror) is raised with a `400` (Bad request) status code.
 
+### Methods
+
+- **load_body**: consume request body and load it in memory
+- **read** -> `bytes`: call `load_body` and return the loaded body
+
 ### Custom properties
 
 While `Request` cannot accept arbitrary attributes, it's a `dict` like object,

@@ -181,6 +181,10 @@ class Request(dict):
             async for chunk in self:
                 self._body += chunk
 
+    async def read(self):
+        await self.load_body()
+        return self._body
+
     async def __aiter__(self):
         # TODO raise if already consumed?
         while True:

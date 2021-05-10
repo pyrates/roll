@@ -105,8 +105,7 @@ async def test_headers_hook_can_consume_request_body_explicitly(client, app):
     @app.listen('headers')
     async def listener(request, response):
         response.status = 200
-        await request.load_body()
-        response.body = request.body
+        response.body = await request.read()
         return True  # Shortcuts the response process.
 
     resp = await client.post('/test', "blah")
