@@ -8,6 +8,15 @@ A changelog:
 
 *Analogy: git blame :p*
 
+## dev
+
+- **Breaking change**:
+  - `request` event is now sent *after* the URL matching and the HTTP verb check,
+  please use the new `headers` event for these use cases.
+- Added new `headers` event, to hook after request headers have been read, but
+  before the request body has been consumed. ([#227](https://github.com/pyrates/roll/pull/227))
+- Added method `Request.read()` to load and consume request body in one call
+
 ## 0.12.4 - 2020-12-03
 
 - Python 3.9 support

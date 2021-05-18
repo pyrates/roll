@@ -631,6 +631,17 @@ async def test_can_consume_lazy_request_iterating(client, app):
     assert resp.body == b'blah'*1000
 
 
+async def test_can_consume_body_with_read(client, app):
+
+    @app.route('/test', methods=['POST'], lazy_body=True)
+    async def post(req, resp):
+        resp.body = await req.read()
+
+    resp = await client.post('/test', data='blah')
+    assert resp.status == HTTPStatus.OK
+    assert resp.body == b'blah'
+
+
 async def test_can_pause_reading(liveclient, app):
 
     @app.route('/test', methods=['POST'], lazy_body=True)
