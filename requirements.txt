@@ -1,5 +1,5 @@
 autoroutes==0.3.5
 biscuits==0.3.0
-httptools==0.2.0
+httptools==0.3.0
 multifruits==0.1.5
 websockets==8.1
