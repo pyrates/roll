@@ -1,4 +1,4 @@
-aiofile==2.0.4
+aiofile==3.7.3
 mimetype-match==1.0.4
 mkdocs==1.2.3
 pytest==6.2.5
