@@ -125,7 +125,7 @@ if __name__ == '__main__':
 Now if we post our username/password information using HTTPie:
 
 ```
-$ http --form POST :3579/hello/form username=David password=123456
+$ http --form POST :3579/login username=David password=123456
 HTTP/1.1 200 OK
 Content-Length: 37
 
