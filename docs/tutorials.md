@@ -94,6 +94,8 @@ you gave during the previous part of the tutorial.
 
 Once it’s done, you can launch `py.test tests.py`.
 
+According to [pytest-asyncio documentation](https://github.com/pytest-dev/pytest-asyncio#modes), if `pip` has installed `pytest-asyncio >= 0.17` you will have warnings in command line results. You should read the doc to configure `pytest` correctly. To keep this tutorial simple and to avoid warnings, you can launch `py.test tests.py --asyncio-mode=auto`.
+
 *Note: in case the `client` fixture is not found, you probably did not
 [install `Roll`](how-to/basic.md#how-to-install-roll) correctly.*
 
@@ -123,7 +125,7 @@ if __name__ == '__main__':
 Now if we post our username/password information using HTTPie:
 
 ```
-$ http --form POST :3579/hello/form username=David password=123456
+$ http --form POST :3579/login username=David password=123456
 HTTP/1.1 200 OK
 Content-Length: 37
 
