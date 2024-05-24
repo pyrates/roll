@@ -57,7 +57,7 @@ class Worker(Worker):
                 if pid == os.getpid() and self.ppid != os.getppid():
                     self.log.info('Parent changed, shutting down: %s', self)
                     break
-                await asyncio.sleep(1.0, loop=self.loop)
+                await asyncio.sleep(1.0)
 
         except Exception as e:
             print(e)
