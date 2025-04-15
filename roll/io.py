@@ -11,6 +11,7 @@ try:
     # In case you use json heavily, we recommend installing
     # https://pypi.python.org/pypi/ujson for better performances.
     import ujson as json
+
     JSONDecodeError = ValueError
 except ImportError:
     import json as json
@@ -18,7 +19,6 @@ except ImportError:
 
 
 class StreamQueue:
-
     def __init__(self):
         self.items = deque()
         self.event = Event()
@@ -31,7 +31,7 @@ class StreamQueue:
             return self.items.popleft()
         except IndexError:
             if self.finished is True:
-                return b''
+                return b""
             else:
                 self.event.clear()
                 self.waiting = True
@@ -64,10 +64,25 @@ class Request(dict):
 
     The default parsing is made by `httptools.HttpRequestParser`.
     """
+
     __slots__ = (
-        'app', 'url', 'path', 'query_string', '_query', '_body',
-        'method', '_chunk', 'headers', 'route', '_cookies', '_form', '_files',
-        'upgrade', 'protocol', 'queue', '_json'
+        "app",
+        "url",
+        "path",
+        "query_string",
+        "_query",
+        "_body",
+        "method",
+        "_chunk",
+        "headers",
+        "route",
+        "_cookies",
+        "_form",
+        "_files",
+        "upgrade",
+        "protocol",
+        "queue",
+        "_json",
     )
 
     def __init__(self, app, protocol):
@@ -76,7 +91,7 @@ class Request(dict):
         self.queue = StreamQueue()
         self.headers = {}
         self._body = None
-        self._chunk = b''
+        self._chunk = b""
         self.method = None
         self.upgrade = None
         self._cookies = None
@@ -88,7 +103,7 @@ class Request(dict):
     @property
     def cookies(self):
         if self._cookies is None:
-            self._cookies = parse(self.headers.get('COOKIE', ''))
+            self._cookies = parse(self.headers.get("COOKIE", ""))
         return self._cookies
 
     @property
@@ -104,24 +119,23 @@ class Request(dict):
         try:
             parser.feed_data(self.body)
         except ValueError:
-            raise HttpError(HTTPStatus.BAD_REQUEST,
-                            'Unparsable multipart body')
+            raise HttpError(HTTPStatus.BAD_REQUEST, "Unparsable multipart body")
 
     def _parse_urlencoded(self):
         try:
-            parsed_qs = parse_qs(self.body.decode(), keep_blank_values=True,
-                                 strict_parsing=True)
+            parsed_qs = parse_qs(
+                self.body.decode(), keep_blank_values=True, strict_parsing=True
+            )
         except ValueError:
-            raise HttpError(HTTPStatus.BAD_REQUEST,
-                            'Unparsable urlencoded body')
+            raise HttpError(HTTPStatus.BAD_REQUEST, "Unparsable urlencoded body")
         self._form = self.app.Form(parsed_qs)
 
     @property
     def form(self):
         if self._form is None:
-            if 'multipart/form-data' in self.content_type:
+            if "multipart/form-data" in self.content_type:
                 self._parse_multipart()
-            elif 'application/x-www-form-urlencoded' in self.content_type:
+            elif "application/x-www-form-urlencoded" in self.content_type:
                 self._parse_urlencoded()
             else:
                 self._form = self.app.Form()
@@ -130,7 +144,7 @@ class Request(dict):
     @property
     def files(self):
         if self._files is None:
-            if 'multipart/form-data' in self.content_type:
+            if "multipart/form-data" in self.content_type:
                 self._parse_multipart()
             else:
                 self._files = self.app.Files()
@@ -142,33 +156,34 @@ class Request(dict):
             try:
                 self._json = json.loads(self.body)
             except (UnicodeDecodeError, JSONDecodeError):
-                raise HttpError(HTTPStatus.BAD_REQUEST, 'Unparsable JSON body')
+                raise HttpError(HTTPStatus.BAD_REQUEST, "Unparsable JSON body")
         return self._json
 
     @property
     def content_type(self):
-        return self.headers.get('CONTENT-TYPE', '')
+        return self.headers.get("CONTENT-TYPE", "")
 
     @property
     def host(self):
-        return self.headers.get('HOST', '')
+        return self.headers.get("HOST", "")
 
     @property
     def referrer(self):
         # https://en.wikipedia.org/wiki/HTTP_referer#Etymology
-        return self.headers.get('REFERER', '')
+        return self.headers.get("REFERER", "")
 
     referer = referrer
 
     @property
     def origin(self):
-        return self.headers.get('ORIGIN', '')
+        return self.headers.get("ORIGIN", "")
 
     @property
     def body(self):
         if self._body is None:
-            raise HttpError(HTTPStatus.INTERNAL_SERVER_ERROR,
-                            "Trying to consume lazy body")
+            raise HttpError(
+                HTTPStatus.INTERNAL_SERVER_ERROR, "Trying to consume lazy body"
+            )
         return self._body
 
     @body.setter
@@ -177,7 +192,7 @@ class Request(dict):
 
     async def load_body(self):
         if self._body is None:
-            self._body = b''
+            self._body = b""
             async for chunk in self:
                 self._body += chunk
 
@@ -198,12 +213,13 @@ class Request(dict):
 
 class Response:
     """A container for `status`, `headers` and `body`."""
-    __slots__ = ('app', '_status', 'headers', 'body', '_cookies', 'protocol')
+
+    __slots__ = ("app", "_status", "headers", "body", "_cookies", "protocol")
 
     def __init__(self, app, protocol):
         self.app = app
         self.protocol = protocol
-        self.body = b''
+        self.body = b""
         self.status = HTTPStatus.OK
         self.headers = {}
         self._cookies = None
@@ -219,7 +235,7 @@ class Response:
 
     def json(self, value: dict):
         # Shortcut from a dict to JSON with proper content type.
-        self.headers['Content-Type'] = 'application/json; charset=utf-8'
+        self.headers["Content-Type"] = "application/json; charset=utf-8"
         self.body = json.dumps(value)
 
     json = property(None, json)

@@ -114,7 +114,6 @@ class Roll(dict):
     def route(
         self, path: str, methods: list = None, protocol: str = "http", **extras: dict
     ):
-
         protocol_class = self._get_protocol_class(protocol)
         # Computed at load time for perf.
         extras["protocol"] = protocol

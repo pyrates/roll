@@ -5,11 +5,10 @@ from typing import TypeVar
 from urllib.parse import unquote
 
 from biscuits import Cookie
-from httptools import (HttpParserError, HttpParserUpgrade, HttpRequestParser,
-                       parse_url)
+from httptools import HttpParserError, HttpParserUpgrade, HttpRequestParser, parse_url
 from multifruits import Parser, extract_filename, parse_content_disposition
 
-HttpCode = TypeVar('HttpCode', HTTPStatus, int)
+HttpCode = TypeVar("HttpCode", HTTPStatus, int)
 
 
 # Prevent creating new HTTPStatus instances when
@@ -28,9 +27,11 @@ class HttpError(Exception):
         direcly return a 400 HTTP status code with descriptive content.
     """
 
-    __slots__ = ('status', 'message')
+    __slots__ = ("status", "message")
 
-    def __init__(self, http_code: HttpCode, message: str=None, context: Exception=None):
+    def __init__(
+        self, http_code: HttpCode, message: str = None, context: Exception = None
+    ):
         # Idempotent if `http_code` is already an `HTTPStatus` instance.
         self.status = HTTPStatus(http_code)
         if context:
@@ -67,9 +68,9 @@ class Query(Multidict):
         `request.query.int('weight', 0)` will return an integer or zero.
     """
 
-    TRUE_STRINGS = ('t', 'true', 'yes', '1', 'on')
-    FALSE_STRINGS = ('f', 'false', 'no', '0', 'off')
-    NONE_STRINGS = ('n', 'none', 'null')
+    TRUE_STRINGS = ("t", "true", "yes", "1", "on")
+    FALSE_STRINGS = ("f", "false", "no", "0", "off")
+    NONE_STRINGS = ("n", "none", "null")
 
     def bool(self, key: str, default=...):
         value = self.get(key, default)
@@ -83,22 +84,24 @@ class Query(Multidict):
         elif value in self.NONE_STRINGS:
             return None
         raise HttpError(
-            HTTPStatus.BAD_REQUEST,
-            f"Wrong boolean value for '{key}={value}'")
+            HTTPStatus.BAD_REQUEST, f"Wrong boolean value for '{key}={value}'"
+        )
 
     def int(self, key: str, default=...):
         try:
             return int(self.get(key, default))
         except ValueError:
-            raise HttpError(HTTPStatus.BAD_REQUEST,
-                            f"Key '{key}' must be castable to int")
+            raise HttpError(
+                HTTPStatus.BAD_REQUEST, f"Key '{key}' must be castable to int"
+            )
 
     def float(self, key: str, default=...):
         try:
             return float(self.get(key, default))
         except ValueError:
-            raise HttpError(HTTPStatus.BAD_REQUEST,
-                            f"Key '{key}' must be castable to float")
+            raise HttpError(
+                HTTPStatus.BAD_REQUEST, f"Key '{key}' must be castable to float"
+            )
 
 
 class Form(Query):
@@ -112,8 +115,15 @@ class Files(Multidict):
 class Multipart:
     """Responsible of the parsing of multipart encoded `request.body`."""
 
-    __slots__ = ('app', 'form', 'files', '_parser', '_current',
-                 '_current_headers', '_current_params')
+    __slots__ = (
+        "app",
+        "form",
+        "files",
+        "_parser",
+        "_current",
+        "_current_headers",
+        "_current_params",
+    )
 
     def __init__(self, app):
         self.app = app
@@ -135,27 +145,28 @@ class Multipart:
 
     def on_headers_complete(self):
         disposition_type, params = parse_content_disposition(
-            self._current_headers.get(b'Content-Disposition'))
+            self._current_headers.get(b"Content-Disposition")
+        )
         if not disposition_type:
             return
         self._current_params = params
-        if b'Content-Type' in self._current_headers:
+        if b"Content-Type" in self._current_headers:
             self._current = BytesIO()
             self._current.filename = extract_filename(params)
-            self._current.content_type = self._current_headers[b'Content-Type']
+            self._current.content_type = self._current_headers[b"Content-Type"]
             self._current.params = params
         else:
-            self._current = ''
+            self._current = ""
 
     def on_data(self, data: bytes):
-        if b'Content-Type' in self._current_headers:
+        if b"Content-Type" in self._current_headers:
             self._current.write(data)
         else:
             self._current += data.decode()
 
     def on_part_complete(self):
-        name = self._current_params.get(b'name', b'').decode()
-        if b'Content-Type' in self._current_headers:
+        name = self._current_params.get(b"name", b"").decode()
+        if b"Content-Type" in self._current_headers:
             if name not in self.files:
                 self.files[name] = []
             self._current.seek(0)
@@ -177,12 +188,24 @@ class Cookies(dict):
 class HTTPProtocol(asyncio.Protocol):
     """Responsible of parsing the request and writing the response."""
 
-    __slots__ = ('app', 'request', 'parser', 'response', 'transport', 'task',
-                 'is_chunked', 'draining')
-    _BODYLESS_METHODS = ('HEAD', 'CONNECT')
-    _BODYLESS_STATUSES = (HTTPStatus.CONTINUE, HTTPStatus.SWITCHING_PROTOCOLS,
-                          HTTPStatus.PROCESSING, HTTPStatus.NO_CONTENT,
-                          HTTPStatus.NOT_MODIFIED)
+    __slots__ = (
+        "app",
+        "request",
+        "parser",
+        "response",
+        "transport",
+        "task",
+        "is_chunked",
+        "draining",
+    )
+    _BODYLESS_METHODS = ("HEAD", "CONNECT")
+    _BODYLESS_STATUSES = (
+        HTTPStatus.CONTINUE,
+        HTTPStatus.SWITCHING_PROTOCOLS,
+        HTTPStatus.PROCESSING,
+        HTTPStatus.NO_CONTENT,
+        HTTPStatus.NOT_MODIFIED,
+    )
     RequestParser = HttpRequestParser
     NEEDS_UPGRADE = False
     ALLOWED_METHODS = None  # Means all.
@@ -215,17 +238,18 @@ class HTTPProtocol(asyncio.Protocol):
                 self.response.body = error.message
             else:
                 self.response.status = HTTPStatus.BAD_REQUEST
-                self.response.body = b'Unparsable request:' + str(error.__context__).encode()
+                self.response.body = (
+                    b"Unparsable request:" + str(error.__context__).encode()
+                )
             self.task = self.app.loop.create_task(self.write())
 
     async def upgraded(self):
-        handler_protocol = self.request.route.payload.get('protocol', 'http')
+        handler_protocol = self.request.route.payload.get("protocol", "http")
 
         if self.request.upgrade != handler_protocol:
-            raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
-                            'Request cannot be upgraded.')
+            raise HttpError(HTTPStatus.NOT_IMPLEMENTED, "Request cannot be upgraded.")
 
-        protocol_class = self.request.route.payload['_protocol_class']
+        protocol_class = self.request.route.payload["_protocol_class"]
         new_protocol = protocol_class(self.request)
         new_protocol.handshake(self.response)
         self.response.status = HTTPStatus.SWITCHING_PROTOCOLS
@@ -254,7 +278,7 @@ class HTTPProtocol(asyncio.Protocol):
         self.request.url = url
         parsed = parse_url(url)
         self.request.path = unquote(parsed.path.decode())
-        self.request.query_string = (parsed.query or b'').decode()
+        self.request.query_string = (parsed.query or b"").decode()
         self.app.lookup(self.request)
 
     def on_message_begin(self):
@@ -267,17 +291,17 @@ class HTTPProtocol(asyncio.Protocol):
     def on_headers_complete(self):
         if self.parser.should_upgrade():
             # An upgrade has been requested
-            self.request.upgrade = self.request.headers['UPGRADE'].lower()
-            handler_protocol = self.request.route.payload.get(
-                'protocol', 'http')
+            self.request.upgrade = self.request.headers["UPGRADE"].lower()
+            handler_protocol = self.request.route.payload.get("protocol", "http")
             if self.request.upgrade != handler_protocol:
-                raise HttpError(HTTPStatus.NOT_IMPLEMENTED,
-                                'Request cannot be upgraded.')
+                raise HttpError(
+                    HTTPStatus.NOT_IMPLEMENTED, "Request cannot be upgraded."
+                )
             self.task = self.app.loop.create_task(self.upgraded())
         else:
             # No upgrade was requested
             payload = self.request.route.payload
-            if payload and payload['_protocol_class'].NEEDS_UPGRADE:
+            if payload and payload["_protocol_class"].NEEDS_UPGRADE:
                 # The handler need and upgrade: we need to complain.
                 raise HttpError(HTTPStatus.UPGRADE_REQUIRED)
             # No upgrade was required and the handler didn't need any.
@@ -294,41 +318,42 @@ class HTTPProtocol(asyncio.Protocol):
                 # Writing the chunk.
                 if not isinstance(data, bytes):
                     data = str(data).encode()
-                self.transport.write(
-                    b"%x\r\n%b\r\n" % (len(data), data))
-            self.transport.write(b'0\r\n\r\n')
+                self.transport.write(b"%x\r\n%b\r\n" % (len(data), data))
+            self.transport.write(b"0\r\n\r\n")
         else:
             self.transport.write(self.response.body)
 
     # May or may not have "future" as arg.
     async def write(self, *args):
         # Appends bytes for performances.
-        payload = b'HTTP/1.1 %a %b\r\n' % (
-            self.response.status.value, self.response.status.phrase.encode())
+        payload = b"HTTP/1.1 %a %b\r\n" % (
+            self.response.status.value,
+            self.response.status.phrase.encode(),
+        )
 
         # https://tools.ietf.org/html/rfc7230#section-3.3.2 :scream:
-        bodyless = (self.response.status in self._BODYLESS_STATUSES or
-                    (hasattr(self, 'request') and
-                     self.request.method in self._BODYLESS_METHODS))
+        bodyless = self.response.status in self._BODYLESS_STATUSES or (
+            hasattr(self, "request") and self.request.method in self._BODYLESS_METHODS
+        )
 
         if not bodyless:
             self.is_chunked = hasattr(self.response.body, "__aiter__")
             if self.is_chunked:
-                self.response.headers.setdefault('Transfer-Encoding', 'chunked')
+                self.response.headers.setdefault("Transfer-Encoding", "chunked")
             else:
                 if not isinstance(self.response.body, bytes):
                     self.response.body = str(self.response.body).encode()
-                if 'Content-Length' not in self.response.headers:
+                if "Content-Length" not in self.response.headers:
                     length = len(self.response.body)
-                    self.response.headers['Content-Length'] = length
+                    self.response.headers["Content-Length"] = length
 
         if self.response._cookies:
             # https://tools.ietf.org/html/rfc7230#page-23
             for cookie in self.response.cookies.values():
-                payload += b'Set-Cookie: %b\r\n' % str(cookie).encode()
+                payload += b"Set-Cookie: %b\r\n" % str(cookie).encode()
         for key, value in self.response.headers.items():
-            payload += b'%b: %b\r\n' % (key.encode(), str(value).encode())
-        payload += b'\r\n'
+            payload += b"%b: %b\r\n" % (key.encode(), str(value).encode())
+        payload += b"\r\n"
         if self.transport.is_closing():
             # Request has been aborted, thus socket as been closed, thus
             # transport has been closed?
