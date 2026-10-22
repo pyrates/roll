@@ -17,10 +17,7 @@ from gunicorn.workers.base import Worker
 class Worker(Worker):
     def init_process(self):
         self.server = None
-        asyncio.get_event_loop().close()
-        if uvloop:
-            uvloop.install()
-        self.loop = asyncio.new_event_loop()
+        self.loop = uvloop.new_event_loop() if uvloop else asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         super().init_process()
 
