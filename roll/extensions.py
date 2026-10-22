@@ -107,12 +107,14 @@ def igniter(app):
 
 
 def simple_server(app, port=3579, host="127.0.0.1", quiet=False):
-    app.loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    app.loop = loop
     app.loop.run_until_complete(app.startup())
     if not quiet:
         print(f"Rolling on http://{host}:{port}")
-    server = app.loop.create_server(app.factory, host, port)
-    app.loop.create_task(server)
+    server = app.loop.run_until_complete(
+        app.loop.create_server(app.factory, host, port))
     try:
         app.loop.run_forever()
     except KeyboardInterrupt:

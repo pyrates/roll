@@ -75,7 +75,11 @@ async def test_websocket_failure_intime(liveclient):
     # Sent within the closing frame span messages will be ignored but
     # won't create any error as the server is polite and awaits the
     # closing frame to ends the interaction in a friendly manner.
-    await websocket.send('first')
+    try:
+        await websocket.send('first')
+    except websockets.exceptions.ConnectionClosedError as e:
+        # The new version of websockets raises an exception immediately
+        pass
 
     # The server is on hold, waiting for the closing handshake
     # We provide it to be civilized.

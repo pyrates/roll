@@ -3,10 +3,7 @@ import uvloop
 import asyncio
 from pathlib import Path
 from roll import Roll
-from roll.extensions import static, simple_server
-
-
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+from roll.extensions import static, simple_server, websockets_store
 
 
 app = Roll()
@@ -15,6 +12,9 @@ app = Roll()
 # Access : http://127.0.0.1:3579/static/websocket.html
 htmlfiles = Path(__file__).parent.joinpath('html')
 static(app, root=htmlfiles)
+
+# Enable websocket broadcasting
+websockets_store(app)
 
 
 @app.route('/chat', protocol="websocket")
@@ -29,4 +29,5 @@ async def broadcast(request, ws, **params):
 
 if __name__ == '__main__':
     print('Example access : http://127.0.0.1:3579/static/websocket.html')
-    simple_server(app)
+    import asyncio
+    asyncio.run(simple_server(app))

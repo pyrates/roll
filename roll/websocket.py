@@ -1,10 +1,12 @@
 import asyncio
 
-import websockets
-from websockets import ConnectionClosed  # exposed for convenience
+from websockets.legacy import handshake
+from websockets.legacy.http import Headers
+from websockets.legacy.protocol import WebSocketCommonProtocol
+from websockets.exceptions import ConnectionClosed  # exposed for convenience
 
 
-class WSProtocol(websockets.WebSocketCommonProtocol):
+class WSProtocol(WebSocketCommonProtocol):
     NEEDS_UPGRADE = True
     ALLOWED_METHODS = {"GET"}
     TIMEOUT = 5
@@ -29,10 +31,10 @@ class WSProtocol(websockets.WebSocketCommonProtocol):
     def handshake(self, response):
         """Websocket handshake, handled by `websockets`"""
         try:
-            headers = websockets.http.Headers(**self.request.headers)
-            key = websockets.handshake.check_request(headers)
-            websockets.handshake.build_response(response.headers, key)
-        except websockets.InvalidHandshake:
+            headers = Headers(**self.request.headers)
+            key = handshake.check_request(headers)
+            handshake.build_response(response.headers, key)
+        except handshake.InvalidHandshake:
             raise RuntimeError("Invalid websocket request")
 
         subprotocol = None

@@ -66,9 +66,11 @@ async def test_websocket_broadcasting(app, liveclient):
     async def feed(request, ws, **params):
         while True:
             message = await ws.recv()
-            await asyncio.wait([
+            tasks = [
                 socket.send(message) for socket
-                in request.app['websockets'] if socket != ws])
+                in request.app['websockets'] if socket != ws]
+            if tasks:
+                await asyncio.gather(*tasks)
 
     # connecting
     connected = []
@@ -100,7 +102,7 @@ async def test_websocket_binary(liveclient):
     # Echo
     websocket = await websockets.connect(liveclient.wsl + '/bin')
     bdata = await websocket.recv()
-    await websocket.close_connection_task
+    await websocket.close()
     assert bdata == b'test'
     assert websocket.close_reason == ''
     assert websocket.state == websockets.protocol.State.CLOSED

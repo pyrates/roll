@@ -17,8 +17,10 @@ from autoroutes import Routes
 
 from .http import Cookies, Files, Form, HttpError, HTTPProtocol, Query
 from .io import Request, Response
-from .websocket import ConnectionClosed  # noqa. Exposed for convenience.
-from .websocket import WSProtocol
+from .websocket import (
+    ConnectionClosed,  # noqa. Exposed for convenience.
+    WSProtocol,
+)
 
 Route = namedtuple("Route", ["payload", "vars"])
 HTTP_METHODS = [
