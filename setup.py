@@ -40,7 +40,7 @@ else:
     ]
     cmdclass = {"build_ext": build_ext}
 
-VERSION = (0, 13, 3)
+VERSION = (0, 13, 4)
 
 __author__ = "Pyrates"
 __contact__ = "yohanboniface@free.fr"
@@ -70,11 +70,6 @@ setup(
         "Intended Audience :: Developers",
         "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
     ],
     keywords="async asyncio http server",
     packages=find_packages(exclude=["tests", "examples"]),
